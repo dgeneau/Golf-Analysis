@@ -138,6 +138,15 @@
   .lastshot { font-size: 13px; color: var(--ink-2); margin-top: 10px; }
   .lastshot b { color: var(--ink); }
 
+  .toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+    border-radius: 999px; padding: 10px 18px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18);
+  }
+  .toast::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
   .tile .lbl { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -255,12 +264,21 @@
     <button id="csvBtn" class="btn secondary" hidden>Download session CSV</button>
   </div>
 
-  <div class="filters" id="authRow" hidden>
-    <label class="flabel" for="authEmail">Email</label>
-    <input id="authEmail" type="email" placeholder="you@example.com" style="width:220px">
-    <button class="btn" id="sendLinkBtn">Email me a sign-in link</button>
-    <span class="fnote" id="authNote"></span>
+  <div class="card" id="authCard" hidden style="margin-bottom:14px">
+    <h2>Save your sessions</h2>
+    <p class="note">Sign in and every swing syncs to your private history — tempo, speed, and
+      consistency trends across sessions on the <b>Progress</b> tab. Data queues on this device
+      and uploads when you have signal, so it never interrupts a session.</p>
+    <div class="filters" style="margin:0">
+      <label class="flabel" for="authEmail">Email</label>
+      <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" style="width:220px">
+      <button class="btn" id="sendLinkBtn">Email me a sign-in link</button>
+      <button class="btn secondary" id="skipAuthBtn">Skip for now</button>
+    </div>
+    <p class="fnote" id="authNote" style="margin:8px 0 0"></p>
   </div>
+
+  <div class="toast" id="toast" hidden role="status"></div>
 
   <div class="empty" id="empty" hidden>
     <div class="big" id="emptyBig">Listening for swings</div>
@@ -850,33 +868,75 @@ async function initCloud(){
   } catch (e) { return; }
   const {data} = await sb.auth.getSession();
   sbUser = (data && data.session && data.session.user) || null;
-  sb.auth.onAuthStateChange((_e, s) => {
+  sb.auth.onAuthStateChange((event, s) => {
+    const wasSignedIn = !!sbUser;
     sbUser = (s && s.user) || null;
+    if (sbUser && !wasSignedIn && (event === "SIGNED_IN" || event === "INITIAL_SESSION")){
+      if (event === "SIGNED_IN") toast(`Signed in as ${sbUser.email || "your account"}`);
+      // remove the auth tokens from the address bar after the magic link lands
+      if (location.hash.includes("access_token"))
+        history.replaceState(null, "", location.pathname + location.search);
+    }
     renderAuth(); flushQueue();
+    if (uiMode === "progress") loadProgress();
   });
+  // Belt-and-braces for the magic-link redirect: URL token processing can
+  // finish after our first getSession — re-check once.
+  setTimeout(async () => {
+    try {
+      const {data: d2} = await sb.auth.getSession();
+      const u = (d2 && d2.session && d2.session.user) || null;
+      if (!!u !== !!sbUser){
+        if (u) toast(`Signed in as ${u.email || "your account"}`);
+        sbUser = u;
+        renderAuth(); flushQueue();
+      }
+    } catch (e) {}
+  }, 1500);
   renderAuth();
   flushQueue();
   addEventListener("online", flushQueue);
   setInterval(flushQueue, 30000);
 }
 
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, 6000);
+}
+
+let authSkipped = false;
+try { authSkipped = sessionStorage.getItem("sc-skip-auth") === "1"; } catch (e) {}
+
 function renderAuth(){
   const area = document.getElementById("authArea");
   if (!area) return;
+  const card = document.getElementById("authCard");
   area.hidden = !sb;
   document.getElementById("modeProgress").hidden = !sb;
-  if (!sb) return;
+  if (!sb){ card.hidden = true; return; }
   const signedIn = !!sbUser;
   document.getElementById("signInBtn").hidden = signedIn;
-  document.getElementById("authRow").hidden = true;
   document.getElementById("whoami").hidden = !signedIn;
   if (signedIn)
     document.getElementById("whoamiEmail").textContent = sbUser.email || "signed in";
+  // The sign-in card fronts the range view until signed in or skipped;
+  // Progress has its own gate and Round mode stays uncluttered.
+  card.hidden = signedIn || authSkipped || uiMode !== "range";
 }
 function initAuthControls(){
   document.getElementById("signInBtn").addEventListener("click", () => {
-    document.getElementById("authRow").hidden = false;
+    authSkipped = false;
+    try { sessionStorage.removeItem("sc-skip-auth"); } catch (e) {}
+    renderAuth();
     document.getElementById("authEmail").focus();
+  });
+  document.getElementById("skipAuthBtn").addEventListener("click", () => {
+    authSkipped = true;
+    try { sessionStorage.setItem("sc-skip-auth", "1"); } catch (e) {}
+    renderAuth();
   });
   document.getElementById("sendLinkBtn").addEventListener("click", async () => {
     const email = document.getElementById("authEmail").value.trim();
@@ -886,12 +946,13 @@ function initAuthControls(){
     const {error} = await sb.auth.signInWithOtp({
       email, options: {emailRedirectTo: location.origin + location.pathname}});
     note.textContent = error ? ("Couldn't send: " + error.message)
-      : "Check your email and open the sign-in link on this device.";
+      : `Link sent to ${email} — open it on this device. This page will confirm as soon as you're in.`;
   });
   document.getElementById("signOutBtn").addEventListener("click", async () => {
     try { await sb.auth.signOut(); } catch (e) {}
     sbUser = null; cloudSession = null;
-    if (uiMode === "progress") setMode("range"); else renderAuth();
+    toast("Signed out");
+    if (uiMode === "progress") setMode("range"); else { renderAuth(); }
   });
 }
 
@@ -2095,6 +2156,7 @@ function updateBadge(){
 }
 
 function renderAll(){
+  renderAuth();
   const isRound = uiMode === "round";
   document.getElementById("roundWrap").hidden = !isRound;
   document.getElementById("progressWrap").hidden = uiMode !== "progress";
