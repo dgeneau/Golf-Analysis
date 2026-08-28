@@ -58,6 +58,14 @@ After changing `swingcoach/dashboard.html`, rebuild the hosted page with
 pipeline exists twice (Python package, JS in the dashboard) and is kept
 numerically identical — verified to ~1e-13 on simulated swings.
 
+## Accounts & history (optional cloud)
+
+With a free Supabase project configured (see **SETUP-CLOUD.md**), the hosted
+app gains email sign-in, automatic offline-first sync of every swing and
+round, and a **Progress** tab with per-session tempo and club-speed trends.
+Each golfer sees only their own data (Postgres row-level security). Without
+configuration these features stay hidden and the app works as before.
+
 ## Round mode (on-course, hosted app)
 
 On the hosted page (Chrome/Edge — an Android tablet is ideal, since it has

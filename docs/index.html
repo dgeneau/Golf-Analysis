@@ -236,6 +236,7 @@
     <span class="seg" id="modeToggle" hidden role="group" aria-label="Mode">
       <button id="modeRange" aria-pressed="true">Range</button>
       <button id="modeRound" aria-pressed="false">Round</button>
+      <button id="modeProgress" aria-pressed="false" hidden>Progress</button>
     </span>
     <label class="flabel" for="clubSel">Club</label>
     <select id="clubSel"></select>
@@ -245,8 +246,20 @@
     </span>
     <span class="fnote" id="leverNote"></span>
     <span style="flex:1"></span>
+    <span id="authArea" hidden style="display:inline-flex;gap:8px;align-items:center">
+      <button class="btn secondary" id="signInBtn">Sign in</button>
+      <span id="whoami" hidden class="fnote"><span id="whoamiEmail"></span>
+        <button class="btn secondary" id="signOutBtn">Sign out</button></span>
+    </span>
     <button id="connectBtn" class="btn" hidden>Connect sensor</button>
     <button id="csvBtn" class="btn secondary" hidden>Download session CSV</button>
+  </div>
+
+  <div class="filters" id="authRow" hidden>
+    <label class="flabel" for="authEmail">Email</label>
+    <input id="authEmail" type="email" placeholder="you@example.com" style="width:220px">
+    <button class="btn" id="sendLinkBtn">Email me a sign-in link</button>
+    <span class="fnote" id="authNote"></span>
   </div>
 
   <div class="empty" id="empty" hidden>
@@ -391,6 +404,31 @@
         <div class="scroll-x"><table class="all" id="clubDistTable"></table></div>
         <h2 style="margin-top:18px">Holes</h2>
         <div class="scroll-x"><table class="all" id="holeTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="progressWrap" hidden>
+    <div class="card" style="margin-bottom:14px" id="progressGate" hidden>
+      <h2>Progress</h2>
+      <p class="note" id="progressGateMsg"></p>
+    </div>
+    <div id="progressBody" hidden>
+      <div class="grid2">
+        <div class="card">
+          <h2>Tempo by session</h2>
+          <p class="note">Average tempo ratio per synced session — band is the 2.5–3.5 target.</p>
+          <div id="progTempo"></div>
+        </div>
+        <div class="card">
+          <h2 id="progSpeedTitle">Club speed by session</h2>
+          <p class="note" id="progSpeedNote"></p>
+          <div id="progSpeed"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Sessions</h2>
+        <div class="scroll-x"><table class="all" id="progTable"></table></div>
       </div>
     </div>
   </div>
@@ -784,6 +822,158 @@ function swingToJson(rec, leverM){
 }
 /* ================= PIPELINE-END ================= */
 
+/* ---------- Cloud layer (Supabase): auth + offline-first sync ---------- */
+// Fill these two values (from Supabase → Settings → API) and rebuild to
+// enable accounts and history. Empty = cloud features stay hidden.
+// The anon key is a PUBLISHABLE key, safe in client code — row-level
+// security in the database is what protects each golfer's data.
+const CLOUD = {
+  url: "",       // e.g. "https://abcd1234.supabase.co"
+  anonKey: "",
+};
+let sb = null, sbUser = null;
+let cloudSession = null;   // {id, type} — client-generated so offline works
+
+function loadScript(src){
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+async function initCloud(){
+  if (!CLOUD.url || !CLOUD.anonKey) return;
+  try {
+    if (!window.supabase)
+      await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js");
+    sb = window.supabase.createClient(CLOUD.url, CLOUD.anonKey);
+  } catch (e) { return; }
+  const {data} = await sb.auth.getSession();
+  sbUser = (data && data.session && data.session.user) || null;
+  sb.auth.onAuthStateChange((_e, s) => {
+    sbUser = (s && s.user) || null;
+    renderAuth(); flushQueue();
+  });
+  renderAuth();
+  flushQueue();
+  addEventListener("online", flushQueue);
+  setInterval(flushQueue, 30000);
+}
+
+function renderAuth(){
+  const area = document.getElementById("authArea");
+  if (!area) return;
+  area.hidden = !sb;
+  document.getElementById("modeProgress").hidden = !sb;
+  if (!sb) return;
+  const signedIn = !!sbUser;
+  document.getElementById("signInBtn").hidden = signedIn;
+  document.getElementById("authRow").hidden = true;
+  document.getElementById("whoami").hidden = !signedIn;
+  if (signedIn)
+    document.getElementById("whoamiEmail").textContent = sbUser.email || "signed in";
+}
+function initAuthControls(){
+  document.getElementById("signInBtn").addEventListener("click", () => {
+    document.getElementById("authRow").hidden = false;
+    document.getElementById("authEmail").focus();
+  });
+  document.getElementById("sendLinkBtn").addEventListener("click", async () => {
+    const email = document.getElementById("authEmail").value.trim();
+    const note = document.getElementById("authNote");
+    if (!email){ note.textContent = "Enter your email first."; return; }
+    note.textContent = "Sending…";
+    const {error} = await sb.auth.signInWithOtp({
+      email, options: {emailRedirectTo: location.origin + location.pathname}});
+    note.textContent = error ? ("Couldn't send: " + error.message)
+      : "Check your email and open the sign-in link on this device.";
+  });
+  document.getElementById("signOutBtn").addEventListener("click", async () => {
+    try { await sb.auth.signOut(); } catch (e) {}
+    sbUser = null; cloudSession = null;
+    if (uiMode === "progress") setMode("range"); else renderAuth();
+  });
+}
+
+/* -- offline-first queue: rows pile up locally, flush when online+signed in -- */
+function loadQueue(){
+  try { return JSON.parse(localStorage.getItem("swingcoach-queue")) || []; }
+  catch (e) { return []; }
+}
+function saveQueue(q){
+  try { localStorage.setItem("swingcoach-queue", JSON.stringify(q)); } catch (e) {}
+}
+function enqueue(table, row, conflict){
+  if (!sb) return;                       // cloud not configured
+  const q = loadQueue();
+  q.push({table, row, conflict: conflict || null});
+  saveQueue(q);
+  flushQueue();
+}
+let flushing = false;
+async function flushQueue(){
+  if (flushing || !sb || !sbUser || !navigator.onLine) return;
+  flushing = true;
+  try {
+    // Re-read the queue every iteration: swings keep enqueueing while a
+    // flush is in flight, and a stale snapshot would overwrite them.
+    while (true){
+      const q = loadQueue();
+      if (!q.length) break;
+      const op = q[0];
+      const {error} = op.del
+        ? await sb.from(op.table).delete().match(op.del)
+        : await sb.from(op.table)
+            .upsert(op.row, op.conflict ? {onConflict: op.conflict} : undefined);
+      if (error){
+        // permanent data errors would wedge the queue forever; drop those,
+        // keep transient (network/auth) failures for retry
+        if (!/network|fetch|jwt|auth/i.test(error.message || "")){
+          const q2 = loadQueue(); q2.shift(); saveQueue(q2);
+        }
+        break;
+      }
+      const q2 = loadQueue(); q2.shift(); saveQueue(q2);
+    }
+  } finally { flushing = false; }
+}
+
+function ensureCloudSession(type){
+  if (!sb) return null;
+  if (cloudSession && cloudSession.type === type) return cloudSession;
+  cloudSession = {id: crypto.randomUUID(), type};
+  enqueue("sessions", {id: cloudSession.id, type,
+                       started_at: new Date().toISOString()});
+  return cloudSession;
+}
+function cloudRecordSwing(sw, seq){
+  const cs = ensureCloudSession(uiMode === "round" ? "round" : "range");
+  if (!cs) return;
+  const c = swingClub(sw), m = sw.metrics;
+  enqueue("swings", {
+    session_id: cs.id, seq, ts: new Date().toISOString(),
+    club_id: c.id, club_inches: c.inches,
+    tempo: +m.tempo_ratio.toFixed(3), hand_mph: +m.hand_speed_mph.toFixed(2),
+    club_mph: +clubSpeedMph(sw).toFixed(2), plane_deg: +m.swing_plane_tilt_deg.toFixed(2),
+    release_fraction: +m.release_fraction.toFixed(3),
+    clipped: !!(m.acc_clipped || m.gyro_clipped), metrics: m,
+  }, "session_id,seq");
+}
+function cloudRecordShot(shot){
+  if (!cloudSession || cloudSession.type !== "round") return;
+  enqueue("shots", {
+    session_id: cloudSession.id, seq: shot.n, hole: shot.hole,
+    hit_at: new Date(shot.t).toISOString(),
+    club_id: shot.club.id, club_inches: shot.club.inches,
+    lat: shot.lat, lon: shot.lon, acc_m: shot.acc, dist_m: shot.dist_m,
+    club_mph: shot.club_mph,
+  }, "session_id,seq");
+}
+function cloudRecordPutts(hole, putts){
+  if (!cloudSession || cloudSession.type !== "round") return;
+  enqueue("holes", {session_id: cloudSession.id, hole, putts}, "session_id,hole");
+}
+
 /* ---------- Round mode (on-course shot tracking) ---------- */
 let uiMode = "range";           // "range" | "round"
 let round = null;               // active or finished round object
@@ -870,17 +1060,28 @@ function addShot(sw, swingIndex){
     dist_m: null,
   };
   const prev = round.shots[round.shots.length - 1];
-  if (prev && !round.holeBreakSincePrev && prev.lat != null && shot.lat != null)
+  if (prev && !round.holeBreakSincePrev && prev.lat != null && shot.lat != null){
     prev.dist_m = +haversineM(prev, shot).toFixed(1);
+    cloudRecordShot(prev);   // update its distance in the cloud
+  }
   round.holeBreakSincePrev = false;
   round.shots.push(shot);
+  cloudRecordShot(shot);
   saveRound();
 }
 function undoShot(){
   if (!round || !round.shots.length) return;
-  round.shots.pop();
+  const popped = round.shots.pop();
   const last = round.shots[round.shots.length - 1];
-  if (last) last.dist_m = null;   // its distance was measured to the removed shot
+  if (last){
+    last.dist_m = null;   // its distance was measured to the removed shot
+    cloudRecordShot(last);
+  }
+  if (cloudSession && cloudSession.type === "round"){
+    const q = loadQueue();
+    q.push({table: "shots", del: {session_id: cloudSession.id, seq: popped.n}});
+    saveQueue(q); flushQueue();
+  }
   saveRound(); renderAll();
 }
 function changeHole(delta){
@@ -1017,9 +1218,15 @@ function initRoundControls(){
   const on = (id, fn) => document.getElementById(id).addEventListener("click", fn);
   on("modeRange", () => setMode("range"));
   on("modeRound", () => setMode("round"));
+  on("modeProgress", () => setMode("progress"));
   on("startRoundBtn", () => { newRound(); renderAll(); });
   on("resumeRoundBtn", () => { round = loadSavedRound(); if (!round) return; renderAll(); });
-  on("puttBtn", () => { ensureHole(round.currentHole); round.holes[round.currentHole].putts++; saveRound(); renderAll(); });
+  on("puttBtn", () => {
+    ensureHole(round.currentHole);
+    round.holes[round.currentHole].putts++;
+    cloudRecordPutts(round.currentHole, round.holes[round.currentHole].putts);
+    saveRound(); renderAll();
+  });
   on("nextHoleBtn", () => changeHole(1));
   on("prevHoleBtn", () => changeHole(-1));
   on("undoShotBtn", undoShot);
@@ -1042,11 +1249,122 @@ function initRoundControls(){
 }
 function setMode(mode){
   uiMode = mode;
-  document.getElementById("modeRange").setAttribute("aria-pressed", mode === "range");
-  document.getElementById("modeRound").setAttribute("aria-pressed", mode === "round");
-  if (mode === "round"){ startGps(); keepAwake(); if (!round){ const saved = loadSavedRound(); if (saved) round = null; } }
+  for (const [id, m] of [["modeRange","range"],["modeRound","round"],["modeProgress","progress"]])
+    document.getElementById(id).setAttribute("aria-pressed", String(mode === m));
+  if (mode === "round"){ startGps(); keepAwake(); }
   else { stopGps(); try { if (wakeLock) wakeLock.release(); } catch(e){} }
+  if (mode === "progress") loadProgress();
   renderAll();
+}
+
+/* ---------- Progress view (history across synced sessions) ---------- */
+let progressData = null;   // [{sessionId, date, swings:[{club_id, tempo, club_mph}]}]
+async function loadProgress(){
+  progressData = null;
+  if (!sb || !sbUser){ renderAll(); return; }
+  const {data, error} = await sb.from("swings")
+    .select("session_id,ts,club_id,club_inches,tempo,club_mph,hand_mph")
+    .order("ts", {ascending: true}).limit(10000);
+  if (error){ progressData = {error: error.message}; renderAll(); return; }
+  const map = new Map();
+  for (const r of data || []){
+    if (!map.has(r.session_id))
+      map.set(r.session_id, {date: r.ts, swings: []});
+    map.get(r.session_id).swings.push(r);
+  }
+  progressData = [...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  renderAll();
+}
+function lineChart(hostId, pts, opts){
+  const host = document.getElementById(hostId);
+  host.textContent = "";
+  if (!pts.length){ div("note", host, "No data yet."); return; }
+  const W = host.clientWidth || 480, H = 190, m = {t:12,r:12,b:24,l:34};
+  const svg = el("svg",{width:W,height:H,role:"img","aria-label":opts.label},host);
+  const pw = W-m.l-m.r, ph = H-m.t-m.b;
+  const maxY = Math.max(opts.minMax || 0, ...pts.map(p=>p.y))*1.12;
+  const y = v => m.t + ph - (v/maxY)*ph;
+  const x = i => m.l + (pts.length === 1 ? pw/2 : pw*i/(pts.length-1));
+  if (opts.band) el("rect",{x:m.l,y:y(opts.band[1]),width:pw,
+    height:y(opts.band[0])-y(opts.band[1]),fill:"var(--band)"},svg);
+  for (const tv of niceTicks(maxY)){
+    el("line",{x1:m.l,x2:m.l+pw,y1:y(tv),y2:y(tv),stroke:"var(--grid)"},svg);
+    el("text",{x:m.l-6,y:y(tv)+3,"text-anchor":"end",class:"tickv"},svg).textContent = tv;
+  }
+  el("line",{x1:m.l,x2:m.l+pw,y1:y(0),y2:y(0),stroke:"var(--baseline)"},svg);
+  const d = pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join("");
+  el("path",{d,fill:"none",stroke:"var(--s1)","stroke-width":2,
+             "stroke-linejoin":"round","stroke-linecap":"round"},svg);
+  const step = Math.ceil(pts.length/8);
+  pts.forEach((p,i)=>{
+    el("circle",{cx:x(i),cy:y(p.y),r:4.5,fill:"var(--s1)",
+                 stroke:"var(--surface)","stroke-width":2},svg);
+    if (i % step === 0 || i === pts.length-1)
+      el("text",{x:x(i),y:H-8,"text-anchor":"middle"},svg).textContent = p.label;
+    const hit = el("rect",{x:x(i)-12,y:m.t,width:24,height:ph,fill:"transparent"},svg);
+    attachBarTip(hit, host, p.label,
+      [["var(--s1)", p.y.toFixed(opts.dp ?? 1) + (opts.unit||""), opts.series]]);
+  });
+}
+function renderProgressCharts(){
+  const gate = document.getElementById("progressGate");
+  const body = document.getElementById("progressBody");
+  const msg = document.getElementById("progressGateMsg");
+  if (!sbUser){
+    gate.hidden = false; body.hidden = true;
+    msg.textContent = "Sign in (toolbar above) to save sessions and see your trends.";
+    return;
+  }
+  if (progressData == null){
+    gate.hidden = false; body.hidden = true;
+    msg.textContent = "Loading your sessions…";
+    return;
+  }
+  if (progressData.error){
+    gate.hidden = false; body.hidden = true;
+    msg.textContent = "Couldn't load history: " + progressData.error;
+    return;
+  }
+  if (!progressData.length){
+    gate.hidden = false; body.hidden = true;
+    msg.textContent = "No synced sessions yet. While you're signed in, every swing syncs automatically — hit a session and come back.";
+    return;
+  }
+  gate.hidden = true; body.hidden = false;
+  const avg = a => a.reduce((x,y)=>x+y,0)/a.length;
+  const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  lineChart("progTempo",
+    progressData.map(s => ({label: dlab(s.date), y: avg(s.swings.map(w=>+w.tempo))})),
+    {label:"Average tempo per session", series:"avg tempo", band:[2.5,3.5], minMax:4, dp:2});
+  const wantClub = clubId;
+  const clubPts = progressData
+    .map(s => ({label: dlab(s.date),
+                ws: s.swings.filter(w => w.club_id === wantClub)}))
+    .filter(p => p.ws.length)
+    .map(p => ({label: p.label, y: avg(p.ws.map(w=>+w.club_mph))}));
+  document.getElementById("progSpeedTitle").textContent = `Club speed by session — ${clubLabel()}`;
+  document.getElementById("progSpeedNote").textContent =
+    clubPts.length ? "Average estimated club speed for sessions where this club was swung. Change the club selector to switch."
+                   : "No synced swings with this club yet — change the club selector above.";
+  lineChart("progSpeed", clubPts,
+    {label:"Average club speed per session", series:"avg est. club", unit:" mph"});
+  const t = document.getElementById("progTable");
+  t.textContent = "";
+  const head = ["Date","Swings","Avg tempo","Avg hand (mph)","Avg est. club (mph)","Best est. club"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); }
+  t.appendChild(tr);
+  for (const s of [...progressData].reverse()){
+    const row = document.createElement("tr");
+    const cl = s.swings.map(w=>+w.club_mph);
+    [new Date(s.date).toLocaleDateString(), String(s.swings.length),
+     avg(s.swings.map(w=>+w.tempo)).toFixed(2),
+     avg(s.swings.map(w=>+w.hand_mph)).toFixed(1),
+     avg(cl).toFixed(1), Math.max(...cl).toFixed(1)]
+      .forEach((c,k)=>{ const td=document.createElement("td"); td.textContent=c;
+                        if(k===0) td.style.textAlign="left"; row.appendChild(td); });
+    t.appendChild(row);
+  }
 }
 
 /* ---------- Web Bluetooth client (standalone hosted mode) ---------- */
@@ -1147,6 +1465,8 @@ function initBleMode(){
   document.getElementById("simNote").hidden = true;
   document.getElementById("modeToggle").hidden = false;
   initRoundControls();
+  initAuthControls();
+  initCloud();
   if (!navigator.bluetooth){
     setSensorStatus("unsupported",
       "This browser can't reach Bluetooth sensors — open this page in Chrome or Edge on a laptop or Android device.");
@@ -1165,6 +1485,7 @@ function initBleMode(){
       sw.club = currentClubTag();
       swings.push(sw);
       selected = swings.length - 1;
+      cloudRecordSwing(sw, swings.length - 1);
       if (uiMode === "round" && round && !round.endedAt)
         addShot(sw, swings.length - 1);
       renderAll();
@@ -1776,6 +2097,15 @@ function updateBadge(){
 function renderAll(){
   const isRound = uiMode === "round";
   document.getElementById("roundWrap").hidden = !isRound;
+  document.getElementById("progressWrap").hidden = uiMode !== "progress";
+  if (uiMode === "progress"){
+    document.getElementById("empty").hidden = true;
+    document.getElementById("boards").hidden = true;
+    updateBadge();
+    document.getElementById("sessionMeta").textContent = "Progress";
+    renderProgressCharts();
+    return;
+  }
   if (isRound){
     document.getElementById("empty").hidden = true;
     document.getElementById("boards").hidden = true;
