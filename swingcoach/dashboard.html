@@ -190,6 +190,12 @@
   table.all td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
   table.all tr.sel td { background: var(--band); }
   table.all td .flag { color: var(--serious); font-weight: 700; }
+  select.rowclub {
+    font: 600 12px system-ui, sans-serif; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 3px 4px; max-width: 110px;
+  }
+  select.rowclub:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
 
   footer { color: var(--muted); font-size: 12px; margin-top: 26px; max-width: 78ch; }
   .scroll-x { overflow-x: auto; }
@@ -292,6 +298,12 @@
   </div>
 
   <div class="card">
+    <h2>By club</h2>
+    <p class="note">Session summary per club — tag mistakes can be fixed in the All swings table below.</p>
+    <div class="scroll-x"><table class="all" id="clubTable"></table></div>
+  </div>
+
+  <div class="card">
     <h2>All swings</h2>
     <div class="scroll-x"><table class="all" id="allTable"></table></div>
   </div>
@@ -366,9 +378,20 @@ function clubLabel(){
   const c = CLUBS.find(c=>c.id===clubId);
   return (c.id==="custom" ? "Custom club" : c.name) + ` ${clubInches()}″`;
 }
-function clubSpeedMph(m){
+/* Each swing is tagged with the club selected when it was hit ({id, inches});
+   untagged swings (older data, embedded demos) resolve to the current selector. */
+function currentClubTag(){ return {id: clubId, inches: clubInches()}; }
+function swingClub(sw){
+  const c = sw.club && typeof sw.club.inches === "number" ? sw.club : currentClubTag();
+  const def = CLUBS.find(x => x.id === c.id);
+  const name = c.id === "custom" || !def ? "Custom" : def.name;
+  return {id: c.id, inches: c.inches, label: `${name} ${c.inches}″`};
+}
+function clubSpeedMph(sw){
+  const m = sw.metrics;
   if (m.omega_impact_dps == null) return m.club_speed_est_mph;  // older data
-  return (m.hand_speed_mps + m.omega_impact_dps * Math.PI/180 * leverMeters()) * 2.23694;
+  const lever = swingClub(sw).inches * 0.0254;
+  return (m.hand_speed_mps + m.omega_impact_dps * Math.PI/180 * lever) * 2.23694;
 }
 function initClubFilter(){
   const sel = document.getElementById("clubSel");
@@ -769,6 +792,7 @@ function initBleMode(){
     const rec = det.feed(s);
     if (rec){
       const sw = swingToJson(rec, leverMeters());
+      sw.club = currentClubTag();
       swings.push(sw);
       selected = swings.length - 1;
       renderAll();
@@ -879,7 +903,9 @@ function tiles() {
   mk("Swings", String(swings.length), "", `${clean} of ${swings.length} clean sensor data`);
   mk("Median tempo", fmt1(med), ": 1", med>=2.5&&med<=3.5 ? "inside 3:1 target band" : "target 2.5–3.5", med>=2.5&&med<=3.5);
   mk("Avg hand speed", fmt1(swings.reduce((a,s)=>a+s.metrics.hand_speed_mph,0)/swings.length), "mph");
-  mk("Top est. club speed", fmt1(Math.max(...swings.map(s=>clubSpeedMph(s.metrics)))), "mph", clubLabel() + " — estimate");
+  const speeds = swings.map(s=>clubSpeedMph(s));
+  const iBest = speeds.indexOf(Math.max(...speeds));
+  mk("Top est. club speed", fmt1(speeds[iBest]), "mph", swingClub(swings[iBest]).label + " — estimate");
   const sim = similarity();
   if (sim.session != null) {
     const q = sim.session >= 85 ? "very repeatable" : sim.session >= 70 ? "moderately repeatable" : "variable session";
@@ -932,7 +958,7 @@ function speedChart() {
   const W = host.clientWidth || 480, H = 190, m = {t:12,r:8,b:24,l:34};
   const svg = el("svg",{width:W,height:H,role:"img","aria-label":"Hand and estimated club speed per swing"},host);
   const pw = W-m.l-m.r, ph = H-m.t-m.b;
-  const maxY = Math.max(...swings.map(s=>clubSpeedMph(s.metrics)))*1.1;
+  const maxY = Math.max(...swings.map(s=>clubSpeedMph(s)))*1.1;
   const y = v => m.t + ph - (v/maxY)*ph;
   for (const tv of niceTicks(maxY)) {
     el("line",{x1:m.l,x2:m.l+pw,y1:y(tv),y2:y(tv),stroke:"var(--grid)"},svg);
@@ -942,7 +968,7 @@ function speedChart() {
   const slot = pw/swings.length, bw = Math.min(18, slot*0.28);
   swings.forEach((s,i)=>{
     const cx = m.l + slot*(i+0.5);
-    const bars = [[s.metrics.hand_speed_mph,"var(--s1)",cx-bw-1],[clubSpeedMph(s.metrics),"var(--s2)",cx+1]];
+    const bars = [[s.metrics.hand_speed_mph,"var(--s1)",cx-bw-1],[clubSpeedMph(s),"var(--s2)",cx+1]];
     for (const [v,c,x0] of bars){
       const top=y(v), r=Math.min(4,bw/2);
       el("path",{d:`M${x0},${y(0)} V${top+r} Q${x0},${top} ${x0+r},${top} H${x0+bw-r} Q${x0+bw},${top} ${x0+bw},${top+r} V${y(0)} Z`,fill:c},svg);
@@ -951,7 +977,7 @@ function speedChart() {
     const hit = el("rect",{x:m.l+slot*i,y:m.t,width:slot,height:ph+m.b,fill:"transparent"},svg);
     attachBarTip(hit, host, `Swing ${i+1}`,
       [["var(--s1)", fmt1(s.metrics.hand_speed_mph)+" mph", "hand"],
-       ["var(--s2)", fmt1(clubSpeedMph(s.metrics))+" mph", "est. club"]]);
+       ["var(--s2)", fmt1(clubSpeedMph(s))+" mph", `est. ${swingClub(s).label}`]]);
   });
 }
 
@@ -1180,7 +1206,7 @@ function metricsPanel() {
     ["Tempo", `${fmt1(m.tempo_ratio)} : 1`],
     ["Backswing / downswing", `${m.backswing_s.toFixed(2)}s / ${m.downswing_s.toFixed(2)}s`],
     ["Hand speed", `${fmt1(m.hand_speed_mph)} mph`],
-    [`Est. club speed (${clubLabel()})`, `${fmt1(clubSpeedMph(m))} mph`],
+    [`Est. club speed (${swingClub(s).label})`, `${fmt1(clubSpeedMph(s))} mph`],
     ["Peak wrist rotation", `${Math.round(m.peak_gyro_dps)} °/s${m.gyro_clipped?" ⚠":""}`],
     ["Backswing turn", `${Math.round(m.backswing_rotation_deg)}°`],
     ["Swing plane tilt", `${fmt1(m.swing_plane_tilt_deg)}°`],
@@ -1221,20 +1247,84 @@ function cuesPanel() {
   }
 }
 
+/* ---------- club summary ---------- */
+function clubTable(){
+  const t = document.getElementById("clubTable");
+  t.textContent = "";
+  const groups = new Map();
+  swings.forEach((s, i) => {
+    const c = swingClub(s);
+    const key = `${c.id}|${c.inches}`;
+    if (!groups.has(key)) groups.set(key, {label: c.label, inches: c.inches, idx: []});
+    groups.get(key).idx.push(i);
+  });
+  const head = ["Club","Swings","Avg tempo","± tempo","Avg hand (mph)","Avg est. club (mph)","Best est. club","Avg turn (°)","Clean"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+  t.appendChild(tr);
+  const avg = a => a.reduce((x,y)=>x+y,0)/a.length;
+  // longest club first, like a bag
+  const rows = [...groups.values()].sort((a,b)=>b.inches-a.inches);
+  for (const g of rows){
+    const sw = g.idx.map(i => swings[i]);
+    const tempos = sw.map(s=>s.metrics.tempo_ratio);
+    const clubs = sw.map(s=>clubSpeedMph(s));
+    const tempoSd = sd(tempos);
+    const clean = sw.filter(s=>!s.metrics.acc_clipped && !s.metrics.gyro_clipped).length;
+    const cells = [
+      g.label, String(sw.length), fmt1(avg(tempos)),
+      tempoSd == null ? "—" : `± ${tempoSd.toFixed(2)}`,
+      fmt1(avg(sw.map(s=>s.metrics.hand_speed_mph))),
+      fmt1(avg(clubs)), fmt1(Math.max(...clubs)),
+      String(Math.round(avg(sw.map(s=>s.metrics.backswing_rotation_deg)))),
+      `${clean}/${sw.length}`,
+    ];
+    const row = document.createElement("tr");
+    cells.forEach((c, k) => {
+      const td = document.createElement("td");
+      td.textContent = c;
+      if (k === 0) td.style.textAlign = "left";
+      row.appendChild(td);
+    });
+    t.appendChild(row);
+  }
+}
+
 /* ---------- table view ---------- */
 function allTable() {
   const t = document.getElementById("allTable");
   t.textContent = "";
-  const head = ["Swing","Tempo","Back (s)","Down (s)","Hand (mph)","Est. club (mph)","Turn (°)","Plane (°)","Path (°)","Attack (°)","Sensor"];
+  const head = ["Swing","Club","Tempo","Back (s)","Down (s)","Hand (mph)","Est. club (mph)","Turn (°)","Plane (°)","Path (°)","Attack (°)","Sensor"];
   const tr = document.createElement("tr");
   for (const h of head){ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); }
   t.appendChild(tr);
   swings.forEach((s,i)=>{
     const m = s.metrics, row = document.createElement("tr");
     if (i===selected) row.className="sel";
+    const name = document.createElement("td"); name.textContent = `Swing ${i+1}`; row.appendChild(name);
+    // club cell: a compact select so a mistagged swing can be corrected
+    const clubTd = document.createElement("td");
+    const sel = document.createElement("select");
+    sel.className = "rowclub";
+    for (const c of CLUBS){
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = c.inches === null ? "Custom" : c.name;
+      sel.appendChild(o);
+    }
+    sel.value = swingClub(s).id;
+    sel.addEventListener("click", e => e.stopPropagation());
+    sel.addEventListener("change", e => {
+      e.stopPropagation();
+      const def = CLUBS.find(c => c.id === sel.value);
+      s.club = {id: sel.value, inches: def.inches ?? customIn};
+      renderAll();
+    });
+    clubTd.appendChild(sel);
+    row.appendChild(clubTd);
     const cells = [
-      `Swing ${i+1}`, fmt1(m.tempo_ratio), m.backswing_s.toFixed(2), m.downswing_s.toFixed(2),
-      fmt1(m.hand_speed_mph), fmt1(clubSpeedMph(m)), Math.round(m.backswing_rotation_deg),
+      fmt1(m.tempo_ratio), m.backswing_s.toFixed(2), m.downswing_s.toFixed(2),
+      fmt1(m.hand_speed_mph), fmt1(clubSpeedMph(s)), Math.round(m.backswing_rotation_deg),
       fmt1(m.swing_plane_tilt_deg),
       m.acc_clipped ? "—" : fmt1(m.path_angle_deg),
       m.acc_clipped ? "—" : fmt1(m.attack_angle_deg),
@@ -1250,7 +1340,7 @@ function allTable() {
   });
 }
 
-function renderDetail(){ traceChart(); pathChart(); metricsPanel(); cuesPanel(); allTable(); }
+function renderDetail(){ traceChart(); pathChart(); metricsPanel(); cuesPanel(); clubTable(); allTable(); }
 
 const SENSOR_UI = {
   starting:     {cls: "pulse",     label: "Starting…"},
@@ -1342,6 +1432,7 @@ async function boot(){
     es.onmessage = e => {
       const msg = JSON.parse(e.data);
       if (msg.type === "swing") {
+        msg.swing.club = currentClubTag();
         swings.push(msg.swing);
         selected = swings.length - 1;
         renderAll();
