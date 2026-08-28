@@ -1,0 +1,1365 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><title>SwingCoach Range Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+  :root {
+    --plane: #f4f7f2;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --s1: #2a78d6;          /* gyro / primary series */
+    --s1-soft: #9ec5f4;     /* backswing segment (seq step 200) */
+    --s2: #eb6834;          /* acceleration / club-speed series */
+    --s3: #1baf7a;          /* forearm rotation series */
+    --band: rgba(42,120,214,0.08);
+    --good: #0ca30c;
+    --warn: #fab219;
+    --serious: #ec835a;
+    --chip-on: #0b0b0b;
+    --chip-on-ink: #fcfcfb;
+    --good-text: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --plane: #0f110e;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --s1: #3987e5;
+      --s1-soft: #1c5cab;
+      --s2: #d95926;
+      --s3: #199e70;
+      --band: rgba(57,135,229,0.12);
+      --chip-on: #fcfcfb;
+      --chip-on-ink: #0b0b0b;
+      --good-text: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --plane: #0f110e;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --s1: #3987e5;
+    --s1-soft: #1c5cab;
+    --s2: #d95926;
+    --s3: #199e70;
+    --band: rgba(57,135,229,0.12);
+    --chip-on: #fcfcfb;
+    --chip-on-ink: #0b0b0b;
+    --good-text: #0ca30c;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--plane);
+    color: var(--ink);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 56px; }
+
+  .disp { font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; }
+
+  header.top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  .wordmark { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 34px; letter-spacing: .02em; text-transform: uppercase; }
+  .wordmark small { color: var(--s1); }
+  .session-meta { color: var(--ink-2); font-size: 13px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 2px 10px; font-size: 12px; color: var(--ink-2); background: var(--surface);
+  }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
+  .badge.ok::before { background: var(--good); }
+  .badge.err::before { background: var(--serious); }
+  .badge.pulse::before { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { .badge.pulse::before { animation: none; } }
+  .badge .batt { color: var(--muted); }
+  .empty {
+    background: var(--surface); border: 1px dashed var(--baseline); border-radius: 10px;
+    padding: 48px 20px; text-align: center; color: var(--ink-2);
+  }
+  .empty .big { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 22px;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--ink); margin-bottom: 6px; }
+  [hidden] { display: none !important; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; max-width: 65ch; }
+
+  .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; }
+  .flabel { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .filters select, .filters input {
+    font: 600 13px system-ui, sans-serif; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 10px;
+  }
+  .filters input { width: 72px; font-variant-numeric: tabular-nums; }
+  .filters select:focus-visible, .filters input:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
+  .fnote { color: var(--muted); font-size: 12px; }
+  .btn {
+    font: 600 13px system-ui, sans-serif; cursor: pointer;
+    background: var(--chip-on); color: var(--chip-on-ink);
+    border: 1px solid var(--chip-on); border-radius: 8px; padding: 8px 14px;
+  }
+  .btn.secondary { background: var(--surface); color: var(--ink); border-color: var(--border); }
+  .btn:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
+  .tile .lbl { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .tile .val { font-size: 30px; font-weight: 600; line-height: 1.15; margin-top: 2px; }
+  .tile .val .unit { font-size: 14px; font-weight: 500; color: var(--ink-2); margin-left: 3px; }
+  .tile .sec { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+  .tile .sec.good { color: var(--good-text); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  @media (max-width: 780px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 12px; position: relative; }
+  .card h2 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 17px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 2px; }
+  .card .note { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-2); margin: 0 0 8px; flex-wrap: wrap; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; }
+  .linekey { width: 16px; height: 2px; border-radius: 1px; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+  .chip {
+    font: 600 13px/1 system-ui, sans-serif; color: var(--ink-2);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--baseline); }
+  .chip:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .chip[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); border-color: var(--chip-on); }
+  .chip .clip { color: var(--serious); font-weight: 700; margin-left: 4px; }
+  .chip[aria-pressed="true"] .clip { color: inherit; }
+
+  .detail { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-bottom: 14px; }
+  @media (max-width: 900px) { .detail { grid-template-columns: 1fr; } }
+
+  svg text { font: 11px system-ui, sans-serif; fill: var(--muted); }
+  svg .tickv { font-variant-numeric: tabular-nums; }
+  svg .evt { font: 600 11px "Barlow Condensed", sans-serif; letter-spacing: .05em; text-transform: uppercase; fill: var(--ink-2); }
+
+  .tooltip {
+    position: absolute; pointer-events: none; display: none; z-index: 5;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.14); padding: 8px 10px; font-size: 12px; min-width: 130px;
+  }
+  .tooltip .tt-t { color: var(--muted); margin-bottom: 4px; }
+  .tooltip .row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .tooltip .row .k { width: 14px; height: 2px; border-radius: 1px; flex: none; }
+  .tooltip .row b { font-variant-numeric: tabular-nums; }
+  .tooltip .row span { color: var(--ink-2); }
+
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; margin: 4px 0 14px; }
+  .metric { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .metric span { color: var(--ink-2); }
+  .metric b { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .metric b em { font-style: normal; color: var(--muted); font-weight: 500; }
+
+  .cues { display: flex; flex-direction: column; gap: 10px; }
+  .cue { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: 600 11px/1 "Barlow Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    border-radius: 999px; padding: 5px 9px; margin-top: 1px; white-space: nowrap;
+    color: var(--ink); border: 1px solid var(--border);
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cue h3 { margin: 0; font-size: 13.5px; font-weight: 650; }
+  .cue p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); max-width: 62ch; }
+
+  table.all { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.all th { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--baseline); }
+  table.all th:first-child, table.all td:first-child { text-align: left; }
+  table.all td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  table.all tr.sel td { background: var(--band); }
+  table.all td .flag { color: var(--serious); font-weight: 700; }
+
+  footer { color: var(--muted); font-size: 12px; margin-top: 26px; max-width: 78ch; }
+  .scroll-x { overflow-x: auto; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="wordmark">Swing<small>Coach</small></div>
+    <div class="session-meta" id="sessionMeta"></div>
+    <span class="badge" id="sourceBadge">Simulated session</span>
+  </header>
+  <p class="sub">Wrist-mounted Movella DOT · post-swing analysis. Select a swing to inspect its
+     trace, hand path, and coaching cues. Estimated club speed is derived from hand speed +
+     wrist angular velocity and needs per-club calibration.</p>
+
+  <div class="filters">
+    <label class="flabel" for="clubSel">Club</label>
+    <select id="clubSel"></select>
+    <span id="customWrap" hidden>
+      <input id="customLen" type="number" min="30" max="50" step="0.25" value="45.5"
+             aria-label="Custom club length in inches"> <span class="fnote">inches</span>
+    </span>
+    <span class="fnote" id="leverNote"></span>
+    <span style="flex:1"></span>
+    <button id="connectBtn" class="btn" hidden>Connect sensor</button>
+    <button id="csvBtn" class="btn secondary" hidden>Download session CSV</button>
+  </div>
+
+  <div class="empty" id="empty" hidden>
+    <div class="big" id="emptyBig">Listening for swings</div>
+    <span id="emptySub">Connect the sensor, hold still at address aimed down the target line, then let it rip.<br>
+    The board updates the moment each swing finishes.</span>
+  </div>
+
+  <div id="boards">
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Tempo by swing</h2>
+      <p class="note">Backswing : downswing ratio — shaded band is the 2.5–3.5 target around the 3:1 benchmark.</p>
+      <div id="tempoChart"></div>
+    </div>
+    <div class="card">
+      <h2>Speed by swing</h2>
+      <div class="legend">
+        <span class="key"><span class="swatch" style="background:var(--s1)"></span>Hand speed (mph)</span>
+        <span class="key"><span class="swatch" style="background:var(--s2)"></span>Est. club speed (mph)</span>
+      </div>
+      <div id="speedChart"></div>
+    </div>
+  </div>
+
+  <div class="grid2" id="consistencyRow">
+    <div class="card">
+      <h2>Swing similarity</h2>
+      <p class="note">How closely each swing's rotation trace (takeaway→impact, speed-normalized) matches the rest of the session. Needs 3+ swings.</p>
+      <div id="simChart"></div>
+    </div>
+    <div class="card">
+      <h2>Session variability</h2>
+      <p class="note">Spread across all swings — lower is more repeatable. The sensor is compared only to itself, so these need no calibration.</p>
+      <div class="metric-grid" id="varGrid"></div>
+    </div>
+  </div>
+
+  <div class="chips" id="chips" role="group" aria-label="Select swing"></div>
+
+  <div class="detail">
+    <div class="card">
+      <h2 id="traceTitle">Swing trace</h2>
+      <div class="legend">
+        <span class="key"><span class="linekey" style="background:var(--s1)"></span>Wrist rotation (°/s)</span>
+        <span class="key"><span class="linekey" style="background:var(--s2)"></span>Free acceleration (m/s²)</span>
+        <span class="key" id="faKey"><span class="linekey" style="background:var(--s3)"></span>Forearm roll (°/s)</span>
+      </div>
+      <div id="traceChart"></div>
+      <div class="tooltip" id="traceTip"></div>
+    </div>
+    <div class="card">
+      <h2>Hand path</h2>
+      <div class="legend">
+        <span class="key"><span class="linekey" style="background:var(--s1-soft)"></span>Backswing</span>
+        <span class="key"><span class="linekey" style="background:var(--s1)"></span>Downswing → finish</span>
+      </div>
+      <div id="pathChart"></div>
+      <p class="note" id="pathNote" style="margin-top:8px"></p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2 id="metricsTitle">Metrics</h2>
+      <div class="metric-grid" id="metricGrid"></div>
+    </div>
+    <div class="card">
+      <h2>Coaching cues</h2>
+      <div class="cues" id="cues"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>All swings</h2>
+    <div class="scroll-x"><table class="all" id="allTable"></table></div>
+  </div>
+
+  </div><!-- /boards -->
+
+  <footer>
+    <span id="simNote">Data shown is a <b>synthetic session</b> generated by the SwingCoach simulator
+    (including sensor-range clipping and ball-strike shock) and run through the identical detection
+    and metrics pipeline that live Bluetooth data uses. </span>⚠ marks swings where the ±16&nbsp;g
+    accelerometer saturated — hand speed is a floor and path/attack are suppressed from coaching
+    on those swings. Path and attack angles carry roughly ±6–10° at the 60&nbsp;Hz stream rate.
+  </footer>
+</div>
+
+<script>
+const DATA = null;
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt1 = x => x.toFixed(1);
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs, parent) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function div(cls, parent, text) {
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  if (text !== undefined) d.textContent = text;
+  if (parent) parent.appendChild(d);
+  return d;
+}
+
+let swings = [];
+let selected = 0;
+let LEVER = 1.05;
+let live = false;
+let connected = true;   // dashboard's own link to the local server
+let STATUS = {state: "starting", detail: "", battery: null};  // the sensor
+
+/* ---------- club selection (drives the club-speed estimate) ---------- */
+const CLUBS = [
+  {id:"driver", name:"Driver",         inches:45.5},
+  {id:"3w",     name:"3 wood",         inches:43.0},
+  {id:"5w",     name:"5 wood",         inches:42.0},
+  {id:"hybrid", name:"Hybrid",         inches:40.5},
+  {id:"4i",     name:"4 iron",         inches:38.5},
+  {id:"5i",     name:"5 iron",         inches:38.0},
+  {id:"6i",     name:"6 iron",         inches:37.5},
+  {id:"7i",     name:"7 iron",         inches:37.0},
+  {id:"8i",     name:"8 iron",         inches:36.5},
+  {id:"9i",     name:"9 iron",         inches:36.0},
+  {id:"pw",     name:"Pitching wedge", inches:35.75},
+  {id:"sw",     name:"Sand wedge",     inches:35.25},
+  {id:"custom", name:"Custom length…", inches:null},
+];
+let clubId = "driver";
+let customIn = 45.5;
+try {
+  const saved = JSON.parse(localStorage.getItem("swingcoach-club"));
+  if (saved && CLUBS.some(c => c.id === saved.id)) {
+    clubId = saved.id;
+    if (typeof saved.in === "number" && saved.in >= 30 && saved.in <= 50) customIn = saved.in;
+  }
+} catch (e) {}
+
+function clubInches(){ const c = CLUBS.find(c=>c.id===clubId); return c.inches ?? customIn; }
+function leverMeters(){ return clubInches() * 0.0254; }
+function clubLabel(){
+  const c = CLUBS.find(c=>c.id===clubId);
+  return (c.id==="custom" ? "Custom club" : c.name) + ` ${clubInches()}″`;
+}
+function clubSpeedMph(m){
+  if (m.omega_impact_dps == null) return m.club_speed_est_mph;  // older data
+  return (m.hand_speed_mps + m.omega_impact_dps * Math.PI/180 * leverMeters()) * 2.23694;
+}
+function initClubFilter(){
+  const sel = document.getElementById("clubSel");
+  for (const c of CLUBS) {
+    const o = document.createElement("option");
+    o.value = c.id;
+    o.textContent = c.inches === null ? c.name : `${c.name} · ${c.inches}″`;
+    sel.appendChild(o);
+  }
+  sel.value = clubId;
+  const inp = document.getElementById("customLen");
+  inp.value = customIn;
+  const apply = () => {
+    clubId = sel.value;
+    const v = parseFloat(inp.value);
+    if (!Number.isNaN(v)) customIn = Math.min(50, Math.max(30, v));
+    document.getElementById("customWrap").hidden = clubId !== "custom";
+    document.getElementById("leverNote").textContent =
+      `≈ ${leverMeters().toFixed(2)} m wrist→clubhead lever`;
+    try { localStorage.setItem("swingcoach-club", JSON.stringify({id: clubId, in: customIn})); } catch (e) {}
+    renderAll();
+  };
+  sel.addEventListener("change", apply);
+  inp.addEventListener("change", apply);
+  inp.addEventListener("input", apply);
+  document.getElementById("customWrap").hidden = clubId !== "custom";
+  document.getElementById("leverNote").textContent =
+    `≈ ${leverMeters().toFixed(2)} m wrist→clubhead lever`;
+}
+
+/* ================= PIPELINE-BEGIN (JS port of swingcoach detector/metrics/coach —
+   keep numerically in lockstep with the Python package) ================= */
+const P = {
+  QUIET_GYRO: 40.0, SWING_GYRO: 450.0, MIN_SWING_PEAK_ACC: 20.0,
+  QUIET_TIME: 0.6, PRE_BUFFER: 3.0, MAX_SWING_WINDOW: 6.0,
+  GYRO_CLIP: 1900.0, ACC_CLIP: 150.0, PAUSE_THRESH: 60.0,
+};
+const gmag = s => Math.hypot(s.gx, s.gy, s.gz);
+const amag = s => Math.hypot(s.ax, s.ay, s.az);
+
+class SwingDetector {
+  constructor(){ this.buf = []; this.inSwing = false; this.burstT = 0; this.quietSince = null; }
+  feed(s){
+    this.buf.push(s);
+    if (!this.inSwing){
+      const t0 = s.t - P.PRE_BUFFER;
+      while (this.buf.length > 2 && this.buf[0].t < t0) this.buf.shift();
+      if (gmag(s) > P.SWING_GYRO){ this.inSwing = true; this.burstT = s.t; this.quietSince = null; }
+      return null;
+    }
+    if (gmag(s) < P.QUIET_GYRO){
+      if (this.quietSince == null) this.quietSince = s.t;
+      if (s.t - this.quietSince >= P.QUIET_TIME) return this._finalize();
+    } else this.quietSince = null;
+    if (s.t - this.burstT > P.MAX_SWING_WINDOW) return this._finalize();
+    return null;
+  }
+  _finalize(){
+    const buf = this.buf; this.buf = []; this.inSwing = false; this.quietSince = null;
+    return segmentSwing(buf);
+  }
+}
+
+function idxAt(samples, t, dflt){
+  for (let i = 0; i < samples.length; i++) if (samples[i].t >= t) return i;
+  return dflt;
+}
+function segmentSwing(samples){
+  const n = samples.length;
+  if (n < 20) return null;
+  const gyro = samples.map(gmag), acc = samples.map(amag);
+  const peakGyro = Math.max(...gyro);
+  if (peakGyro < P.SWING_GYRO) return null;
+  const iPk = gyro.indexOf(peakGyro);
+  let lo = Math.max(1, idxAt(samples, samples[iPk].t - 0.15, 0));
+  const hi = idxAt(samples, samples[iPk].t + 0.15, n - 1);
+  const jerk = i => Math.hypot(samples[i].ax - samples[i-1].ax,
+                               samples[i].ay - samples[i-1].ay,
+                               samples[i].az - samples[i-1].az);
+  let iImpact = lo;
+  for (let i = lo; i <= hi; i++) if (jerk(i) > jerk(iImpact)) iImpact = i;
+  const jmax = jerk(iImpact);
+  while (iImpact - 1 > lo && jerk(iImpact - 1) > 0.4 * jmax) iImpact--;
+  if (Math.max(...acc.slice(lo, hi + 1)) < P.MIN_SWING_PEAK_ACC) return null;
+
+  let iTop = null;
+  for (let i = iImpact - 2; i > 1; i--){
+    if (gyro[i] <= gyro[i-1] && gyro[i] <= gyro[i+1] && gyro[i] < 0.5*peakGyro){ iTop = i; break; }
+  }
+  if (iTop == null){
+    const span = samples[n-1].t - samples[0].t, dt = span / Math.max(1, n-1);
+    iTop = Math.max(1, iImpact - Math.round(0.25/dt));
+  }
+  let i = iTop;
+  while (i > 0 && gyro[i] < P.QUIET_GYRO) i--;
+  while (i > 0 && gyro[i] >= P.QUIET_GYRO) i--;
+  const iTakeaway = i;
+  let iFinish = n - 1;
+  for (let k = iImpact; k < n; k++) if (gyro[k] < P.QUIET_GYRO * 1.5){ iFinish = k; break; }
+  if (!(iTakeaway < iTop && iTop < iImpact)) return null;
+  const back = samples[iTop].t - samples[iTakeaway].t;
+  const down = samples[iImpact].t - samples[iTop].t;
+  if (!(back > 0.1 && back < 3.0 && down > 0.08 && down < 1.0)) return null;
+  return {samples, iTakeaway, iTop, iImpact, iFinish};
+}
+
+function smallestEigenvector(A){
+  let a = A.map(r => r.slice()), V = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let it = 0; it < 60; it++){
+    let p=0, q=1, mx=Math.abs(a[0][1]);
+    if (Math.abs(a[0][2]) > mx){ p=0; q=2; mx=Math.abs(a[0][2]); }
+    if (Math.abs(a[1][2]) > mx){ p=1; q=2; mx=Math.abs(a[1][2]); }
+    if (mx < 1e-12) break;
+    const th = 0.5*Math.atan2(2*a[p][q], a[q][q]-a[p][p]);
+    const c = Math.cos(th), s = Math.sin(th);
+    for (let k=0;k<3;k++){ const kp=a[k][p], kq=a[k][q]; a[k][p]=c*kp-s*kq; a[k][q]=s*kp+c*kq; }
+    for (let k=0;k<3;k++){ const pk=a[p][k], qk=a[q][k]; a[p][k]=c*pk-s*qk; a[q][k]=s*pk+c*qk; }
+    for (let k=0;k<3;k++){ const vp=V[k][p], vq=V[k][q]; V[k][p]=c*vp-s*vq; V[k][q]=s*vp+c*vq; }
+  }
+  const ev = [a[0][0], a[1][1], a[2][2]];
+  let mi = 0; if (ev[1] < ev[mi]) mi = 1; if (ev[2] < ev[mi]) mi = 2;
+  return [V[0][mi], V[1][mi], V[2][mi]];
+}
+
+function computeMetricsJS(rec, leverM){
+  const s = rec.samples, i0 = rec.iTakeaway, i1 = rec.iTop, i2 = rec.iImpact;
+  const t = s.map(x => x.t), gyro = s.map(gmag);
+  const m = {notes: []};
+  m.backswing_s = t[i1] - t[i0];
+  m.downswing_s = t[i2] - t[i1];
+  m.tempo_ratio = m.downswing_s > 0 ? m.backswing_s / m.downswing_s : 0;
+
+  m.gyro_clipped = false; m.acc_clipped = false;
+  for (let i = i1; i <= i2; i++){
+    const x = s[i];
+    if (Math.max(Math.abs(x.gx),Math.abs(x.gy),Math.abs(x.gz)) > P.GYRO_CLIP) m.gyro_clipped = true;
+    if (Math.max(Math.abs(x.ax),Math.abs(x.ay),Math.abs(x.az)) > P.ACC_CLIP) m.acc_clipped = true;
+  }
+  m.n_downswing_samples = i2 - i1 + 1;
+  if (m.gyro_clipped) m.notes.push("Gyro saturated during downswing; speed metrics are a floor, not a ceiling.");
+  if (m.acc_clipped) m.notes.push("Accelerometer saturated near impact; hand speed is a floor and path/attack angles are unreliable for this swing.");
+  if (m.n_downswing_samples < 8) m.notes.push("Few samples in downswing at this output rate; timing is approximate.");
+
+  // velocity: integrate earth-frame free acc, shock samples interpolated out
+  const accV = s.map(x => [x.ax, x.ay, x.az]);
+  const accI = accV.map(v => v.slice());
+  const aLo = i2 - 1, aHi = Math.min(i2 + 3, s.length - 1);
+  if (aHi > aLo + 1){
+    for (let k = 0, idx = aLo + 1; idx < aHi; idx++, k++){
+      const u = (k + 1) / (aHi - aLo);
+      for (let d = 0; d < 3; d++) accI[idx][d] = accV[aLo][d]*(1-u) + accV[aHi][d]*u;
+    }
+  }
+  const vel = s.map(() => [0,0,0]);
+  for (let i = i1 + 1; i < s.length; i++){
+    const dt = t[i] - t[i-1];
+    for (let d = 0; d < 3; d++) vel[i][d] = vel[i-1][d] + accI[i][d]*dt;
+  }
+  const vI = vel[i2];
+  m.hand_speed_mps = Math.hypot(...vI);
+  m.hand_speed_mph = m.hand_speed_mps * 2.23694;
+
+  let om = 0;
+  for (let i = Math.max(i1, i2-1); i <= i2; i++) om = Math.max(om, gyro[i]);
+  m.omega_impact_dps = om;
+  m.peak_gyro_dps = Math.max(...gyro.slice(i1, i2+1));
+  m.club_speed_est_mph = (m.hand_speed_mps + om*Math.PI/180*leverM) * 2.23694;
+
+  let rot = 0;
+  for (let i = i0 + 1; i <= i1; i++) rot += gyro[i]*(t[i]-t[i-1]);
+  m.backswing_rotation_deg = rot;
+
+  // plane fit on downswing velocity directions
+  m.swing_plane_tilt_deg = 0;
+  const dirs = [];
+  {
+    const vseg = vel.slice(i1+1, i2+1);
+    const speeds = vseg.map(v => Math.hypot(...v));
+    const thresh = Math.max(0.5, speeds.length ? 0.1*Math.max(...speeds) : 0.5);
+    for (let k = 0; k < vseg.length; k++)
+      if (speeds[k] > thresh) dirs.push(vseg[k].map(c => c/speeds[k]));
+  }
+  if (dirs.length >= 3){
+    const A = [[0,0,0],[0,0,0],[0,0,0]];
+    for (const d of dirs) for (let r=0;r<3;r++) for (let c=0;c<3;c++) A[r][c] += d[r]*d[c];
+    let nrm = smallestEigenvector(A);
+    if (nrm[2] < 0) nrm = nrm.map(v => -v);
+    m.swing_plane_tilt_deg = Math.acos(Math.min(1, Math.max(-1, nrm[2]))) * 180/Math.PI;
+  } else m.notes.push("Not enough clean velocity samples to fit a swing plane.");
+
+  m.path_angle_deg = 0; m.attack_angle_deg = 0;
+  if (m.hand_speed_mps > 1.0){
+    const horiz = Math.hypot(vI[0], vI[1]);
+    if (horiz > 0.5){
+      m.path_angle_deg = -Math.atan2(vI[1], vI[0]) * 180/Math.PI;
+      m.attack_angle_deg = Math.atan2(vI[2], horiz) * 180/Math.PI;
+    }
+  }
+
+  m.release_fraction = 0;
+  if (i2 > i1 && t[i2] > t[i1]){
+    let iPk = i1;
+    for (let i = i1; i <= i2; i++) if (gyro[i] > gyro[iPk]) iPk = i;
+    m.release_fraction = (t[iPk]-t[i1]) / (t[i2]-t[i1]);
+  }
+
+  m.pause_top_s = 0;
+  if (gyro[i1] < P.PAUSE_THRESH){
+    let j0 = i1; while (j0-1 > i0 && gyro[j0-1] < P.PAUSE_THRESH) j0--;
+    let j1 = i1; while (j1+1 < i2 && gyro[j1+1] < P.PAUSE_THRESH) j1++;
+    m.pause_top_s = t[j1] - t[j0];
+  }
+  m.transition_build_dps2 = 0;
+  {
+    const peakDs = Math.max(...gyro.slice(i1, i2+1));
+    let k = i1; while (k < i2 && gyro[k] < 0.5*peakDs) k++;
+    const dt50 = t[k] - t[i1];
+    if (dt50 > 0) m.transition_build_dps2 = (gyro[k]-gyro[i1]) / dt50;
+  }
+  let rx = 0;
+  for (let i = i1+1; i <= i2; i++) rx += s[i].gx*(t[i]-t[i-1]);
+  m.forearm_rotation_deg = rx;
+  m.forearm_rate_impact_dps = s[i2].gx;
+  return m;
+}
+
+function coachJS(m){
+  const cues = [];
+  const C = (p, t, d) => cues.push({priority: p, title: t, detail: d});
+  if (m.tempo_ratio > 0){
+    if (m.tempo_ratio < 2.2)
+      C(1, "Backswing is rushed", `Your tempo ratio is ${m.tempo_ratio.toFixed(1)}:1 (tour average ~3:1). Feel like the backswing takes twice as long — try counting '1-2-3' back, '1' down.`);
+    else if (m.tempo_ratio > 4.0)
+      C(2, "Backswing is sluggish", `Tempo ratio ${m.tempo_ratio.toFixed(1)}:1 is slower than the ~3:1 ideal. A slightly brisker takeaway keeps the swing connected and athletic.`);
+    else
+      C(3, "Tempo is in the good zone", `${m.tempo_ratio.toFixed(1)}:1 backswing-to-downswing — close to the 3:1 tour benchmark. Keep that rhythm.`);
+  }
+  if (m.release_fraction > 0 && m.release_fraction < 0.55)
+    C(1, "Early release (casting)", `Peak wrist speed arrived only ${Math.round(m.release_fraction*100)}% of the way into the downswing. You're spending speed before impact — feel the wrists stay 'set' until your hands reach hip height.`);
+  else if (m.release_fraction >= 0.75)
+    C(3, "Nice late release", `Peak wrist speed at ${Math.round(m.release_fraction*100)}% of the downswing — speed is being delivered at the ball, not wasted early.`);
+  if (m.pause_top_s > 0.35)
+    C(2, "Stalling at the top", `You sat at the top for ${m.pause_top_s.toFixed(2)}s. A brief settle is good; a full stop kills the stretch-shorten cycle — feel the lower body start down as the arms finish going back.`);
+  else if (m.tempo_ratio > 0 && m.tempo_ratio < 2.4 && m.pause_top_s < 0.04)
+    C(2, "No pause at the top", "The club never settled before the downswing — transition is doing the rushing. Feel one beat of stillness at the top before you go.");
+  if (Math.abs(m.path_angle_deg) > 0.1 && !m.acc_clipped){
+    if (m.path_angle_deg < -4)
+      C(1, `Out-to-in path (${Math.round(m.path_angle_deg)}°)`, "Hands are cutting across the ball — classic slice/pull pattern. Rehearse swinging toward 1 o'clock (right of target) through impact.");
+    else if (m.path_angle_deg > 6)
+      C(2, `Strongly in-to-out path (+${Math.round(m.path_angle_deg)}°)`, "Big in-to-out move — good for a draw, but this much can produce pushes and hooks. Feel the chest rotating through impact.");
+    else
+      C(3, `Path is neutral (${m.path_angle_deg>=0?"+":""}${Math.round(m.path_angle_deg)}°)`, "Hand path through impact is close to the target line.");
+  }
+  if (m.backswing_rotation_deg > 0){
+    if (m.backswing_rotation_deg < 140)
+      C(2, "Short backswing", `Limited rotation going back (${Math.round(m.backswing_rotation_deg)}° of wrist travel). A fuller turn stores more speed — check hip and shoulder rotation.`);
+    else if (m.backswing_rotation_deg > 320)
+      C(2, "Possible over-swing", `Very long backswing (${Math.round(m.backswing_rotation_deg)}° of wrist travel) can cost control. Feel 'loaded' at the top rather than stretched.`);
+  }
+  for (const note of m.notes) C(3, "Data note", note);
+  cues.sort((a,b) => a.priority - b.priority);
+  return cues;
+}
+
+function swingToJson(rec, leverM){
+  const m = computeMetricsJS(rec, leverM);
+  const cues = coachJS(m);
+  const s = rec.samples, i0 = rec.iTakeaway, i3 = rec.iFinish;
+  const seg = s.slice(i0, i3 + 1), t0 = s[i0].t;
+  // hand path: double-integrate from takeaway (v=0 at address)
+  const t = seg.map(x => x.t);
+  const vel = seg.map(() => [0,0,0]), pos = seg.map(() => [0,0,0]);
+  for (let i = 1; i < seg.length; i++){
+    const dt = t[i] - t[i-1];
+    for (let d = 0; d < 3; d++){
+      const a = [seg[i].ax, seg[i].ay, seg[i].az][d];
+      vel[i][d] = vel[i-1][d] + a*dt;
+      pos[i][d] = pos[i-1][d] + vel[i][d]*dt;
+    }
+  }
+  return {
+    metrics: m,
+    cues,
+    events: {
+      takeaway: 0,
+      top: +(s[rec.iTop].t - t0).toFixed(4),
+      impact: +(s[rec.iImpact].t - t0).toFixed(4),
+      finish: +(seg[seg.length-1].t - t0).toFixed(4),
+    },
+    trace: {
+      t: seg.map(x => +(x.t - t0).toFixed(4)),
+      gyro: seg.map(x => +gmag(x).toFixed(1)),
+      acc: seg.map(x => +amag(x).toFixed(2)),
+      forearm: seg.map(x => +x.gx.toFixed(1)),
+    },
+    path: {
+      t: t.map(v => +(v - t0).toFixed(4)),
+      x: pos.map(p => +p[0].toFixed(4)),
+      y: pos.map(p => +p[1].toFixed(4)),
+      z: pos.map(p => +p[2].toFixed(4)),
+      i_top: rec.iTop - i0,
+      i_impact: rec.iImpact - i0,
+    },
+  };
+}
+/* ================= PIPELINE-END ================= */
+
+/* ---------- Web Bluetooth client (standalone hosted mode) ---------- */
+const DOT_UUID = short => `1517${short.toString(16).padStart(4,"0")}-4947-11e9-8646-d663bd873d93`;
+const BLE = {
+  measurementService: DOT_UUID(0x2000),
+  controlChar: DOT_UUID(0x2001),
+  mediumChar: DOT_UUID(0x2003),
+  resetChar: DOT_UUID(0x2006),
+  batteryService: DOT_UUID(0x3000),
+  batteryChar: DOT_UUID(0x3001),
+};
+let bleDevice = null;
+let rawLog = [];
+const CSV_HEADER = "t,roll,pitch,yaw,ax,ay,az,gx,gy,gz";
+
+function makeUnwrapper(){
+  let first = null, lastRaw = null, offset = 0;
+  return raw => {
+    if (first === null){ first = raw; lastRaw = raw; return 0; }
+    if (raw < lastRaw) offset += 4294967296;
+    lastRaw = raw;
+    return (raw + offset - first) / 1e6;
+  };
+}
+function parseCustomMode1(dv, unwrap){
+  const s = {t: unwrap(dv.getUint32(0, true))};
+  const f = i => dv.getFloat32(4 + 4*i, true);
+  [s.roll, s.pitch, s.yaw, s.ax, s.ay, s.az, s.gx, s.gy, s.gz] =
+    [f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7), f(8)];
+  return s;
+}
+
+function setSensorStatus(state, detail, battery){
+  STATUS = {state, detail: detail || "",
+            battery: battery != null ? battery : STATUS.battery};
+  updateBadge();
+}
+
+async function connectSensor(onSample){
+  setSensorStatus("scanning", "pick your DOT in the chooser");
+  const device = await navigator.bluetooth.requestDevice({
+    filters: [{namePrefix: "Movella DOT"}, {namePrefix: "Xsens DOT"}],
+    optionalServices: [BLE.measurementService, BLE.batteryService],
+  });
+  device.addEventListener("gattserverdisconnected", () => {
+    bleDevice = null;
+    setSensorStatus("disconnected", "sensor disconnected");
+    setConnectButton();
+  });
+  setSensorStatus("connected", "connecting…");
+  const server = await device.gatt.connect();
+  let battery = null;
+  try {
+    const bs = await server.getPrimaryService(BLE.batteryService);
+    battery = (await (await bs.getCharacteristic(BLE.batteryChar)).readValue()).getUint8(0);
+  } catch (e) {}
+  setSensorStatus("connected", "zeroing heading — hold still, aim down the target line", battery);
+  const ms = await server.getPrimaryService(BLE.measurementService);
+  await (await ms.getCharacteristic(BLE.resetChar)).writeValue(new Uint8Array([1, 0]));
+  const medium = await ms.getCharacteristic(BLE.mediumChar);
+  const unwrap = makeUnwrapper();
+  medium.addEventListener("characteristicvaluechanged", e => {
+    try { onSample(parseCustomMode1(e.target.value, unwrap)); } catch (err) {}
+  });
+  await medium.startNotifications();
+  await (await ms.getCharacteristic(BLE.controlChar)).writeValue(new Uint8Array([1, 1, 22]));
+  setSensorStatus("ready", "streaming at 60 Hz", battery);
+  return device;
+}
+
+function setConnectButton(){
+  const btn = document.getElementById("connectBtn");
+  btn.hidden = false;
+  btn.textContent = bleDevice ? "Disconnect sensor" : "Connect sensor";
+  document.getElementById("csvBtn").hidden = rawLog.length === 0;
+}
+
+function initBleMode(){
+  document.getElementById("simNote").hidden = true;
+  if (!navigator.bluetooth){
+    setSensorStatus("unsupported",
+      "This browser can't reach Bluetooth sensors — open this page in Chrome or Edge on a laptop or Android device.");
+    renderAll();
+    return;
+  }
+  setSensorStatus("idle", "");
+  renderAll();
+  const det = new SwingDetector();
+  const onSample = s => {
+    rawLog.push(s);
+    if (rawLog.length === 1) setConnectButton();  // reveal CSV button
+    const rec = det.feed(s);
+    if (rec){
+      const sw = swingToJson(rec, leverMeters());
+      swings.push(sw);
+      selected = swings.length - 1;
+      renderAll();
+    }
+  };
+  window._feedSample = onSample;  // test hook
+  const btn = document.getElementById("connectBtn");
+  btn.addEventListener("click", async () => {
+    if (bleDevice){ try { bleDevice.gatt.disconnect(); } catch (e) {} bleDevice = null; setConnectButton(); return; }
+    btn.disabled = true;
+    try {
+      bleDevice = await connectSensor(onSample);
+    } catch (e) {
+      if (e && e.name === "NotFoundError") setSensorStatus("idle", "");  // user closed the chooser
+      else setSensorStatus("error", (e && e.message) || "connection failed");
+    } finally {
+      btn.disabled = false;
+      setConnectButton();
+    }
+  });
+  document.getElementById("csvBtn").addEventListener("click", () => {
+    const lines = [CSV_HEADER];
+    for (const s of rawLog)
+      lines.push([s.t.toFixed(6), s.roll.toFixed(3), s.pitch.toFixed(3), s.yaw.toFixed(3),
+                  s.ax.toFixed(4), s.ay.toFixed(4), s.az.toFixed(4),
+                  s.gx.toFixed(3), s.gy.toFixed(3), s.gz.toFixed(3)].join(","));
+    const blob = new Blob([lines.join("\n")], {type: "text/csv"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+    a.download = `swingcoach-session-${stamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  setConnectButton();
+}
+
+/* ---------- consistency: DTW similarity of normalized rotation traces ---------- */
+function normTrace(sw, N=48){
+  const tr = sw.trace, tImp = sw.events.impact;
+  if (!tr || !tr.t || tr.t.length < 6 || !(tImp > 0)) return null;
+  const out = new Array(N); let j = 0, peak = 0;
+  for (let k = 0; k < N; k++){
+    const tt = tImp * k / (N-1);
+    while (j < tr.t.length-2 && tr.t[j+1] < tt) j++;
+    const t0 = tr.t[j], t1 = tr.t[j+1];
+    const u = t1 > t0 ? Math.min(1, Math.max(0, (tt-t0)/(t1-t0))) : 0;
+    out[k] = tr.gyro[j] + (tr.gyro[j+1]-tr.gyro[j]) * u;
+    peak = Math.max(peak, out[k]);
+  }
+  return peak > 0 ? out.map(v => v/peak) : null;
+}
+function dtwDist(a, b){
+  const N = a.length, INF = 1e9;
+  let prev = new Array(N), cur = new Array(N);
+  prev[0] = Math.abs(a[0]-b[0]);
+  for (let j = 1; j < N; j++) prev[j] = prev[j-1] + Math.abs(a[0]-b[j]);
+  for (let i = 1; i < N; i++){
+    cur[0] = prev[0] + Math.abs(a[i]-b[0]);
+    for (let j = 1; j < N; j++)
+      cur[j] = Math.abs(a[i]-b[j]) + Math.min(prev[j], cur[j-1], prev[j-1]);
+    [prev, cur] = [cur, prev];
+  }
+  return prev[N-1] / (2*N);   // mean per-step distance, 0 = identical
+}
+let simCache = {n: -1, scores: [], session: null};
+function similarity(){
+  if (simCache.n === swings.length) return simCache;
+  const n = swings.length;
+  if (n < 3) { simCache = {n, scores: [], session: null}; return simCache; }
+  const traces = swings.map(s => normTrace(s));
+  const toScore = d => 100 * Math.exp(-6 * d);
+  const sums = new Array(n).fill(0), counts = new Array(n).fill(0);
+  let total = 0, pairs = 0;
+  for (let i = 0; i < n; i++) for (let j = i+1; j < n; j++){
+    if (!traces[i] || !traces[j]) continue;
+    const s = toScore(dtwDist(traces[i], traces[j]));
+    sums[i]+=s; sums[j]+=s; counts[i]++; counts[j]++; total+=s; pairs++;
+  }
+  simCache = {
+    n,
+    scores: sums.map((s,i)=> counts[i] ? s/counts[i] : null),
+    session: pairs ? total/pairs : null,
+  };
+  return simCache;
+}
+function sd(a){
+  if (a.length < 2) return null;
+  const mu = a.reduce((x,y)=>x+y,0)/a.length;
+  return Math.sqrt(a.reduce((x,y)=>x+(y-mu)*(y-mu),0)/(a.length-1));
+}
+
+/* ---------- stat tiles ---------- */
+function median(a){ const s=[...a].sort((x,y)=>x-y); const m=s.length>>1; return s.length%2? s[m] : (s[m-1]+s[m])/2; }
+function tiles() {
+  const host = document.getElementById("tiles");
+  host.textContent = "";
+  const tempos = swings.map(s => s.metrics.tempo_ratio);
+  const clean = swings.filter(s => !s.metrics.acc_clipped && !s.metrics.gyro_clipped).length;
+  const mk = (lbl, val, unit, sec, good) => {
+    const t = div("tile", host);
+    div("lbl", t, lbl);
+    const v = div("val", t); v.append(val);
+    if (unit) { const u = document.createElement("span"); u.className="unit"; u.textContent=unit; v.appendChild(u); }
+    if (sec) div("sec" + (good ? " good" : ""), t, sec);
+  };
+  const med = median(tempos);
+  mk("Swings", String(swings.length), "", `${clean} of ${swings.length} clean sensor data`);
+  mk("Median tempo", fmt1(med), ": 1", med>=2.5&&med<=3.5 ? "inside 3:1 target band" : "target 2.5–3.5", med>=2.5&&med<=3.5);
+  mk("Avg hand speed", fmt1(swings.reduce((a,s)=>a+s.metrics.hand_speed_mph,0)/swings.length), "mph");
+  mk("Top est. club speed", fmt1(Math.max(...swings.map(s=>clubSpeedMph(s.metrics)))), "mph", clubLabel() + " — estimate");
+  const sim = similarity();
+  if (sim.session != null) {
+    const q = sim.session >= 85 ? "very repeatable" : sim.session >= 70 ? "moderately repeatable" : "variable session";
+    mk("Repeatability", Math.round(sim.session).toString(), "/100", q, sim.session >= 85);
+  } else {
+    mk("Repeatability", "—", "", "needs 3+ swings");
+  }
+}
+
+/* ---------- generic chart helpers ---------- */
+function niceTicks(max, n=4) {
+  const raw = max/n, pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(m=>m*pow).find(s=>s*n>=max) || 10*pow;
+  const out=[]; for(let v=0; v<=max+1e-9; v+=step) out.push(+v.toFixed(6)); return out;
+}
+
+/* ---------- tempo chart ---------- */
+function tempoChart() {
+  const host = document.getElementById("tempoChart");
+  host.textContent = "";
+  const W = host.clientWidth || 480, H = 190, m = {t:12,r:8,b:24,l:30};
+  const svg = el("svg", {width:W, height:H, role:"img", "aria-label":"Tempo ratio per swing"}, host);
+  const pw = W-m.l-m.r, ph = H-m.t-m.b;
+  const maxY = Math.max(4, ...swings.map(s=>s.metrics.tempo_ratio)) * 1.08;
+  const y = v => m.t + ph - (v/maxY)*ph;
+  const bw = Math.min(24, pw/swings.length*0.5);
+  // target band
+  el("rect",{x:m.l, y:y(3.5), width:pw, height:y(2.5)-y(3.5), fill:"var(--band)"},svg);
+  for (const tv of niceTicks(maxY)) {
+    el("line",{x1:m.l,x2:m.l+pw,y1:y(tv),y2:y(tv),stroke:"var(--grid)","stroke-width":1},svg);
+    el("text",{x:m.l-6,y:y(tv)+3,"text-anchor":"end",class:"tickv"},svg).textContent = tv;
+  }
+  el("line",{x1:m.l,x2:m.l+pw,y1:y(0),y2:y(0),stroke:"var(--baseline)"},svg);
+  swings.forEach((s,i)=>{
+    const cx = m.l + pw*(i+0.5)/swings.length;
+    const v = s.metrics.tempo_ratio, top = y(v), h = y(0)-top;
+    const r = Math.min(4, bw/2);
+    el("path",{d:`M${cx-bw/2},${y(0)} V${top+r} Q${cx-bw/2},${top} ${cx-bw/2+r},${top} H${cx+bw/2-r} Q${cx+bw/2},${top} ${cx+bw/2},${top+r} V${y(0)} Z`,
+       fill:"var(--s1)"},svg);
+    el("text",{x:cx,y:H-8,"text-anchor":"middle"},svg).textContent = i+1;
+    const hit = el("rect",{x:m.l+pw*i/swings.length, y:m.t, width:pw/swings.length, height:ph+m.b, fill:"transparent"},svg);
+    attachBarTip(hit, host, `Swing ${i+1}`, [["var(--s1)", fmt1(v)+" : 1", "tempo"]]);
+  });
+}
+
+/* ---------- speed chart ---------- */
+function speedChart() {
+  const host = document.getElementById("speedChart");
+  host.textContent = "";
+  const W = host.clientWidth || 480, H = 190, m = {t:12,r:8,b:24,l:34};
+  const svg = el("svg",{width:W,height:H,role:"img","aria-label":"Hand and estimated club speed per swing"},host);
+  const pw = W-m.l-m.r, ph = H-m.t-m.b;
+  const maxY = Math.max(...swings.map(s=>clubSpeedMph(s.metrics)))*1.1;
+  const y = v => m.t + ph - (v/maxY)*ph;
+  for (const tv of niceTicks(maxY)) {
+    el("line",{x1:m.l,x2:m.l+pw,y1:y(tv),y2:y(tv),stroke:"var(--grid)"},svg);
+    el("text",{x:m.l-6,y:y(tv)+3,"text-anchor":"end",class:"tickv"},svg).textContent = tv;
+  }
+  el("line",{x1:m.l,x2:m.l+pw,y1:y(0),y2:y(0),stroke:"var(--baseline)"},svg);
+  const slot = pw/swings.length, bw = Math.min(18, slot*0.28);
+  swings.forEach((s,i)=>{
+    const cx = m.l + slot*(i+0.5);
+    const bars = [[s.metrics.hand_speed_mph,"var(--s1)",cx-bw-1],[clubSpeedMph(s.metrics),"var(--s2)",cx+1]];
+    for (const [v,c,x0] of bars){
+      const top=y(v), r=Math.min(4,bw/2);
+      el("path",{d:`M${x0},${y(0)} V${top+r} Q${x0},${top} ${x0+r},${top} H${x0+bw-r} Q${x0+bw},${top} ${x0+bw},${top+r} V${y(0)} Z`,fill:c},svg);
+    }
+    el("text",{x:cx,y:H-8,"text-anchor":"middle"},svg).textContent = i+1;
+    const hit = el("rect",{x:m.l+slot*i,y:m.t,width:slot,height:ph+m.b,fill:"transparent"},svg);
+    attachBarTip(hit, host, `Swing ${i+1}`,
+      [["var(--s1)", fmt1(s.metrics.hand_speed_mph)+" mph", "hand"],
+       ["var(--s2)", fmt1(clubSpeedMph(s.metrics))+" mph", "est. club"]]);
+  });
+}
+
+/* ---------- shared bar tooltip ---------- */
+let barTip;
+function attachBarTip(target, host, title, rows) {
+  if (!barTip) { barTip = document.createElement("div"); barTip.className = "tooltip"; }
+  const show = (ev) => {
+    host.closest(".card").appendChild(barTip);
+    barTip.textContent = "";
+    div("tt-t", barTip, title);
+    for (const [c, val, name] of rows) {
+      const r = div("row", barTip);
+      const k = div("k", r); k.style.background = c;
+      const b = document.createElement("b"); b.textContent = val; r.appendChild(b);
+      const sp = document.createElement("span"); sp.textContent = name; r.appendChild(sp);
+    }
+    barTip.style.display = "block";
+    const card = host.closest(".card").getBoundingClientRect();
+    let x = ev.clientX - card.left + 14, ytt = ev.clientY - card.top + 10;
+    if (x + 150 > card.width) x -= 170;
+    barTip.style.left = x+"px"; barTip.style.top = ytt+"px";
+  };
+  target.addEventListener("pointermove", show);
+  target.addEventListener("pointerleave", () => barTip.style.display = "none");
+}
+
+/* ---------- consistency cards ---------- */
+function simChart(){
+  const host = document.getElementById("simChart");
+  host.textContent = "";
+  const sim = similarity();
+  if (sim.session == null) { div("note", host, "Hit at least 3 swings to score similarity."); return; }
+  const W = host.clientWidth || 480, H = 180, m = {t:12,r:8,b:24,l:34};
+  const svg = el("svg",{width:W,height:H,role:"img","aria-label":"Similarity to the session per swing"},host);
+  const pw = W-m.l-m.r, ph = H-m.t-m.b;
+  const y = v => m.t + ph - (v/100)*ph;
+  for (const tv of [0,25,50,75,100]) {
+    el("line",{x1:m.l,x2:m.l+pw,y1:y(tv),y2:y(tv),stroke:"var(--grid)"},svg);
+    el("text",{x:m.l-6,y:y(tv)+3,"text-anchor":"end",class:"tickv"},svg).textContent = tv;
+  }
+  el("line",{x1:m.l,x2:m.l+pw,y1:y(0),y2:y(0),stroke:"var(--baseline)"},svg);
+  const bw = Math.min(24, pw/swings.length*0.5);
+  swings.forEach((s,i)=>{
+    const v = sim.scores[i];
+    if (v == null) return;
+    const cx = m.l + pw*(i+0.5)/swings.length;
+    const top = y(v), r = Math.min(4, bw/2);
+    el("path",{d:`M${cx-bw/2},${y(0)} V${top+r} Q${cx-bw/2},${top} ${cx-bw/2+r},${top} H${cx+bw/2-r} Q${cx+bw/2},${top} ${cx+bw/2},${top+r} V${y(0)} Z`,
+       fill:"var(--s1)"},svg);
+    el("text",{x:cx,y:H-8,"text-anchor":"middle"},svg).textContent = i+1;
+    const hit = el("rect",{x:m.l+pw*i/swings.length,y:m.t,width:pw/swings.length,height:ph+m.b,fill:"transparent"},svg);
+    attachBarTip(hit, host, `Swing ${i+1}`, [["var(--s1)", Math.round(v)+" /100", "similarity"]]);
+  });
+}
+function varGrid(){
+  const g = document.getElementById("varGrid");
+  g.textContent = "";
+  if (swings.length < 3) { div("note", g, "Hit at least 3 swings to measure spread."); return; }
+  const M = k => swings.map(s=>s.metrics[k]).filter(v=>v!=null);
+  const rows = [
+    ["Tempo ratio", sd(M("tempo_ratio")), v=>`± ${v.toFixed(2)}`],
+    ["Swing plane tilt", sd(M("swing_plane_tilt_deg")), v=>`± ${v.toFixed(1)}°`],
+    ["Backswing turn", sd(M("backswing_rotation_deg")), v=>`± ${Math.round(v)}°`],
+    ["Pause at top", sd(M("pause_top_s")), v=>`± ${v.toFixed(2)} s`],
+    ["Hand speed", sd(M("hand_speed_mph")), v=>`± ${v.toFixed(1)} mph`],
+  ];
+  for (const [k, v, f] of rows) {
+    const d = div("metric", g);
+    const sp = document.createElement("span"); sp.textContent = k; d.appendChild(sp);
+    const b = document.createElement("b"); b.textContent = v == null ? "—" : f(v); d.appendChild(b);
+  }
+}
+
+/* ---------- swing chips ---------- */
+function chips() {
+  const host = document.getElementById("chips");
+  host.textContent = "";
+  swings.forEach((s,i)=>{
+    const b = document.createElement("button");
+    b.className = "chip"; b.setAttribute("aria-pressed", i===selected);
+    b.textContent = `Swing ${i+1}`;
+    if (s.metrics.acc_clipped || s.metrics.gyro_clipped) {
+      const w = document.createElement("span"); w.className="clip"; w.textContent="⚠";
+      w.title = "sensor range clipped"; b.appendChild(w);
+    }
+    b.addEventListener("click", ()=>{ selected=i; renderDetail(); chips(); });
+    host.appendChild(b);
+  });
+}
+
+/* ---------- trace chart (two stacked small multiples, shared X) ---------- */
+function traceChart() {
+  const host = document.getElementById("traceChart");
+  host.textContent = "";
+  const s = swings[selected], tr = s.trace, ev = s.events;
+  const hasFA = Array.isArray(tr.forearm);
+  document.getElementById("faKey").hidden = !hasFA;
+  const W = host.clientWidth || 620, gap = 10, m = {t:20,r:10,b:22,l:44};
+  const subH = hasFA ? 106 : 130;
+
+  const panes = [
+    {vals: tr.gyro, color:"var(--s1)", unit:"°/s"},
+    {vals: tr.acc,  color:"var(--s2)", unit:"m/s²"},
+  ];
+  if (hasFA) panes.push({vals: tr.forearm, color:"var(--s3)", unit:"°/s ±", diverging:true});
+  panes.forEach((p,pi)=>{ p.y0 = pi*(subH+gap); });
+  const yBase = panes.length*subH + (panes.length-1)*gap;
+  const H = yBase + m.b;
+  const svg = el("svg",{width:W,height:H,role:"img","aria-label":"Wrist rotation, acceleration, and forearm roll over the swing"},host);
+  const pw = W-m.l-m.r;
+  const tMax = tr.t[tr.t.length-1];
+  const X = t => m.l + (t/tMax)*pw;
+
+  for (const p of panes) {
+    if (p.diverging) {
+      const vmax = (Math.max(...p.vals.map(Math.abs)) || 1) * 1.08;
+      p.Y = v => p.y0 + m.t + (subH-m.t) * (1 - (v+vmax)/(2*vmax));
+      const step = niceTicks(vmax,2).pop() || vmax;
+      for (const tv of [-step, step]) {
+        el("line",{x1:m.l,x2:m.l+pw,y1:p.Y(tv),y2:p.Y(tv),stroke:"var(--grid)"},svg);
+        el("text",{x:m.l-6,y:p.Y(tv)+3,"text-anchor":"end",class:"tickv"},svg).textContent = Math.round(tv);
+      }
+      // zero line, one step heavier than the grid
+      el("line",{x1:m.l,x2:m.l+pw,y1:p.Y(0),y2:p.Y(0),stroke:"var(--baseline)"},svg);
+      el("text",{x:m.l-6,y:p.Y(0)+3,"text-anchor":"end",class:"tickv"},svg).textContent = "0";
+    } else {
+      const maxV = Math.max(...p.vals)*1.08;
+      p.Y = v => p.y0 + m.t + (subH-m.t) - (v/maxV)*(subH-m.t);
+      for (const tv of niceTicks(maxV,3)) {
+        el("line",{x1:m.l,x2:m.l+pw,y1:p.Y(tv),y2:p.Y(tv),stroke:"var(--grid)"},svg);
+        el("text",{x:m.l-6,y:p.Y(tv)+3,"text-anchor":"end",class:"tickv"},svg).textContent = Math.round(tv);
+      }
+    }
+    el("text",{x:m.l-6,y:p.y0+12,"text-anchor":"end"},svg).textContent = p.unit;
+    const d = tr.t.map((t,i)=>`${i?"L":"M"}${X(t).toFixed(1)},${p.Y(p.vals[i]).toFixed(1)}`).join("");
+    el("path",{d,fill:"none",stroke:p.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg);
+  }
+  // shared x-axis
+  el("line",{x1:m.l,x2:m.l+pw,y1:yBase,y2:yBase,stroke:"var(--baseline)"},svg);
+  for (let t=0; t<=tMax; t+=0.5) {
+    el("text",{x:X(t),y:yBase+16,"text-anchor":"middle",class:"tickv"},svg).textContent = t.toFixed(1)+"s";
+  }
+  // event markers across both panes
+  const events = [["Top", ev.top],["Impact", ev.impact]];
+  for (const [name,t] of events) {
+    el("line",{x1:X(t),x2:X(t),y1:m.t-8,y2:yBase,stroke:"var(--baseline)","stroke-width":1},svg);
+    el("text",{x:X(t),y:m.t-10,"text-anchor":"middle",class:"evt"},svg).textContent = name;
+  }
+  // crosshair + tooltip
+  const cross = el("line",{y1:m.t-8,y2:yBase,stroke:"var(--ink-2)","stroke-width":1,visibility:"hidden"},svg);
+  const tip = document.getElementById("traceTip");
+  const hit = el("rect",{x:m.l,y:0,width:pw,height:yBase,fill:"transparent"},svg);
+  hit.addEventListener("pointermove", e=>{
+    const r = svg.getBoundingClientRect();
+    const t = Math.max(0, Math.min(tMax, (e.clientX-r.left-m.l)/pw*tMax));
+    let i = tr.t.findIndex(v=>v>=t); if(i<0) i=tr.t.length-1;
+    if (i>0 && t-tr.t[i-1] < tr.t[i]-t) i--;
+    cross.setAttribute("x1",X(tr.t[i])); cross.setAttribute("x2",X(tr.t[i]));
+    cross.setAttribute("visibility","visible");
+    tip.textContent="";
+    div("tt-t",tip, tr.t[i].toFixed(2)+" s");
+    const rows=[["var(--s1)",Math.round(tr.gyro[i])+" °/s","rotation"],["var(--s2)",tr.acc[i].toFixed(1)+" m/s²","free acc"]];
+    if (hasFA) rows.push(["var(--s3)",Math.round(tr.forearm[i])+" °/s","forearm roll"]);
+    for (const [c,val,name] of rows){
+      const row=div("row",tip); const k=div("k",row); k.style.background=c;
+      const b=document.createElement("b"); b.textContent=val; row.appendChild(b);
+      const sp=document.createElement("span"); sp.textContent=name; row.appendChild(sp);
+    }
+    const card = host.closest(".card").getBoundingClientRect();
+    let x = e.clientX-card.left+14, ytt = e.clientY-card.top+8;
+    if (x+160>card.width) x -= 185;
+    tip.style.left=x+"px"; tip.style.top=ytt+"px"; tip.style.display="block";
+  });
+  hit.addEventListener("pointerleave", ()=>{ cross.setAttribute("visibility","hidden"); tip.style.display="none"; });
+}
+
+/* ---------- hand path (two views) ---------- */
+function pathChart() {
+  const host = document.getElementById("pathChart");
+  host.textContent = "";
+  const s = swings[selected], p = s.path;
+  const W = host.clientWidth || 380, H = 210, half = (W-10)/2;
+  const svg = el("svg",{width:W,height:H,role:"img","aria-label":"Hand path, down-the-line and overhead views"},host);
+  const views = [
+    {x0:0,  hx:i=>-p.y[i], hyv:i=>p.z[i], label:"Down the line", sub:"← left · right →"},
+    {x0:half+10, hx:i=>p.x[i], hyv:i=>-p.y[i], label:"Overhead", sub:"target →"},
+  ];
+  const n = p.x.length;
+  for (const v of views) {
+    let xmin=1e9,xmax=-1e9,ymin=1e9,ymax=-1e9;
+    for(let i=0;i<n;i++){ const a=v.hx(i),b=v.hyv(i);
+      xmin=Math.min(xmin,a);xmax=Math.max(xmax,a);ymin=Math.min(ymin,b);ymax=Math.max(ymax,b); }
+    const pad=14, top=26, span=Math.max(xmax-xmin, ymax-ymin, 0.4);
+    const sc=Math.min((half-2*pad)/span,(H-top-2*pad)/span);
+    const ox=v.x0+half/2-((xmin+xmax)/2)*sc, oy=top+(H-top)/2+((ymin+ymax)/2)*sc;
+    const PX=i=>ox+v.hx(i)*sc, PY=i=>oy-v.hyv(i)*sc;
+    el("rect",{x:v.x0,y:top-6,width:half,height:H-top+6,fill:"none",stroke:"var(--grid)",rx:8},svg);
+    el("text",{x:v.x0+half/2,y:14,"text-anchor":"middle",class:"evt"},svg).textContent=v.label;
+    el("text",{x:v.x0+half/2,y:H-6,"text-anchor":"middle"},svg).textContent=v.sub;
+    const seg=(a,b,color,wd)=>{
+      let d=""; for(let i=a;i<=b;i++) d+=`${i===a?"M":"L"}${PX(i).toFixed(1)},${PY(i).toFixed(1)}`;
+      el("path",{d,fill:"none",stroke:color,"stroke-width":wd,"stroke-linejoin":"round","stroke-linecap":"round"},svg);
+    };
+    seg(0,p.i_top,"var(--s1-soft)",2);
+    seg(p.i_top,n-1,"var(--s1)",2);
+    // markers: top (hollow), impact (filled with surface ring)
+    el("circle",{cx:PX(p.i_top),cy:PY(p.i_top),r:5,fill:"var(--surface)",stroke:"var(--s1-soft)","stroke-width":2},svg);
+    el("circle",{cx:PX(p.i_impact),cy:PY(p.i_impact),r:6,fill:"var(--s1)",stroke:"var(--surface)","stroke-width":2},svg);
+  }
+  const m = s.metrics;
+  document.getElementById("pathNote").textContent =
+    m.acc_clipped
+      ? "Accelerometer clipped on this swing — the reconstructed path is approximate."
+      : `Hollow marker = top of backswing · filled = impact. Path ${m.path_angle_deg>=0?"+":""}${fmt1(m.path_angle_deg)}° ${m.path_angle_deg>1?"(in-to-out)":m.path_angle_deg<-1?"(out-to-in)":"(neutral)"} vs target line.`;
+}
+
+/* ---------- metrics + cues ---------- */
+function metricsPanel() {
+  const s = swings[selected], m = s.metrics;
+  document.getElementById("metricsTitle").textContent = `Metrics — swing ${selected+1}`;
+  document.getElementById("traceTitle").textContent = `Swing ${selected+1} trace`;
+  const g = document.getElementById("metricGrid");
+  g.textContent = "";
+  const rows = [
+    ["Tempo", `${fmt1(m.tempo_ratio)} : 1`],
+    ["Backswing / downswing", `${m.backswing_s.toFixed(2)}s / ${m.downswing_s.toFixed(2)}s`],
+    ["Hand speed", `${fmt1(m.hand_speed_mph)} mph`],
+    [`Est. club speed (${clubLabel()})`, `${fmt1(clubSpeedMph(m))} mph`],
+    ["Peak wrist rotation", `${Math.round(m.peak_gyro_dps)} °/s${m.gyro_clipped?" ⚠":""}`],
+    ["Backswing turn", `${Math.round(m.backswing_rotation_deg)}°`],
+    ["Swing plane tilt", `${fmt1(m.swing_plane_tilt_deg)}°`],
+    ["Release timing", `${Math.round(m.release_fraction*100)}% of downswing`],
+    ["Pause at top", m.pause_top_s == null ? "—" : `${m.pause_top_s.toFixed(2)} s`],
+    ["Transition build", m.transition_build_dps2 == null ? "—" : `${Math.round(m.transition_build_dps2).toLocaleString()} °/s²`],
+    ["Forearm rotation", m.forearm_rotation_deg == null ? "—"
+      : `${m.forearm_rotation_deg>=0?"+":""}${Math.round(m.forearm_rotation_deg)}° top→impact`],
+    ["Path", m.acc_clipped ? "— (clipped)" : `${m.path_angle_deg>=0?"+":""}${fmt1(m.path_angle_deg)}°`],
+    ["Attack angle", m.acc_clipped ? "— (clipped)" : `${m.attack_angle_deg>=0?"+":""}${fmt1(m.attack_angle_deg)}°`],
+  ];
+  for (const [k,v] of rows) {
+    const d = div("metric", g);
+    const sp = document.createElement("span"); sp.textContent = k; d.appendChild(sp);
+    const b = document.createElement("b"); b.textContent = v; d.appendChild(b);
+  }
+}
+
+const PRIO = {
+  1: {label:"Fix first", color:"var(--serious)", icon:"▲"},
+  2: {label:"Work on",  color:"var(--warn)",    icon:"◆"},
+  3: {label:"Note",     color:"var(--good)",    icon:"●"},
+};
+function cuesPanel() {
+  const host = document.getElementById("cues");
+  host.textContent = "";
+  const cs = swings[selected].cues;
+  if (!cs.length) { div("note", host, "No cues for this swing."); return; }
+  for (const c of cs) {
+    const row = div("cue", host);
+    const pr = PRIO[c.priority] || PRIO[3];
+    const pill = div("pill", row);
+    const dot = div("dot", pill); dot.style.background = pr.color;
+    pill.append(`${pr.icon} ${pr.label}`);
+    const body = div("", row);
+    const h = document.createElement("h3"); h.textContent = c.title; body.appendChild(h);
+    const pp = document.createElement("p"); pp.textContent = c.detail; body.appendChild(pp);
+  }
+}
+
+/* ---------- table view ---------- */
+function allTable() {
+  const t = document.getElementById("allTable");
+  t.textContent = "";
+  const head = ["Swing","Tempo","Back (s)","Down (s)","Hand (mph)","Est. club (mph)","Turn (°)","Plane (°)","Path (°)","Attack (°)","Sensor"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); }
+  t.appendChild(tr);
+  swings.forEach((s,i)=>{
+    const m = s.metrics, row = document.createElement("tr");
+    if (i===selected) row.className="sel";
+    const cells = [
+      `Swing ${i+1}`, fmt1(m.tempo_ratio), m.backswing_s.toFixed(2), m.downswing_s.toFixed(2),
+      fmt1(m.hand_speed_mph), fmt1(clubSpeedMph(m)), Math.round(m.backswing_rotation_deg),
+      fmt1(m.swing_plane_tilt_deg),
+      m.acc_clipped ? "—" : fmt1(m.path_angle_deg),
+      m.acc_clipped ? "—" : fmt1(m.attack_angle_deg),
+    ];
+    for (const c of cells){ const td=document.createElement("td"); td.textContent=c; row.appendChild(td); }
+    const td=document.createElement("td");
+    if (m.acc_clipped||m.gyro_clipped){ const f=document.createElement("span"); f.className="flag"; f.textContent="⚠ clipped"; td.appendChild(f); }
+    else td.textContent="clean";
+    row.appendChild(td);
+    row.addEventListener("click", ()=>{ selected=i; renderDetail(); chips(); });
+    row.style.cursor="pointer";
+    t.appendChild(row);
+  });
+}
+
+function renderDetail(){ traceChart(); pathChart(); metricsPanel(); cuesPanel(); allTable(); }
+
+const SENSOR_UI = {
+  starting:     {cls: "pulse",     label: "Starting…"},
+  idle:         {cls: "",          label: "Not connected"},
+  unsupported:  {cls: "err",       label: "Bluetooth not available in this browser"},
+  scanning:     {cls: "pulse",     label: "Scanning for sensor…"},
+  connected:    {cls: "pulse ok",  label: "Sensor connected — setting up…"},
+  ready:        {cls: "ok",        label: "Ready to swing"},
+  disconnected: {cls: "err",       label: "Sensor disconnected"},
+  error:        {cls: "err",       label: "Sensor error"},
+};
+
+function updateBadge(){
+  const b = document.getElementById("sourceBadge");
+  if (!live) { b.textContent = "Simulated session"; return; }
+  b.className = "badge";
+  if (!connected) {
+    b.classList.add("err");
+    b.textContent = "Dashboard link lost — reconnecting…";
+    return;
+  }
+  const ui = SENSOR_UI[STATUS.state] || SENSOR_UI.starting;
+  for (const c of ui.cls.split(" ")) if (c) b.classList.add(c);
+  b.textContent = "";
+  let txt = ui.label;
+  if (swings.length && (STATUS.state === "ready"))
+    txt += ` · ${swings.length} swing${swings.length>1?"s":""}`;
+  b.append(txt);
+  if (STATUS.battery != null) {
+    const s = document.createElement("span");
+    s.className = "batt";
+    s.textContent = ` · ${STATUS.battery}%`;
+    b.appendChild(s);
+  }
+  // empty-state copy follows the sensor
+  const big = document.getElementById("emptyBig");
+  const sub = document.getElementById("emptySub");
+  if (big && sub && swings.length === 0) {
+    const copy = {
+      starting:     ["Starting up", "Waiting for the session to begin."],
+      idle:         ["Connect your sensor", "Turn the DOT on (LED blinking), then click Connect sensor above and pick it from the chooser."],
+      unsupported:  ["This browser can't reach Bluetooth", "Web Bluetooth works in Chrome or Edge on Windows, macOS, Linux, and Android. Safari and iPhones aren't supported."],
+      scanning:     ["Scanning for sensor", "Turn the DOT on (LED blinking) and keep it near this computer. Make sure the Movella app isn't connected to it."],
+      connected:    ["Sensor connected", STATUS.detail || "Setting up the stream…"],
+      ready:        ["Ready — let it rip", "Heading is zeroed. Address the ball and swing; the board updates the moment each swing finishes."],
+      disconnected: ["Sensor disconnected", APPMODE === "ble"
+        ? "Click Connect sensor to reconnect."
+        : "Restart the session in the terminal to reconnect."],
+      error:        ["Sensor error", STATUS.detail || "Try connecting again."],
+    }[STATUS.state] || ["Listening for swings", ""];
+    big.textContent = copy[0];
+    sub.textContent = copy[1];
+  }
+}
+
+function renderAll(){
+  const has = swings.length > 0;
+  document.getElementById("empty").hidden = has;
+  document.getElementById("boards").hidden = !has;
+  updateBadge();
+  document.getElementById("sessionMeta").textContent =
+    has ? `${swings.length} swing${swings.length===1?"":"s"} · 60 Hz stream · ${clubLabel()}` : "";
+  if (!has) return;
+  if (selected >= swings.length) selected = swings.length - 1;
+  tiles(); tempoChart(); speedChart(); simChart(); varGrid(); chips(); renderDetail();
+}
+
+let APPMODE = "embedded";
+async function boot(){
+  if (DATA) {                       // embedded snapshot (published artifact)
+    swings = DATA.swings; LEVER = DATA.lever_m;
+    renderAll();
+    return;
+  }
+  live = true;
+  // Served by the local Python app (`swingcoach ... --web`)? Its endpoints answer.
+  let sse = null;
+  try {
+    const r = await fetch("/session.json", {cache: "no-store"});
+    if (r.ok) sse = await r.json();
+  } catch (e) {}
+  if (sse) {
+    APPMODE = "sse";
+    document.getElementById("simNote").hidden = true;
+    swings = sse.swings; LEVER = sse.lever_m;
+    if (sse.status) STATUS = sse.status;
+    renderAll();
+    const es = new EventSource("/events");
+    es.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "swing") {
+        swings.push(msg.swing);
+        selected = swings.length - 1;
+        renderAll();
+      } else if (msg.type === "status") {
+        STATUS = msg.status;
+        updateBadge();
+      }
+    };
+    es.onopen = () => { connected = true; updateBadge(); };
+    es.onerror = () => { connected = false; updateBadge(); };
+    return;
+  }
+  // Standalone hosted page: the browser itself talks to the sensor.
+  APPMODE = "ble";
+  initBleMode();
+}
+initClubFilter();
+boot();
+let rzT; addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(renderAll, 150); });
+</script>
+</body></html>

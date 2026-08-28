@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+sessions/
+golf-swing-coach.zip
+_to_delete/
