@@ -116,6 +116,27 @@
   .btn.secondary { background: var(--surface); color: var(--ink); border-color: var(--border); }
   .btn:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
   .btn[disabled] { opacity: .5; cursor: default; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; background: var(--surface); }
+  .seg button {
+    font: 600 13px system-ui, sans-serif; color: var(--ink-2); background: transparent;
+    border: 0; padding: 8px 16px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
+  .seg button:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+
+  .round-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .hole-num { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 54px; line-height: 1; }
+  .hole-num small { font-size: 15px; font-weight: 600; color: var(--muted); display: block; letter-spacing: .06em; text-transform: uppercase; }
+  .round-stats { display: flex; gap: 18px; }
+  .round-stats div b { font-size: 22px; font-weight: 600; display: block; }
+  .round-stats div span { font-size: 12px; color: var(--muted); }
+  .round-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .gps-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .gps-chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
+  .gps-chip.ok::before { background: var(--good); }
+  .gps-chip.err::before { background: var(--serious); }
+  .lastshot { font-size: 13px; color: var(--ink-2); margin-top: 10px; }
+  .lastshot b { color: var(--ink); }
 
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
@@ -212,6 +233,10 @@
      wrist angular velocity and needs per-club calibration.</p>
 
   <div class="filters">
+    <span class="seg" id="modeToggle" hidden role="group" aria-label="Mode">
+      <button id="modeRange" aria-pressed="true">Range</button>
+      <button id="modeRound" aria-pressed="false">Round</button>
+    </span>
     <label class="flabel" for="clubSel">Club</label>
     <select id="clubSel"></select>
     <span id="customWrap" hidden>
@@ -309,6 +334,66 @@
   </div>
 
   </div><!-- /boards -->
+
+  <div id="roundWrap" hidden>
+    <div class="card" style="margin-bottom:14px">
+      <div id="roundStart" hidden>
+        <h2>Round</h2>
+        <p class="note">Shots are detected automatically from the sensor and stamped with GPS. Putts and short chips won't auto-detect — add putts with the button. Keep this tablet within ~20 m of the sensor.</p>
+        <div class="round-actions">
+          <button class="btn" id="startRoundBtn">Start round</button>
+          <button class="btn secondary" id="resumeRoundBtn" hidden>Resume saved round</button>
+        </div>
+      </div>
+      <div id="roundLive" hidden>
+        <div class="round-head">
+          <div class="hole-num"><small>Hole</small><span id="holeNum">1</span></div>
+          <div class="round-stats">
+            <div><b id="holeShots">0</b><span>shots this hole</span></div>
+            <div><b id="holePutts">0</b><span>putts</span></div>
+            <div><b id="roundTotal">0</b><span>round total</span></div>
+          </div>
+          <span style="flex:1"></span>
+          <span class="gps-chip" id="gpsChip">GPS…</span>
+          <select id="unitSel" class="rowclub" aria-label="Distance unit">
+            <option value="yd">yards</option><option value="m">meters</option>
+          </select>
+        </div>
+        <div class="lastshot" id="lastShot"></div>
+        <div class="round-actions">
+          <button class="btn" id="puttBtn">+ Putt</button>
+          <button class="btn" id="nextHoleBtn">Next hole ▸</button>
+          <button class="btn secondary" id="prevHoleBtn">◂ Back</button>
+          <button class="btn secondary" id="undoShotBtn">Undo shot</button>
+          <button class="btn secondary" id="endRoundBtn">End round</button>
+        </div>
+      </div>
+      <div id="roundDone" hidden>
+        <h2>Round complete</h2>
+        <p class="note" id="roundDoneNote"></p>
+        <div class="round-actions">
+          <button class="btn secondary" id="exportJsonBtn">Export round JSON</button>
+          <button class="btn secondary" id="exportShotsBtn">Export shots CSV</button>
+          <button class="btn" id="newRoundBtn">New round</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Shot log</h2>
+        <p class="note">Distance is measured to where the next shot was hit from; the last shot before a hole change stays unmeasured.</p>
+        <div class="scroll-x"><table class="all" id="shotTable"></table></div>
+      </div>
+      <div class="card">
+        <h2>Club distances</h2>
+        <p class="note">From measured shots this round.</p>
+        <div class="scroll-x"><table class="all" id="clubDistTable"></table></div>
+        <h2 style="margin-top:18px">Holes</h2>
+        <div class="scroll-x"><table class="all" id="holeTable"></table></div>
+      </div>
+    </div>
+  </div>
 
   <footer>
     <span id="simNote">Data shown is a <b>synthetic session</b> generated by the SwingCoach simulator
@@ -699,6 +784,271 @@ function swingToJson(rec, leverM){
 }
 /* ================= PIPELINE-END ================= */
 
+/* ---------- Round mode (on-course shot tracking) ---------- */
+let uiMode = "range";           // "range" | "round"
+let round = null;               // active or finished round object
+let lastFix = null;             // latest GPS fix {lat, lon, acc, ts} or {err}
+let gpsWatch = null;
+let wakeLock = null;
+
+function haversineM(a, b){
+  const R = 6371000, r = Math.PI/180;
+  const dLat = (b.lat - a.lat)*r, dLon = (b.lon - a.lon)*r;
+  const s = Math.sin(dLat/2)**2 +
+            Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function distDisp(m){
+  if (m == null) return "—";
+  const yd = round && round.unit === "m" ? false : true;
+  return yd ? `${Math.round(m*1.09361)} yd` : `${Math.round(m)} m`;
+}
+
+function startGps(){
+  if (gpsWatch != null || !navigator.geolocation) return;
+  gpsWatch = navigator.geolocation.watchPosition(
+    p => { lastFix = {lat: p.coords.latitude, lon: p.coords.longitude,
+                      acc: p.coords.accuracy, ts: Date.now()}; gpsChip(); },
+    e => { lastFix = {err: e.message || "GPS unavailable", ts: Date.now()}; gpsChip(); },
+    {enableHighAccuracy: true, maximumAge: 2000, timeout: 15000});
+}
+function stopGps(){
+  if (gpsWatch != null && navigator.geolocation){ navigator.geolocation.clearWatch(gpsWatch); gpsWatch = null; }
+}
+function gpsChip(){
+  const el = document.getElementById("gpsChip");
+  if (!el) return;
+  el.className = "gps-chip";
+  if (!navigator.geolocation){ el.classList.add("err"); el.textContent = "No GPS in this browser"; return; }
+  if (!lastFix){ el.textContent = "GPS acquiring…"; return; }
+  if (lastFix.err){ el.classList.add("err"); el.textContent = "GPS: " + lastFix.err; return; }
+  el.classList.add(lastFix.acc <= 15 ? "ok" : "");
+  el.textContent = `GPS ±${Math.round(lastFix.acc)} m`;
+}
+async function keepAwake(){
+  try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (uiMode === "round" && document.visibilityState === "visible") keepAwake();
+});
+
+function saveRound(){
+  try { localStorage.setItem("swingcoach-round", JSON.stringify(round)); } catch (e) {}
+}
+function loadSavedRound(){
+  try {
+    const r = JSON.parse(localStorage.getItem("swingcoach-round"));
+    if (r && r.startedAt && Date.now() - r.startedAt < 24*3600*1000 && !r.endedAt) return r;
+  } catch (e) {}
+  return null;
+}
+
+function newRound(){
+  round = {startedAt: Date.now(), endedAt: null, currentHole: 1, unit: "yd",
+           holes: {}, shots: [], holeBreakSincePrev: true};
+  ensureHole(1);
+  saveRound();
+}
+function ensureHole(h){ if (!round.holes[h]) round.holes[h] = {putts: 0}; }
+
+function currentFixOrNull(){
+  if (lastFix && !lastFix.err && Date.now() - lastFix.ts < 15000 && lastFix.acc <= 35) return lastFix;
+  return null;
+}
+
+function addShot(sw, swingIndex){
+  const fix = currentFixOrNull();
+  const shot = {
+    n: round.shots.length + 1, hole: round.currentHole, club: currentClubTag(),
+    t: Date.now(), swingIndex,
+    lat: fix ? fix.lat : null, lon: fix ? fix.lon : null,
+    acc: fix ? Math.round(fix.acc) : null,
+    hand_mph: +sw.metrics.hand_speed_mph.toFixed(1),
+    club_mph: +clubSpeedMph(sw).toFixed(1),
+    tempo: +sw.metrics.tempo_ratio.toFixed(2),
+    clipped: !!(sw.metrics.acc_clipped || sw.metrics.gyro_clipped),
+    dist_m: null,
+  };
+  const prev = round.shots[round.shots.length - 1];
+  if (prev && !round.holeBreakSincePrev && prev.lat != null && shot.lat != null)
+    prev.dist_m = +haversineM(prev, shot).toFixed(1);
+  round.holeBreakSincePrev = false;
+  round.shots.push(shot);
+  saveRound();
+}
+function undoShot(){
+  if (!round || !round.shots.length) return;
+  round.shots.pop();
+  const last = round.shots[round.shots.length - 1];
+  if (last) last.dist_m = null;   // its distance was measured to the removed shot
+  saveRound(); renderAll();
+}
+function changeHole(delta){
+  round.currentHole = Math.min(18, Math.max(1, round.currentHole + delta));
+  ensureHole(round.currentHole);
+  round.holeBreakSincePrev = true;   // don't measure across the walk to the tee
+  saveRound(); renderAll();
+}
+
+function holeTotals(h){
+  const shots = round.shots.filter(s => s.hole === h).length;
+  const putts = (round.holes[h] || {putts: 0}).putts;
+  return {shots, putts, total: shots + putts};
+}
+function roundTotal(){
+  let t = 0;
+  for (const h of Object.keys(round.holes)) t += holeTotals(+h).total;
+  return t;
+}
+
+function renderRound(){
+  const hasRound = !!round && !round.endedAt;
+  document.getElementById("roundStart").hidden = !!round;
+  document.getElementById("roundLive").hidden = !hasRound;
+  document.getElementById("roundDone").hidden = !(round && round.endedAt);
+  document.getElementById("resumeRoundBtn").hidden = !(!round && loadSavedRound());
+  if (round && round.endedAt){
+    document.getElementById("roundDoneNote").textContent =
+      `${round.shots.length} detected shots + putts = ${roundTotal()} strokes over ` +
+      `${Object.keys(round.holes).length} holes.`;
+  }
+  if (!hasRound){ gpsChip(); return; }
+  ensureHole(round.currentHole);
+  const ht = holeTotals(round.currentHole);
+  document.getElementById("holeNum").textContent = round.currentHole;
+  document.getElementById("holeShots").textContent = ht.shots;
+  document.getElementById("holePutts").textContent = ht.putts;
+  document.getElementById("roundTotal").textContent = roundTotal();
+  document.getElementById("unitSel").value = round.unit;
+  gpsChip();
+  const last = round.shots[round.shots.length - 1];
+  document.getElementById("lastShot").innerHTML = "";
+  const ls = document.getElementById("lastShot");
+  if (last){
+    const prevMeasured = round.shots.filter(s => s.dist_m != null).pop();
+    ls.append("Last shot: ");
+    const b = document.createElement("b");
+    b.textContent = `${swingClub(last).label} · est ${fmt1(last.club_mph)} mph` +
+                    (last.lat == null ? " · no GPS fix" : "");
+    ls.appendChild(b);
+    if (prevMeasured){
+      ls.append(`  ·  previous shot travelled `);
+      const d = document.createElement("b");
+      d.textContent = distDisp(prevMeasured.dist_m);
+      ls.appendChild(d);
+    }
+  } else ls.textContent = "No shots yet — play away.";
+  shotTable(); clubDistTable(); holeTable();
+}
+
+function shotTable(){
+  const t = document.getElementById("shotTable");
+  t.textContent = "";
+  const head = ["#","Hole","Club","Dist","Est. club (mph)","Tempo","GPS"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+  t.appendChild(tr);
+  for (const s of [...round.shots].reverse()){
+    const row = document.createElement("tr");
+    const cells = [String(s.n), String(s.hole), swingClub(s).label, distDisp(s.dist_m),
+                   fmt1(s.club_mph) + (s.clipped ? " ⚠" : ""), fmt1(s.tempo),
+                   s.lat == null ? "—" : `±${s.acc} m`];
+    cells.forEach((c, k) => {
+      const td = document.createElement("td");
+      td.textContent = c;
+      if (k === 2) td.style.textAlign = "left";
+      row.appendChild(td);
+    });
+    t.appendChild(row);
+  }
+}
+function clubDistTable(){
+  const t = document.getElementById("clubDistTable");
+  t.textContent = "";
+  const groups = new Map();
+  for (const s of round.shots){
+    const c = swingClub(s);
+    const key = `${c.id}|${c.inches}`;
+    if (!groups.has(key)) groups.set(key, {label: c.label, inches: c.inches, d: [], n: 0});
+    const g = groups.get(key);
+    g.n++;
+    if (s.dist_m != null) g.d.push(s.dist_m);
+  }
+  const head = ["Club","Shots","Avg dist","Longest"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+  t.appendChild(tr);
+  for (const g of [...groups.values()].sort((a,b)=>b.inches-a.inches)){
+    const row = document.createElement("tr");
+    const avg = g.d.length ? g.d.reduce((x,y)=>x+y,0)/g.d.length : null;
+    const mx = g.d.length ? Math.max(...g.d) : null;
+    [g.label, String(g.n), distDisp(avg), distDisp(mx)].forEach((c, k) => {
+      const td = document.createElement("td"); td.textContent = c;
+      if (k === 0) td.style.textAlign = "left";
+      row.appendChild(td);
+    });
+    t.appendChild(row);
+  }
+}
+function holeTable(){
+  const t = document.getElementById("holeTable");
+  t.textContent = "";
+  const head = ["Hole","Shots","Putts","Total"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+  t.appendChild(tr);
+  for (const h of Object.keys(round.holes).map(Number).sort((a,b)=>a-b)){
+    const ht = holeTotals(h), row = document.createElement("tr");
+    [String(h), String(ht.shots), String(ht.putts), String(ht.total)].forEach(c => {
+      const td = document.createElement("td"); td.textContent = c; row.appendChild(td);
+    });
+    t.appendChild(row);
+  }
+}
+
+function downloadBlob(name, text, type){
+  const blob = new Blob([text], {type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function initRoundControls(){
+  const on = (id, fn) => document.getElementById(id).addEventListener("click", fn);
+  on("modeRange", () => setMode("range"));
+  on("modeRound", () => setMode("round"));
+  on("startRoundBtn", () => { newRound(); renderAll(); });
+  on("resumeRoundBtn", () => { round = loadSavedRound(); if (!round) return; renderAll(); });
+  on("puttBtn", () => { ensureHole(round.currentHole); round.holes[round.currentHole].putts++; saveRound(); renderAll(); });
+  on("nextHoleBtn", () => changeHole(1));
+  on("prevHoleBtn", () => changeHole(-1));
+  on("undoShotBtn", undoShot);
+  on("endRoundBtn", () => { round.endedAt = Date.now(); saveRound(); renderAll(); });
+  on("newRoundBtn", () => { round = null; try { localStorage.removeItem("swingcoach-round"); } catch(e){} renderAll(); });
+  on("exportJsonBtn", () => downloadBlob(`round-${new Date(round.startedAt).toISOString().slice(0,10)}.json`,
+      JSON.stringify(round, null, 1), "application/json"));
+  on("exportShotsBtn", () => {
+    const lines = ["n,hole,club,club_inches,dist_m,hand_mph,est_club_mph,tempo,clipped,lat,lon,acc_m,time"];
+    for (const s of round.shots)
+      lines.push([s.n, s.hole, swingClub(s).label.replace(/,/g," "), swingClub(s).inches,
+        s.dist_m ?? "", s.hand_mph, s.club_mph, s.tempo, s.clipped,
+        s.lat ?? "", s.lon ?? "", s.acc ?? "", new Date(s.t).toISOString()].join(","));
+    downloadBlob(`round-shots-${new Date(round.startedAt).toISOString().slice(0,10)}.csv`,
+      lines.join("\n"), "text/csv");
+  });
+  document.getElementById("unitSel").addEventListener("change", e => {
+    if (round){ round.unit = e.target.value; saveRound(); renderAll(); }
+  });
+}
+function setMode(mode){
+  uiMode = mode;
+  document.getElementById("modeRange").setAttribute("aria-pressed", mode === "range");
+  document.getElementById("modeRound").setAttribute("aria-pressed", mode === "round");
+  if (mode === "round"){ startGps(); keepAwake(); if (!round){ const saved = loadSavedRound(); if (saved) round = null; } }
+  else { stopGps(); try { if (wakeLock) wakeLock.release(); } catch(e){} }
+  renderAll();
+}
+
 /* ---------- Web Bluetooth client (standalone hosted mode) ---------- */
 const DOT_UUID = short => `1517${short.toString(16).padStart(4,"0")}-4947-11e9-8646-d663bd873d93`;
 const BLE = {
@@ -736,17 +1086,9 @@ function setSensorStatus(state, detail, battery){
   updateBadge();
 }
 
-async function connectSensor(onSample){
-  setSensorStatus("scanning", "pick your DOT in the chooser");
-  const device = await navigator.bluetooth.requestDevice({
-    filters: [{namePrefix: "Movella DOT"}, {namePrefix: "Xsens DOT"}],
-    optionalServices: [BLE.measurementService, BLE.batteryService],
-  });
-  device.addEventListener("gattserverdisconnected", () => {
-    bleDevice = null;
-    setSensorStatus("disconnected", "sensor disconnected");
-    setConnectButton();
-  });
+let userDisconnected = false;
+
+async function setupStreaming(device, onSample){
   setSensorStatus("connected", "connecting…");
   const server = await device.gatt.connect();
   let battery = null;
@@ -765,6 +1107,32 @@ async function connectSensor(onSample){
   await medium.startNotifications();
   await (await ms.getCharacteristic(BLE.controlChar)).writeValue(new Uint8Array([1, 1, 22]));
   setSensorStatus("ready", "streaming at 60 Hz", battery);
+}
+
+async function connectSensor(onSample){
+  setSensorStatus("scanning", "pick your DOT in the chooser");
+  const device = await navigator.bluetooth.requestDevice({
+    filters: [{namePrefix: "Movella DOT"}, {namePrefix: "Xsens DOT"}],
+    optionalServices: [BLE.measurementService, BLE.batteryService],
+  });
+  device.addEventListener("gattserverdisconnected", async () => {
+    if (userDisconnected){
+      setSensorStatus("disconnected", "sensor disconnected");
+      setConnectButton();
+      return;
+    }
+    // Walked out of range (cart, tee box)? Keep trying to get it back.
+    setSensorStatus("scanning", "connection lost — reconnecting…");
+    for (let i = 0; i < 15; i++){
+      await new Promise(r => setTimeout(r, 2000 + i*400));
+      if (userDisconnected || !bleDevice) return;
+      try { await setupStreaming(device, onSample); return; } catch (e) {}
+    }
+    bleDevice = null;
+    setSensorStatus("disconnected", "couldn't reconnect — click Connect sensor");
+    setConnectButton();
+  });
+  await setupStreaming(device, onSample);
   return device;
 }
 
@@ -777,6 +1145,8 @@ function setConnectButton(){
 
 function initBleMode(){
   document.getElementById("simNote").hidden = true;
+  document.getElementById("modeToggle").hidden = false;
+  initRoundControls();
   if (!navigator.bluetooth){
     setSensorStatus("unsupported",
       "This browser can't reach Bluetooth sensors — open this page in Chrome or Edge on a laptop or Android device.");
@@ -795,14 +1165,21 @@ function initBleMode(){
       sw.club = currentClubTag();
       swings.push(sw);
       selected = swings.length - 1;
+      if (uiMode === "round" && round && !round.endedAt)
+        addShot(sw, swings.length - 1);
       renderAll();
     }
   };
   window._feedSample = onSample;  // test hook
   const btn = document.getElementById("connectBtn");
   btn.addEventListener("click", async () => {
-    if (bleDevice){ try { bleDevice.gatt.disconnect(); } catch (e) {} bleDevice = null; setConnectButton(); return; }
+    if (bleDevice){
+      userDisconnected = true;
+      try { bleDevice.gatt.disconnect(); } catch (e) {}
+      bleDevice = null; setConnectButton(); return;
+    }
     btn.disabled = true;
+    userDisconnected = false;
     try {
       bleDevice = await connectSensor(onSample);
     } catch (e) {
@@ -1397,6 +1774,17 @@ function updateBadge(){
 }
 
 function renderAll(){
+  const isRound = uiMode === "round";
+  document.getElementById("roundWrap").hidden = !isRound;
+  if (isRound){
+    document.getElementById("empty").hidden = true;
+    document.getElementById("boards").hidden = true;
+    updateBadge();
+    document.getElementById("sessionMeta").textContent =
+      round && !round.endedAt ? `Round · hole ${round.currentHole} · ${roundTotal()} strokes` : "Round mode";
+    renderRound();
+    return;
+  }
   const has = swings.length > 0;
   document.getElementById("empty").hidden = has;
   document.getElementById("boards").hidden = !has;

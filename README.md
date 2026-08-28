@@ -58,6 +58,18 @@ After changing `swingcoach/dashboard.html`, rebuild the hosted page with
 pipeline exists twice (Python package, JS in the dashboard) and is kept
 numerically identical — verified to ~1e-13 on simulated swings.
 
+## Round mode (on-course, hosted app)
+
+On the hosted page (Chrome/Edge — an Android tablet is ideal, since it has
+GPS), switch the **Range | Round** toggle and start a round. Full swings are
+detected from the sensor and stamped with GPS, club, and swing metrics; shot
+distance is measured to where the next shot was hit from. Putts and short
+chips don't auto-detect — use **+ Putt**. Includes hole/score tracking, undo,
+per-club real distances, auto-reconnect when you walk back into Bluetooth
+range (~20 m), a screen wake lock, resume-after-reload (the round is saved in
+the browser), and round JSON/CSV export. Distances to the green (course maps)
+are the planned Phase 2.
+
 ## Live dashboard
 
 Add `--web` to any command and a dashboard opens at http://localhost:8787,
