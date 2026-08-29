@@ -75,8 +75,17 @@ distance is measured to where the next shot was hit from. Putts and short
 chips don't auto-detect — use **+ Putt**. Includes hole/score tracking, undo,
 per-club real distances, auto-reconnect when you walk back into Bluetooth
 range (~20 m), a screen wake lock, resume-after-reload (the round is saved in
-the browser), and round JSON/CSV export. Distances to the green (course maps)
-are the planned Phase 2.
+the browser), and round JSON/CSV export.
+
+**Course map:** satellite view (Esri imagery) with your live position, this
+hole's shot trail, and mapped greens/hole lines from OpenStreetMap — press
+**Load course data** once while you have internet (at home works) and it's
+cached for offline use on the course. Tap anywhere on the map to set a
+target: you get the distance to it, the remaining carry to the green,
+front/middle/back distances when you target the green itself, and club
+suggestions drawn from your own measured shot distances (cloud history +
+this round). OSM green coverage varies by course; without it, tap-to-target
+distances still work.
 
 ## Live dashboard
 

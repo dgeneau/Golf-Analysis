@@ -410,6 +410,19 @@
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:14px" id="mapCard" hidden>
+      <h2>Course map</h2>
+      <div class="round-actions" style="margin:0 0 10px">
+        <button class="btn secondary" id="loadCourseBtn">Load course data</button>
+        <button class="btn secondary" id="centerMapBtn">Center on me</button>
+        <span class="fnote" id="courseNote"></span>
+      </div>
+      <div id="map" style="height:420px;border-radius:8px;background:var(--grid)"></div>
+      <p class="note" id="targetInfo" style="margin-top:10px">Tap the map to set a target —
+        you'll get the distance to it, the carry on to the green, and club suggestions
+        from your own measured distances.</p>
+    </div>
+
     <div class="grid2">
       <div class="card">
         <h2>Shot log</h2>
@@ -1059,7 +1072,8 @@ function startGps(){
   if (gpsWatch != null || !navigator.geolocation) return;
   gpsWatch = navigator.geolocation.watchPosition(
     p => { lastFix = {lat: p.coords.latitude, lon: p.coords.longitude,
-                      acc: p.coords.accuracy, ts: Date.now()}; gpsChip(); },
+                      acc: p.coords.accuracy, ts: Date.now()};
+           gpsChip(); updateYouMarker(false); },
     e => { lastFix = {err: e.message || "GPS unavailable", ts: Date.now()}; gpsChip(); },
     {enableHighAccuracy: true, maximumAge: 2000, timeout: 15000});
 }
@@ -1149,6 +1163,7 @@ function changeHole(delta){
   round.currentHole = Math.min(18, Math.max(1, round.currentHole + delta));
   ensureHole(round.currentHole);
   round.holeBreakSincePrev = true;   // don't measure across the walk to the tee
+  frameHole(round.currentHole);
   saveRound(); renderAll();
 }
 
@@ -1174,7 +1189,9 @@ function renderRound(){
       `${round.shots.length} detected shots + putts = ${roundTotal()} strokes over ` +
       `${Object.keys(round.holes).length} holes.`;
   }
+  mapVisible(hasRound);
   if (!hasRound){ gpsChip(); return; }
+  updateShotMarkers();
   ensureHole(round.currentHole);
   const ht = holeTotals(round.currentHole);
   document.getElementById("holeNum").textContent = round.currentHole;
@@ -1268,6 +1285,240 @@ function holeTable(){
   }
 }
 
+/* ---------- Course map, OSM course data, club suggestions ---------- */
+let lmap = null, mapState = "off";   // off | loading | ready | failed
+let youMarker = null, targetMarker = null, shotLayer = null, courseLayer = null;
+let course = null;                    // {center, fetchedAt, greens:[{poly, centroid}], holes:[{ref, line}], tees:[]}
+let cloudClubStats = null;            // aggregated from synced shots: Map key -> {label, inches, sum, n}
+let mapCentered = false;
+
+const LEAFLET_JS = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+const LEAFLET_CSS = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+function loadCss(href){
+  return new Promise((res, rej) => {
+    const l = document.createElement("link");
+    l.rel = "stylesheet"; l.href = href; l.onload = res; l.onerror = rej;
+    document.head.appendChild(l);
+  });
+}
+
+async function initMap(){
+  if (mapState !== "off") return;
+  mapState = "loading";
+  try {
+    await Promise.all([loadCss(LEAFLET_CSS),
+                       window.L ? Promise.resolve() : loadScript(LEAFLET_JS)]);
+    lmap = L.map("map", {zoomControl: true});
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {maxZoom: 20, attribution: "Tiles © Esri — Maxar, Earthstar Geographics"}).addTo(lmap);
+    lmap.setView([48.4634, -123.3117], 15);
+    courseLayer = L.layerGroup().addTo(lmap);
+    shotLayer = L.layerGroup().addTo(lmap);
+    lmap.on("click", e => setTarget(e.latlng.lat, e.latlng.lng));
+    mapState = "ready";
+    loadCachedCourse();
+    renderCourseLayer();
+    updateYouMarker(true);
+  } catch (e) {
+    mapState = "failed";
+    const el = document.getElementById("map");
+    el.style.height = "auto";
+    el.textContent = "Map couldn't load (offline?) — distances from your GPS position still work in the shot log.";
+  }
+}
+function mapVisible(on){
+  const card = document.getElementById("mapCard");
+  card.hidden = !on;
+  if (on && mapState === "off") initMap();
+  if (on && lmap) setTimeout(() => lmap.invalidateSize(), 60);
+}
+function updateYouMarker(recenter){
+  if (!lmap || !lastFix || lastFix.err) return;
+  const ll = [lastFix.lat, lastFix.lon];
+  if (!youMarker){
+    youMarker = L.circleMarker(ll, {radius: 8, color: "#fff", weight: 2,
+                                    fillColor: "#2a78d6", fillOpacity: 1}).addTo(lmap);
+  } else youMarker.setLatLng(ll);
+  if (recenter || !mapCentered){ lmap.setView(ll, 17); mapCentered = true; }
+  refreshTargetInfo();
+}
+function updateShotMarkers(){
+  if (!lmap || !round) return;
+  shotLayer.clearLayers();
+  const pts = round.shots.filter(s => s.hole === round.currentHole && s.lat != null);
+  pts.forEach((s, i) => {
+    L.circleMarker([s.lat, s.lon], {radius: 6, color: "#fff", weight: 2,
+      fillColor: "#eb6834", fillOpacity: 1}).addTo(shotLayer)
+      .bindTooltip(`#${s.n} ${swingClub(s).label}`);
+  });
+  if (pts.length > 1)
+    L.polyline(pts.map(s => [s.lat, s.lon]),
+      {color: "#eb6834", weight: 2, dashArray: null}).addTo(shotLayer);
+}
+
+/* -- OSM course data via Overpass, cached for offline rounds -- */
+function loadCachedCourse(){
+  try {
+    const c = JSON.parse(localStorage.getItem("sc-course"));
+    if (c && c.greens) course = c;
+  } catch (e) {}
+  courseNoteRender();
+}
+function courseNoteRender(){
+  const n = document.getElementById("courseNote");
+  n.textContent = course
+    ? `Course data: ${course.greens.length} greens${course.holes.length ? `, ${course.holes.length} hole lines` : ""} (cached)`
+    : "No course data yet — load it once while you have internet.";
+}
+async function loadCourseData(){
+  const note = document.getElementById("courseNote");
+  const c = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon]
+          : lmap ? [lmap.getCenter().lat, lmap.getCenter().lng] : null;
+  if (!c){ note.textContent = "Need a GPS fix or map position first."; return; }
+  note.textContent = "Fetching course data from OpenStreetMap…";
+  const q = `[out:json][timeout:25];(
+    way["golf"="green"](around:2500,${c[0]},${c[1]});
+    way["golf"="tee"](around:2500,${c[0]},${c[1]});
+    way["golf"="hole"](around:2500,${c[0]},${c[1]}););out geom tags;`;
+  let js;
+  try {
+    const r = await fetch("https://overpass-api.de/api/interpreter",
+      {method: "POST", body: "data=" + encodeURIComponent(q),
+       headers: {"Content-Type": "application/x-www-form-urlencoded"}});
+    js = await r.json();
+  } catch (e){ note.textContent = "Couldn't reach OpenStreetMap — try again with internet."; return; }
+  const greens = [], tees = [], holes = [];
+  for (const el of js.elements || []){
+    if (!el.geometry) continue;
+    const pts = el.geometry.map(g => [g.lat, g.lon]);
+    const golf = (el.tags || {}).golf;
+    if (golf === "green"){
+      const cy = pts.reduce((a,p)=>a+p[0],0)/pts.length;
+      const cx = pts.reduce((a,p)=>a+p[1],0)/pts.length;
+      greens.push({poly: pts, centroid: [cy, cx]});
+    } else if (golf === "tee") tees.push(pts[0]);
+    else if (golf === "hole") holes.push({ref: parseInt((el.tags||{}).ref) || null, line: pts});
+  }
+  if (!greens.length){
+    note.textContent = "No mapped greens found here on OpenStreetMap — tap-to-target still works; green distances won't.";
+    return;
+  }
+  course = {center: c, fetchedAt: Date.now(), greens, tees, holes};
+  try { localStorage.setItem("sc-course", JSON.stringify(course)); } catch (e) {}
+  renderCourseLayer();
+  courseNoteRender();
+}
+function renderCourseLayer(){
+  if (!lmap || !course) return;
+  courseLayer.clearLayers();
+  for (const g of course.greens)
+    L.polygon(g.poly, {color: "#1baf7a", weight: 2, fillColor: "#1baf7a",
+                       fillOpacity: 0.25}).addTo(courseLayer);
+  for (const h of course.holes)
+    if (h.line && h.line.length > 1)
+      L.polyline(h.line, {color: "#fcfcfb", weight: 1.5, opacity: 0.7,
+                          dashArray: "6 6"}).addTo(courseLayer);
+}
+function frameHole(n){
+  if (!lmap || !course) return;
+  const h = course.holes.find(x => x.ref === n);
+  if (h && h.line.length > 1){ lmap.fitBounds(L.latLngBounds(h.line).pad(0.2)); mapCentered = true; }
+}
+function nearestGreen(from){
+  if (!course || !from) return null;
+  let best = null, bd = 1e12;
+  for (const g of course.greens){
+    const d = haversineM({lat: from[0], lon: from[1]}, {lat: g.centroid[0], lon: g.centroid[1]});
+    if (d < bd){ bd = d; best = g; }
+  }
+  return bd < 700 ? best : null;   // only a green plausibly in play
+}
+function greenFCB(g, from){
+  // front/center/back are relative to where the player is
+  const ds = g.poly.map(p => haversineM({lat: from[0], lon: from[1]}, {lat: p[0], lon: p[1]}));
+  return {front: Math.min(...ds),
+          center: haversineM({lat: from[0], lon: from[1]}, {lat: g.centroid[0], lon: g.centroid[1]}),
+          back: Math.max(...ds)};
+}
+
+/* -- personal club distances (cloud history + this round) -- */
+async function loadCloudClubStats(){
+  if (!sb || !sbUser) return;
+  try {
+    const {data, error} = await sb.from("shots")
+      .select("club_id,club_inches,dist_m").not("dist_m", "is", null).limit(10000);
+    if (error || !data) return;
+    cloudClubStats = data;
+  } catch (e) {}
+}
+function clubDistanceStats(){
+  const acc = new Map();
+  const add = (id, inches, d) => {
+    if (d == null || !(d > 20)) return;   // ignore chips/putt-length noise
+    const key = `${id}|${inches}`;
+    if (!acc.has(key)) acc.set(key, {id, inches, sum: 0, n: 0});
+    const a = acc.get(key); a.sum += d; a.n++;
+  };
+  for (const r of cloudClubStats || []) add(r.club_id, +r.club_inches, +r.dist_m);
+  if (round) for (const s of round.shots) add(s.club.id, s.club.inches, s.dist_m);
+  return [...acc.values()].map(a => {
+    const def = CLUBS.find(c => c.id === a.id);
+    return {id: a.id, inches: a.inches,
+            label: a.id === "custom" || !def ? `Custom ${a.inches}″` : def.name,
+            avg_m: a.sum / a.n, n: a.n};
+  });
+}
+function suggestClubs(dist_m){
+  const ranked = clubDistanceStats()
+    .filter(s => s.n >= 2)
+    .sort((a, b) => Math.abs(a.avg_m - dist_m) - Math.abs(b.avg_m - dist_m));
+  // only clubs whose average is plausibly this shot (within 25 m or 25%)
+  const near = ranked.filter(s =>
+    Math.abs(s.avg_m - dist_m) <= Math.max(25, 0.25 * dist_m));
+  return (near.length ? near : ranked).slice(0, near.length ? 2 : 1);
+}
+
+/* -- tap-to-target -- */
+let target = null;   // [lat, lon]
+function setTarget(lat, lon){
+  target = [lat, lon];
+  if (lmap){
+    if (!targetMarker)
+      targetMarker = L.circleMarker(target, {radius: 7, color: "#fff", weight: 2,
+        fillColor: "#e34948", fillOpacity: 1}).addTo(lmap);
+    else targetMarker.setLatLng(target);
+  }
+  refreshTargetInfo();
+}
+function refreshTargetInfo(){
+  const el = document.getElementById("targetInfo");
+  if (!el || !target) return;
+  const parts = [];
+  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
+  let dYou = null;
+  if (here){
+    dYou = haversineM({lat: here[0], lon: here[1]}, {lat: target[0], lon: target[1]});
+    parts.push(`You → target: ${distDisp(dYou)}`);
+  } else parts.push("You → target: waiting for GPS");
+  const g = nearestGreen(target);
+  if (g){
+    const on = haversineM({lat: target[0], lon: target[1]}, {lat: g.centroid[0], lon: g.centroid[1]});
+    if (on > 15) parts.push(`target → green: ${distDisp(on)}`);
+    else if (here){
+      const fcb = greenFCB(g, here);
+      parts.push(`green F ${distDisp(fcb.front)} · M ${distDisp(fcb.center)} · B ${distDisp(fcb.back)}`);
+    }
+  }
+  if (dYou != null){
+    const sugg = suggestClubs(dYou);
+    if (sugg.length)
+      parts.push("Suggested: " + sugg.map(s =>
+        `${s.label} (avg ${distDisp(s.avg_m)} × ${s.n})`).join(", "));
+    else parts.push("No club suggestions yet — they appear once you have measured shots per club.");
+  }
+  el.textContent = parts.join("  ·  ");
+}
+
 function downloadBlob(name, text, type){
   const blob = new Blob([text], {type});
   const a = document.createElement("a");
@@ -1291,6 +1542,8 @@ function initRoundControls(){
   on("nextHoleBtn", () => changeHole(1));
   on("prevHoleBtn", () => changeHole(-1));
   on("undoShotBtn", undoShot);
+  on("loadCourseBtn", loadCourseData);
+  on("centerMapBtn", () => { mapCentered = false; updateYouMarker(true); });
   on("endRoundBtn", () => { round.endedAt = Date.now(); saveRound(); renderAll(); });
   on("newRoundBtn", () => { round = null; try { localStorage.removeItem("swingcoach-round"); } catch(e){} renderAll(); });
   on("exportJsonBtn", () => downloadBlob(`round-${new Date(round.startedAt).toISOString().slice(0,10)}.json`,
@@ -1312,7 +1565,7 @@ function setMode(mode){
   uiMode = mode;
   for (const [id, m] of [["modeRange","range"],["modeRound","round"],["modeProgress","progress"]])
     document.getElementById(id).setAttribute("aria-pressed", String(mode === m));
-  if (mode === "round"){ startGps(); keepAwake(); }
+  if (mode === "round"){ startGps(); keepAwake(); loadCloudClubStats(); }
   else { stopGps(); try { if (wakeLock) wakeLock.release(); } catch(e){} }
   if (mode === "progress") loadProgress();
   renderAll();
