@@ -147,6 +147,20 @@
   }
   .toast::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
 
+  .tohole {
+    position: absolute; top: 10px; right: 10px; z-index: 900; pointer-events: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 14px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+  }
+  .tohole b { display: block; font-size: 24px; font-weight: 650; line-height: 1.1; }
+  .tohole span { font-size: 11px; color: var(--ink-2); }
+  .leaflet-tooltip.distlabel {
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+    border-radius: 6px; font: 600 12px system-ui, sans-serif; padding: 2px 8px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.2); white-space: nowrap;
+  }
+  .leaflet-tooltip.distlabel::before { display: none; }
+
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
   .tile .lbl { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -371,6 +385,14 @@
       <div id="roundStart" hidden>
         <h2>Round</h2>
         <p class="note">Shots are detected automatically from the sensor and stamped with GPS. Putts and short chips won't auto-detect — add putts with the button. Keep this tablet within ~20 m of the sensor.</p>
+        <div class="filters" style="margin:0 0 6px">
+          <label class="flabel" for="courseSearch">Course</label>
+          <input id="courseSearch" placeholder="Course name…" style="width:200px">
+          <button class="btn secondary" id="findCourseBtn">Search</button>
+          <button class="btn secondary" id="nearbyCourseBtn">Find nearby</button>
+          <span class="fnote" id="courseStartNote"></span>
+        </div>
+        <div class="chips" id="courseResults" style="margin:0 0 12px"></div>
         <div class="round-actions">
           <button class="btn" id="startRoundBtn">Start round</button>
           <button class="btn secondary" id="resumeRoundBtn" hidden>Resume saved round</button>
@@ -417,7 +439,9 @@
         <button class="btn secondary" id="centerMapBtn">Center on me</button>
         <span class="fnote" id="courseNote"></span>
       </div>
-      <div id="map" style="height:420px;border-radius:8px;background:var(--grid)"></div>
+      <div id="map" style="height:420px;border-radius:8px;background:var(--grid);position:relative">
+        <div id="toHole" class="tohole" hidden></div>
+      </div>
       <p class="note" id="targetInfo" style="margin-top:10px">Tap the map to set a target —
         you'll get the distance to it, the carry on to the green, and club suggestions
         from your own measured distances.</p>
@@ -1190,7 +1214,13 @@ function renderRound(){
       `${Object.keys(round.holes).length} holes.`;
   }
   mapVisible(hasRound);
-  if (!hasRound){ gpsChip(); return; }
+  if (!hasRound){
+    gpsChip();
+    courseNoteRender();
+    const host = document.getElementById("courseResults");
+    if (host && !host.childElementCount) renderCachedCourseChips(host);
+    return;
+  }
   updateShotMarkers();
   ensureHole(round.currentHole);
   const ht = holeTotals(round.currentHole);
@@ -1341,52 +1371,135 @@ function updateYouMarker(recenter){
   } else youMarker.setLatLng(ll);
   if (recenter || !mapCentered){ lmap.setView(ll, 17); mapCentered = true; }
   refreshTargetInfo();
+  updateToHole();
 }
 function updateShotMarkers(){
   if (!lmap || !round) return;
   shotLayer.clearLayers();
   const pts = round.shots.filter(s => s.hole === round.currentHole && s.lat != null);
-  pts.forEach((s, i) => {
-    L.circleMarker([s.lat, s.lon], {radius: 6, color: "#fff", weight: 2,
-      fillColor: "#eb6834", fillOpacity: 1}).addTo(shotLayer)
-      .bindTooltip(`#${s.n} ${swingClub(s).label}`);
+  pts.forEach(s => {
+    const m = L.circleMarker([s.lat, s.lon], {radius: 6, color: "#fff", weight: 2,
+      fillColor: "#eb6834", fillOpacity: 1}).addTo(shotLayer);
+    m.bindTooltip(s.dist_m != null
+        ? `${swingClub(s).label} · ${distDisp(s.dist_m)}`
+        : `#${s.n} ${swingClub(s).label}`,
+      s.dist_m != null ? {permanent: true, direction: "right", offset: [8, 0],
+                          className: "distlabel"} : {});
   });
   if (pts.length > 1)
     L.polyline(pts.map(s => [s.lat, s.lon]),
-      {color: "#eb6834", weight: 2, dashArray: null}).addTo(shotLayer);
+      {color: "#eb6834", weight: 2}).addTo(shotLayer);
+  updateToHole();
 }
 
-/* -- OSM course data via Overpass, cached for offline rounds -- */
+/* -- OSM course data via Overpass, cached per course for offline rounds -- */
+function courseCache(){
+  try { return JSON.parse(localStorage.getItem("sc-courses")) || {}; } catch (e) { return {}; }
+}
+function saveCourseCache(cache){
+  // keep the 5 most recent courses
+  const ids = Object.keys(cache).sort((a,b)=>cache[b].fetchedAt-cache[a].fetchedAt).slice(0,5);
+  const out = {}; for (const id of ids) out[id] = cache[id];
+  try { localStorage.setItem("sc-courses", JSON.stringify(out)); } catch (e) {}
+}
 function loadCachedCourse(){
   try {
-    const c = JSON.parse(localStorage.getItem("sc-course"));
-    if (c && c.greens) course = c;
+    const id = localStorage.getItem("sc-course-current");
+    const cache = courseCache();
+    if (id && cache[id]) course = cache[id];
+    else { // migrate the old single-course cache if present
+      const old = JSON.parse(localStorage.getItem("sc-course"));
+      if (old && old.greens) course = old;
+    }
   } catch (e) {}
   courseNoteRender();
 }
 function courseNoteRender(){
+  const label = course
+    ? `${course.name || "Course"}: ${course.greens.length} greens${course.holes.length ? `, ${course.holes.length} hole lines` : ""} (cached)`
+    : "No course selected — search above, or load data by map position.";
   const n = document.getElementById("courseNote");
-  n.textContent = course
-    ? `Course data: ${course.greens.length} greens${course.holes.length ? `, ${course.holes.length} hole lines` : ""} (cached)`
-    : "No course data yet — load it once while you have internet.";
+  if (n) n.textContent = label;
+  const sn = document.getElementById("courseStartNote");
+  if (sn) sn.textContent = course ? `Selected: ${course.name || "course"} ✓` : "";
 }
-async function loadCourseData(){
-  const note = document.getElementById("courseNote");
-  const c = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon]
-          : lmap ? [lmap.getCenter().lat, lmap.getCenter().lng] : null;
-  if (!c){ note.textContent = "Need a GPS fix or map position first."; return; }
-  note.textContent = "Fetching course data from OpenStreetMap…";
-  const q = `[out:json][timeout:25];(
-    way["golf"="green"](around:2500,${c[0]},${c[1]});
-    way["golf"="tee"](around:2500,${c[0]},${c[1]});
-    way["golf"="hole"](around:2500,${c[0]},${c[1]}););out geom tags;`;
+async function overpass(q){
+  const r = await fetch("https://overpass-api.de/api/interpreter",
+    {method: "POST", body: "data=" + encodeURIComponent(`[out:json][timeout:25];${q}`),
+     headers: {"Content-Type": "application/x-www-form-urlencoded"}});
+  return r.json();
+}
+function refPoint(){
+  return (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon]
+       : lmap ? [lmap.getCenter().lat, lmap.getCenter().lng] : null;
+}
+async function searchCourses(nameQuery){
+  const host = document.getElementById("courseResults");
+  const note = document.getElementById("courseStartNote");
+  const c = refPoint();
+  if (!c){ note.textContent = "Waiting for GPS — try again in a moment."; return; }
+  note.textContent = "Searching OpenStreetMap…";
+  host.textContent = "";
+  const filt = nameQuery ? `["name"~"${nameQuery.replace(/["\\]/g, "")}",i]` : "";
+  const rad = nameQuery ? 100000 : 30000;
   let js;
   try {
-    const r = await fetch("https://overpass-api.de/api/interpreter",
-      {method: "POST", body: "data=" + encodeURIComponent(q),
-       headers: {"Content-Type": "application/x-www-form-urlencoded"}});
-    js = await r.json();
-  } catch (e){ note.textContent = "Couldn't reach OpenStreetMap — try again with internet."; return; }
+    js = await overpass(`(
+      way["leisure"="golf_course"]${filt}(around:${rad},${c[0]},${c[1]});
+      relation["leisure"="golf_course"]${filt}(around:${rad},${c[0]},${c[1]}););out tags center;`);
+  } catch (e){ note.textContent = "Couldn't reach OpenStreetMap — check internet."; return; }
+  const seen = new Set();
+  const found = (js.elements || [])
+    .filter(el => el.center)
+    .map(el => ({id: `${el.type}/${el.id}`,
+                 name: (el.tags || {}).name || "Unnamed course",
+                 center: [el.center.lat, el.center.lon]}))
+    .filter(x => { if (seen.has(x.name)) return false; seen.add(x.name); return true; })
+    .map(x => ({...x, d: haversineM({lat:c[0],lon:c[1]}, {lat:x.center[0],lon:x.center[1]})}))
+    .sort((a,b) => a.d - b.d)
+    .slice(0, 8);
+  note.textContent = found.length ? "Pick your course:" : "No courses found — try a different name.";
+  for (const f of found){
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = `${f.name} · ${(f.d/1000).toFixed(1)} km`;
+    b.addEventListener("click", () => selectCourse(f));
+    host.appendChild(b);
+  }
+  renderCachedCourseChips(host);
+}
+function renderCachedCourseChips(host){
+  const cache = courseCache();
+  for (const id of Object.keys(cache)){
+    if (course && course.id === id) continue;
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = `${cache[id].name || "Course"} (offline)`;
+    b.addEventListener("click", () => {
+      course = cache[id];
+      try { localStorage.setItem("sc-course-current", id); } catch (e) {}
+      renderCourseLayer(); courseNoteRender(); updateToHole();
+      if (lmap && course.center){ lmap.setView(course.center, 16); mapCentered = true; }
+    });
+    host.appendChild(b);
+  }
+}
+async function selectCourse(f){
+  const note = document.getElementById("courseStartNote");
+  note.textContent = `Loading ${f.name}…`;
+  const ok = await fetchCourseFeatures(f.center, f.id, f.name);
+  note.textContent = ok ? `Selected: ${f.name} ✓`
+    : `${f.name}: no mapped greens on OSM — distances to your tapped targets still work.`;
+  document.getElementById("courseResults").textContent = "";
+}
+async function fetchCourseFeatures(center, id, name){
+  let js;
+  try {
+    js = await overpass(`(
+      way["golf"="green"](around:2500,${center[0]},${center[1]});
+      way["golf"="tee"](around:2500,${center[0]},${center[1]});
+      way["golf"="hole"](around:2500,${center[0]},${center[1]}););out geom tags;`);
+  } catch (e){ return false; }
   const greens = [], tees = [], holes = [];
   for (const el of js.elements || []){
     if (!el.geometry) continue;
@@ -1399,14 +1512,23 @@ async function loadCourseData(){
     } else if (golf === "tee") tees.push(pts[0]);
     else if (golf === "hole") holes.push({ref: parseInt((el.tags||{}).ref) || null, line: pts});
   }
-  if (!greens.length){
-    note.textContent = "No mapped greens found here on OpenStreetMap — tap-to-target still works; green distances won't.";
-    return;
+  course = {id: id || null, name: name || null, center, fetchedAt: Date.now(), greens, tees, holes};
+  if (id){
+    const cache = courseCache(); cache[id] = course; saveCourseCache(cache);
+    try { localStorage.setItem("sc-course-current", id); } catch (e) {}
   }
-  course = {center: c, fetchedAt: Date.now(), greens, tees, holes};
-  try { localStorage.setItem("sc-course", JSON.stringify(course)); } catch (e) {}
-  renderCourseLayer();
-  courseNoteRender();
+  renderCourseLayer(); courseNoteRender(); updateToHole();
+  if (lmap){ lmap.setView(center, 16); mapCentered = true; }
+  return greens.length > 0;
+}
+async function loadCourseData(){
+  // fallback path: load by current map/GPS position without a named course
+  const note = document.getElementById("courseNote");
+  const c = refPoint();
+  if (!c){ note.textContent = "Need a GPS fix or map position first."; return; }
+  note.textContent = "Fetching course data from OpenStreetMap…";
+  const ok = await fetchCourseFeatures(c, null, null);
+  if (!ok) note.textContent = "No mapped greens found here on OpenStreetMap — tap-to-target still works; green distances won't.";
 }
 function renderCourseLayer(){
   if (!lmap || !course) return;
@@ -1432,6 +1554,39 @@ function nearestGreen(from){
     if (d < bd){ bd = d; best = g; }
   }
   return bd < 700 ? best : null;   // only a green plausibly in play
+}
+function currentGreen(){
+  // Prefer the green at the end of this hole's mapped line; fall back to nearest.
+  if (!course) return null;
+  if (round && course.holes && course.holes.length){
+    const h = course.holes.find(x => x.ref === round.currentHole);
+    if (h && h.line && h.line.length){
+      const end = h.line[h.line.length - 1];
+      let best = null, bd = 1e12;
+      for (const g of course.greens){
+        const d = haversineM({lat: end[0], lon: end[1]}, {lat: g.centroid[0], lon: g.centroid[1]});
+        if (d < bd){ bd = d; best = g; }
+      }
+      if (bd < 150) return best;
+    }
+  }
+  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
+  return here ? nearestGreen(here) : null;
+}
+function updateToHole(){
+  const el = document.getElementById("toHole");
+  if (!el) return;
+  const g = currentGreen();
+  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
+  if (!g || !here || uiMode !== "round"){ el.hidden = true; return; }
+  const fcb = greenFCB(g, here);
+  el.hidden = false;
+  el.textContent = "";
+  const b = document.createElement("b");
+  b.textContent = distDisp(fcb.center);
+  const s = document.createElement("span");
+  s.textContent = `to green · F ${distDisp(fcb.front)} · B ${distDisp(fcb.back)}`;
+  el.append(b, s);
 }
 function greenFCB(g, from){
   // front/center/back are relative to where the player is
@@ -1478,37 +1633,49 @@ function suggestClubs(dist_m){
   return (near.length ? near : ranked).slice(0, near.length ? 2 : 1);
 }
 
-/* -- tap-to-target -- */
+/* -- tap-to-target with on-map distance segments -- */
 let target = null;   // [lat, lon]
+let targetLayer = null;
 function setTarget(lat, lon){
   target = [lat, lon];
-  if (lmap){
-    if (!targetMarker)
-      targetMarker = L.circleMarker(target, {radius: 7, color: "#fff", weight: 2,
-        fillColor: "#e34948", fillOpacity: 1}).addTo(lmap);
-    else targetMarker.setLatLng(target);
-  }
   refreshTargetInfo();
 }
 function refreshTargetInfo(){
   const el = document.getElementById("targetInfo");
   if (!el || !target) return;
+  if (lmap && !targetLayer) targetLayer = L.layerGroup().addTo(lmap);
+  if (targetLayer) targetLayer.clearLayers();
   const parts = [];
   const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
   let dYou = null;
   if (here){
     dYou = haversineM({lat: here[0], lon: here[1]}, {lat: target[0], lon: target[1]});
     parts.push(`You → target: ${distDisp(dYou)}`);
+    if (targetLayer)
+      L.polyline([here, target], {color: "#fcfcfb", weight: 2, opacity: 0.95})
+        .addTo(targetLayer)
+        .bindTooltip(distDisp(dYou), {permanent: true, direction: "center",
+                                      className: "distlabel"}).openTooltip();
   } else parts.push("You → target: waiting for GPS");
-  const g = nearestGreen(target);
+  const g = nearestGreen(target) || currentGreen();
   if (g){
     const on = haversineM({lat: target[0], lon: target[1]}, {lat: g.centroid[0], lon: g.centroid[1]});
-    if (on > 15) parts.push(`target → green: ${distDisp(on)}`);
-    else if (here){
+    if (on > 15){
+      parts.push(`target → green: ${distDisp(on)}`);
+      if (targetLayer)
+        L.polyline([target, g.centroid], {color: "#fcfcfb", weight: 2, opacity: 0.85,
+                                          dashArray: "5 7"})
+          .addTo(targetLayer)
+          .bindTooltip(distDisp(on), {permanent: true, direction: "center",
+                                      className: "distlabel"}).openTooltip();
+    } else if (here){
       const fcb = greenFCB(g, here);
       parts.push(`green F ${distDisp(fcb.front)} · M ${distDisp(fcb.center)} · B ${distDisp(fcb.back)}`);
     }
   }
+  if (targetLayer)
+    L.circleMarker(target, {radius: 7, color: "#fff", weight: 2,
+                            fillColor: "#e34948", fillOpacity: 1}).addTo(targetLayer);
   if (dYou != null){
     const sugg = suggestClubs(dYou);
     if (sugg.length)
@@ -1531,7 +1698,13 @@ function initRoundControls(){
   on("modeRange", () => setMode("range"));
   on("modeRound", () => setMode("round"));
   on("modeProgress", () => setMode("progress"));
-  on("startRoundBtn", () => { newRound(); renderAll(); });
+  on("startRoundBtn", () => {
+    newRound();
+    if (course && course.name) round.courseName = course.name;
+    saveRound(); renderAll();
+  });
+  on("findCourseBtn", () => searchCourses(document.getElementById("courseSearch").value.trim() || null));
+  on("nearbyCourseBtn", () => searchCourses(null));
   on("resumeRoundBtn", () => { round = loadSavedRound(); if (!round) return; renderAll(); });
   on("puttBtn", () => {
     ensureHole(round.currentHole);
