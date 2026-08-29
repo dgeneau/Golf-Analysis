@@ -401,7 +401,7 @@
       </div>
       <div id="roundLive" hidden>
         <div class="round-head">
-          <div class="hole-num"><small>Hole</small><span id="holeNum">1</span></div>
+          <div class="hole-num"><small>Hole</small><span id="holeNum">1</span><small id="holeInfo"></small></div>
           <div class="round-stats">
             <div><b id="holeShots">0</b><span>shots this hole</span></div>
             <div><b id="holePutts">0</b><span>putts</span></div>
@@ -1099,7 +1099,7 @@ function startGps(){
   gpsWatch = navigator.geolocation.watchPosition(
     p => { lastFix = {lat: p.coords.latitude, lon: p.coords.longitude,
                       acc: p.coords.accuracy, ts: Date.now()};
-           gpsChip(); updateYouMarker(false); },
+           gpsChip(); updateYouMarker(false); checkAutoHole(); },
     e => { lastFix = {err: e.message || "GPS unavailable", ts: Date.now()}; gpsChip(); },
     {enableHighAccuracy: true, maximumAge: 2000, timeout: 15000});
 }
@@ -1193,6 +1193,38 @@ function changeHole(delta){
   saveRound(); renderAll();
 }
 
+function lineLengthM(line){
+  let d = 0;
+  for (let i = 1; i < line.length; i++)
+    d += haversineM({lat: line[i-1][0], lon: line[i-1][1]},
+                    {lat: line[i][0], lon: line[i][1]});
+  return d;
+}
+function holeMeta(n){
+  if (!course || !course.holes) return null;
+  return course.holes.find(x => x.ref === n) || null;
+}
+
+/* GPS auto-advance: standing on the next hole's tee switches the app there. */
+let lastAutoHole = 0;
+function checkAutoHole(){
+  if (!round || round.endedAt || uiMode !== "round") return;
+  if (!course || !course.holes || !course.holes.length) return;
+  if (!(lastFix && !lastFix.err) || lastFix.acc > 25) return;
+  const next = round.currentHole + 1;
+  if (next > 18 || lastAutoHole === next) return;
+  const h = holeMeta(next);
+  if (!h || !h.line.length) return;
+  const tee = h.line[0];   // OSM convention: hole ways are drawn tee → green
+  const d = haversineM({lat: lastFix.lat, lon: lastFix.lon},
+                       {lat: tee[0], lon: tee[1]});
+  if (d < 35 && holeTotals(round.currentHole).total > 0){
+    lastAutoHole = next;
+    changeHole(1);
+    toast(`Hole ${next} — auto-advanced (you're on the tee)`);
+  }
+}
+
 function holeTotals(h){
   const shots = round.shots.filter(s => s.hole === h).length;
   const putts = (round.holes[h] || {putts: 0}).putts;
@@ -1227,6 +1259,12 @@ function renderRound(){
   ensureHole(round.currentHole);
   const ht = holeTotals(round.currentHole);
   document.getElementById("holeNum").textContent = round.currentHole;
+  const hm = holeMeta(round.currentHole);
+  document.getElementById("holeInfo").textContent = hm
+    ? [hm.par ? `Par ${hm.par}` : null,
+       hm.line && hm.line.length > 1 ? distDisp(lineLengthM(hm.line)) : null]
+        .filter(Boolean).join(" · ")
+    : "";
   document.getElementById("holeShots").textContent = ht.shots;
   document.getElementById("holePutts").textContent = ht.putts;
   document.getElementById("roundTotal").textContent = roundTotal();
@@ -1304,15 +1342,27 @@ function clubDistTable(){
 function holeTable(){
   const t = document.getElementById("holeTable");
   t.textContent = "";
-  const head = ["Hole","Shots","Putts","Total"];
+  const head = ["Hole","Par","Shots","Putts","Total"];
   const tr = document.createElement("tr");
   for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
   t.appendChild(tr);
+  let parSum = 0, strokesOnParHoles = 0, parKnown = 0;
   for (const h of Object.keys(round.holes).map(Number).sort((a,b)=>a-b)){
-    const ht = holeTotals(h), row = document.createElement("tr");
-    [String(h), String(ht.shots), String(ht.putts), String(ht.total)].forEach(c => {
+    const ht = holeTotals(h), hm = holeMeta(h), row = document.createElement("tr");
+    if (hm && hm.par && ht.total > 0){ parSum += hm.par; strokesOnParHoles += ht.total; parKnown++; }
+    [String(h), hm && hm.par ? String(hm.par) : "—",
+     String(ht.shots), String(ht.putts), String(ht.total)].forEach(c => {
       const td = document.createElement("td"); td.textContent = c; row.appendChild(td);
     });
+    t.appendChild(row);
+  }
+  if (parKnown){
+    const diff = strokesOnParHoles - parSum;
+    const row = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5; td.style.textAlign = "right"; td.style.fontWeight = "600";
+    td.textContent = `vs par: ${diff > 0 ? "+" : ""}${diff} through ${parKnown} hole${parKnown > 1 ? "s" : ""}`;
+    row.appendChild(td);
     t.appendChild(row);
   }
 }
@@ -1589,7 +1639,11 @@ async function fetchCourseFeatures(center, id, name, recenter = true){
       const cx = pts.reduce((a,p)=>a+p[1],0)/pts.length;
       greens.push({poly: pts, centroid: [cy, cx]});
     } else if (golf === "tee") tees.push(pts[0]);
-    else if (golf === "hole") holes.push({ref: parseInt((el.tags||{}).ref) || null, line: pts});
+    else if (golf === "hole") holes.push({
+      ref: parseInt((el.tags||{}).ref) || null,
+      par: parseInt((el.tags||{}).par) || null,
+      line: pts,
+    });
   }
   course = {id: id || null, name: name || null, center, fetchedAt: Date.now(), greens, tees, holes};
   if (id){

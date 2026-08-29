@@ -87,6 +87,12 @@ suggestions drawn from your own measured shot distances (cloud history +
 this round). OSM green coverage varies by course; without it, tap-to-target
 distances still work.
 
+When the course has `golf=hole` lines mapped on OSM (a line per hole,
+tee→green, tagged `ref=<hole number>` and optionally `par=`), rounds become
+fully guided: the header shows hole par and length, the map frames each hole,
+the correct green drives the to-green readout, the scorecard tracks vs par —
+and walking onto the next tee auto-advances the app to that hole.
+
 ## Live dashboard
 
 Add `--web` to any command and a dashboard opens at http://localhost:8787,
