@@ -396,6 +396,7 @@
         <div class="round-actions">
           <button class="btn" id="startRoundBtn">Start round</button>
           <button class="btn secondary" id="resumeRoundBtn" hidden>Resume saved round</button>
+          <button class="btn secondary" id="refreshCourseBtn2" hidden>Refresh course data</button>
         </div>
       </div>
       <div id="roundLive" hidden>
@@ -436,6 +437,7 @@
       <h2>Course map</h2>
       <div class="round-actions" style="margin:0 0 10px">
         <button class="btn secondary" id="loadCourseBtn">Load course data</button>
+        <button class="btn secondary" id="refreshCourseBtn" hidden>Refresh course data</button>
         <button class="btn secondary" id="centerMapBtn">Center on me</button>
         <span class="fnote" id="courseNote"></span>
       </div>
@@ -1414,14 +1416,40 @@ function loadCachedCourse(){
   } catch (e) {}
   courseNoteRender();
 }
+function ago(ts){
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 60) return `${m} min ago`;
+  if (m < 48 * 60) return `${Math.round(m / 60)} h ago`;
+  return `${Math.round(m / 1440)} d ago`;
+}
 function courseNoteRender(){
   const label = course
-    ? `${course.name || "Course"}: ${course.greens.length} greens${course.holes.length ? `, ${course.holes.length} hole lines` : ""} (cached)`
+    ? `${course.name || "Course"}: ${course.greens.length} greens` +
+      (course.holes.length ? `, ${course.holes.length} hole lines` : "") +
+      (course.fetchedAt ? ` · updated ${ago(course.fetchedAt)}` : "")
     : "No course selected — search above, or load data by map position.";
   const n = document.getElementById("courseNote");
   if (n) n.textContent = label;
+  for (const id of ["refreshCourseBtn", "refreshCourseBtn2"]){
+    const rb = document.getElementById(id);
+    if (rb) rb.hidden = !(course && course.center);
+  }
   const sn = document.getElementById("courseStartNote");
-  if (sn) sn.textContent = course ? `Selected: ${course.name || "course"} ✓` : "";
+  if (sn) sn.textContent = course
+    ? `Selected: ${course.name || "course"} · ${course.greens.length} greens ✓` : "";
+}
+async function refreshCourseData(){
+  if (!course || !course.center) return;
+  const n = document.getElementById("courseNote");
+  const before = course.greens.length;
+  n.textContent = `Refreshing ${course.name || "course"} from OpenStreetMap…`;
+  const ok = await fetchCourseFeatures(course.center, course.id, course.name, false);
+  if (!ok && !course.greens.length)
+    n.textContent = "Refresh reached OSM but found no greens — new edits can take a few minutes to appear.";
+  else {
+    courseNoteRender();
+    toast(`Course refreshed: ${before} → ${course.greens.length} greens`);
+  }
 }
 async function overpass(q){
   const r = await fetch("https://overpass-api.de/api/interpreter",
@@ -1433,40 +1461,91 @@ function refPoint(){
   return (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon]
        : lmap ? [lmap.getCenter().lat, lmap.getCenter().lng] : null;
 }
-async function searchCourses(nameQuery){
-  const host = document.getElementById("courseResults");
-  const note = document.getElementById("courseStartNote");
+/* Course index: one Overpass fetch of every course within 50 km, cached a
+   week — autocomplete then filters this list instantly and offline. */
+let courseIndex = null;   // {fetchedAt, center, list:[{id, name, center}]}
+function loadCourseIndexCache(){
+  try { return JSON.parse(localStorage.getItem("sc-course-index")); } catch (e) { return null; }
+}
+let indexFetching = false;
+async function ensureCourseIndex(force){
   const c = refPoint();
-  if (!c){ note.textContent = "Waiting for GPS — try again in a moment."; return; }
-  note.textContent = "Searching OpenStreetMap…";
-  host.textContent = "";
-  const filt = nameQuery ? `["name"~"${nameQuery.replace(/["\\]/g, "")}",i]` : "";
-  const rad = nameQuery ? 100000 : 30000;
-  let js;
+  if (!courseIndex) courseIndex = loadCourseIndexCache();
+  const fresh = courseIndex &&
+    Date.now() - courseIndex.fetchedAt < 7 * 864e5 &&
+    c && haversineM({lat: c[0], lon: c[1]},
+                    {lat: courseIndex.center[0], lon: courseIndex.center[1]}) < 25000;
+  if (!force && fresh) return courseIndex;
+  if (!c || indexFetching) return courseIndex;   // best effort with what we have
+  indexFetching = true;
   try {
-    js = await overpass(`(
-      way["leisure"="golf_course"]${filt}(around:${rad},${c[0]},${c[1]});
-      relation["leisure"="golf_course"]${filt}(around:${rad},${c[0]},${c[1]}););out tags center;`);
-  } catch (e){ note.textContent = "Couldn't reach OpenStreetMap — check internet."; return; }
-  const seen = new Set();
-  const found = (js.elements || [])
-    .filter(el => el.center)
-    .map(el => ({id: `${el.type}/${el.id}`,
-                 name: (el.tags || {}).name || "Unnamed course",
-                 center: [el.center.lat, el.center.lon]}))
-    .filter(x => { if (seen.has(x.name)) return false; seen.add(x.name); return true; })
-    .map(x => ({...x, d: haversineM({lat:c[0],lon:c[1]}, {lat:x.center[0],lon:x.center[1]})}))
-    .sort((a,b) => a.d - b.d)
-    .slice(0, 8);
-  note.textContent = found.length ? "Pick your course:" : "No courses found — try a different name.";
+    const js = await overpass(`(
+      way["leisure"="golf_course"](around:50000,${c[0]},${c[1]});
+      relation["leisure"="golf_course"](around:50000,${c[0]},${c[1]}););out tags center;`);
+    const seen = new Set();
+    const list = (js.elements || [])
+      .filter(el => el.center)
+      .map(el => ({id: `${el.type}/${el.id}`,
+                   name: (el.tags || {}).name || "Unnamed course",
+                   center: [el.center.lat, el.center.lon]}))
+      .filter(x => { const k = x.name + x.center[0].toFixed(3);
+                     if (seen.has(k)) return false; seen.add(k); return true; });
+    if (list.length){
+      courseIndex = {fetchedAt: Date.now(), center: c, list};
+      try { localStorage.setItem("sc-course-index", JSON.stringify(courseIndex)); } catch (e) {}
+    }
+  } catch (e) {} finally { indexFetching = false; }
+  return courseIndex;
+}
+function renderCourseChips(found, note){
+  const host = document.getElementById("courseResults");
+  host.textContent = "";
+  document.getElementById("courseStartNote").textContent = note;
   for (const f of found){
     const b = document.createElement("button");
     b.className = "chip";
-    b.textContent = `${f.name} · ${(f.d/1000).toFixed(1)} km`;
+    b.textContent = f.d != null ? `${f.name} · ${(f.d/1000).toFixed(1)} km` : f.name;
     b.addEventListener("click", () => selectCourse(f));
     host.appendChild(b);
   }
   renderCachedCourseChips(host);
+}
+function filterIndex(nameQuery){
+  const c = refPoint();
+  const withD = x => ({...x, d: c ? haversineM({lat: c[0], lon: c[1]},
+                                              {lat: x.center[0], lon: x.center[1]}) : null});
+  let list = (courseIndex ? courseIndex.list : []).map(withD);
+  if (nameQuery){
+    const toks = nameQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    list = list.filter(x => toks.every(t => x.name.toLowerCase().includes(t)));
+  }
+  return list.sort((a, b) => (a.d ?? 9e12) - (b.d ?? 9e12)).slice(0, 12);
+}
+async function searchCourses(nameQuery){
+  const note = document.getElementById("courseStartNote");
+  note.textContent = courseIndex ? "Searching…" : "Loading the course list from OpenStreetMap…";
+  const idx = await ensureCourseIndex(false);
+  if (!idx){
+    note.textContent = refPoint()
+      ? "Couldn't reach OpenStreetMap — check internet (cached courses below still work)."
+      : "Waiting for GPS — try again in a moment.";
+    renderCourseChips([], note.textContent);
+    return;
+  }
+  const found = filterIndex(nameQuery);
+  renderCourseChips(found, found.length
+    ? "Pick your course:"
+    : "No matching course within 50 km — check spelling, or it may not be on OpenStreetMap.");
+}
+let acT = null;
+function courseAutocomplete(){
+  clearTimeout(acT);
+  acT = setTimeout(async () => {
+    const q = document.getElementById("courseSearch").value.trim();
+    if (!courseIndex) await ensureCourseIndex(false);
+    if (!courseIndex) return;
+    renderCourseChips(filterIndex(q || null), q ? "Matches:" : "Nearby courses:");
+  }, 200);
 }
 function renderCachedCourseChips(host){
   const cache = courseCache();
@@ -1492,7 +1571,7 @@ async function selectCourse(f){
     : `${f.name}: no mapped greens on OSM — distances to your tapped targets still work.`;
   document.getElementById("courseResults").textContent = "";
 }
-async function fetchCourseFeatures(center, id, name){
+async function fetchCourseFeatures(center, id, name, recenter = true){
   let js;
   try {
     js = await overpass(`(
@@ -1518,7 +1597,7 @@ async function fetchCourseFeatures(center, id, name){
     try { localStorage.setItem("sc-course-current", id); } catch (e) {}
   }
   renderCourseLayer(); courseNoteRender(); updateToHole();
-  if (lmap){ lmap.setView(center, 16); mapCentered = true; }
+  if (lmap && recenter){ lmap.setView(center, 16); mapCentered = true; }
   return greens.length > 0;
 }
 async function loadCourseData(){
@@ -1705,6 +1784,9 @@ function initRoundControls(){
   });
   on("findCourseBtn", () => searchCourses(document.getElementById("courseSearch").value.trim() || null));
   on("nearbyCourseBtn", () => searchCourses(null));
+  document.getElementById("courseSearch").addEventListener("input", courseAutocomplete);
+  on("refreshCourseBtn", refreshCourseData);
+  on("refreshCourseBtn2", refreshCourseData);
   on("resumeRoundBtn", () => { round = loadSavedRound(); if (!round) return; renderAll(); });
   on("puttBtn", () => {
     ensureHole(round.currentHole);
