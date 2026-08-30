@@ -275,6 +275,7 @@
         <button class="btn secondary" id="signOutBtn">Sign out</button></span>
     </span>
     <button id="connectBtn" class="btn" hidden>Connect sensor</button>
+    <button id="shareBtn" class="btn secondary" hidden>Share card</button>
     <button id="csvBtn" class="btn secondary" hidden>Download session CSV</button>
   </div>
 
@@ -1819,6 +1820,204 @@ function refreshTargetInfo(){
   el.textContent = parts.join("  ·  ");
 }
 
+/* ---------- shareable summary card (Strava-style PNG) ---------- */
+const CARD = {
+  W: 1080, H: 1350,
+  bg: "#101312", ink: "#f5f4ef", muted: "#97968c",
+  blue: "#3987e5", orange: "#d95926", aqua: "#199e70",
+  line: "rgba(245,244,239,0.12)",
+  disp: '"Barlow Condensed", "Arial Narrow", sans-serif',
+};
+function cardText(ctx, txt, x, y, px, weight, color, align = "left", ls = "0px"){
+  ctx.font = `${weight} ${px}px ${CARD.disp}`;
+  try { ctx.letterSpacing = ls; } catch (e) {}
+  ctx.fillStyle = color;
+  ctx.textAlign = align;
+  ctx.fillText(txt, x, y);
+  try { ctx.letterSpacing = "0px"; } catch (e) {}
+}
+async function ensureCardFonts(){
+  try {
+    await document.fonts.load(`700 260px "Barlow Condensed"`);
+    await document.fonts.load(`600 40px "Barlow Condensed"`);
+  } catch (e) {}
+}
+function cardBase(subtitle){
+  const c = document.createElement("canvas");
+  c.width = CARD.W; c.height = CARD.H;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = CARD.bg;
+  ctx.fillRect(0, 0, CARD.W, CARD.H);
+  // wordmark
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `700 64px ${CARD.disp}`;
+  const w1 = ctx.measureText("SWING").width;
+  cardText(ctx, "SWING", 72, 122, 64, 700, CARD.ink, "left", "2px");
+  cardText(ctx, "COACH", 72 + w1 + 6, 122, 64, 700, CARD.blue, "left", "2px");
+  cardText(ctx, subtitle, CARD.W - 72, 118, 34, 600, CARD.muted, "right", "1px");
+  ctx.strokeStyle = CARD.line; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(72, 160); ctx.lineTo(CARD.W - 72, 160); ctx.stroke();
+  return [c, ctx];
+}
+function cardHero(ctx, label, value, unit, sub){
+  cardText(ctx, label, 72, 268, 38, 600, CARD.muted, "left", "4px");
+  ctx.font = `700 250px ${CARD.disp}`;
+  const vw = ctx.measureText(value).width;
+  cardText(ctx, value, 72, 500, 250, 700, CARD.ink);
+  if (unit) cardText(ctx, unit, 72 + vw + 18, 500, 70, 600, CARD.muted);
+  if (sub) cardText(ctx, sub, 72, 560, 36, 600, CARD.muted, "left", "1px");
+}
+function fitText(ctx, txt, maxW, px, weight, ls){
+  // shrink until the text fits its column
+  for (let p = px; p >= 18; p -= 4){
+    ctx.font = `${weight} ${p}px ${CARD.disp}`;
+    try { ctx.letterSpacing = ls || "0px"; } catch (e) {}
+    if (ctx.measureText(txt).width <= maxW) return p;
+  }
+  return 18;
+}
+function cardStatRow(ctx, y, stats){
+  const colW = (CARD.W - 144) / stats.length;
+  stats.forEach((s, i) => {
+    const x = 72 + colW * i, maxW = colW - 30;
+    cardText(ctx, s[1], x, y, fitText(ctx, s[1], maxW, 84, 700), 700, CARD.ink);
+    const label = s[0].toUpperCase();
+    cardText(ctx, label, x, y + 46,
+             fitText(ctx, label, maxW, 28, 600, "3px"), 600, CARD.muted, "left", "3px");
+  });
+}
+function cardFooter(ctx, note){
+  ctx.strokeStyle = CARD.line; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(72, 1236); ctx.lineTo(CARD.W - 72, 1236); ctx.stroke();
+  cardText(ctx, "SWINGCOACH · WRIST-IMU GOLF ANALYTICS", 72, 1284, 28, 600, CARD.muted, "left", "3px");
+  if (note) cardText(ctx, note.toUpperCase(), 72, 1322, 22, 500, CARD.muted, "left", "2px");
+}
+function buildRangeCard(){
+  const speeds = swings.map(s => clubSpeedMph(s));
+  const iBest = speeds.indexOf(Math.max(...speeds));
+  const best = swings[iBest];
+  const [c, ctx] = cardBase(`RANGE SESSION · ${new Date().toLocaleDateString(undefined, {month:"short", day:"numeric"}).toUpperCase()}`);
+  cardHero(ctx, "TOP CLUB SPEED — ESTIMATE", fmt1(speeds[iBest]), "mph",
+           `${swingClub(best).label.toUpperCase()} · HAND ${fmt1(best.metrics.hand_speed_mph)} MPH`);
+  // swing-trace art: the best swing's rotation curve
+  const tr = best.trace, x0 = 72, x1 = CARD.W - 72, y0 = 640, y1 = 940;
+  const gmax = Math.max(...tr.gyro) || 1, tMax = tr.t[tr.t.length - 1] || 1;
+  const X = t => x0 + (t / tMax) * (x1 - x0);
+  const Y = g => y1 - (g / gmax) * (y1 - y0);
+  ctx.beginPath();
+  tr.t.forEach((t, i) => { i ? ctx.lineTo(X(t), Y(tr.gyro[i])) : ctx.moveTo(X(t), Y(tr.gyro[i])); });
+  ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath();
+  ctx.fillStyle = "rgba(57,135,229,0.14)"; ctx.fill();
+  ctx.beginPath();
+  tr.t.forEach((t, i) => { i ? ctx.lineTo(X(t), Y(tr.gyro[i])) : ctx.moveTo(X(t), Y(tr.gyro[i])); });
+  ctx.strokeStyle = CARD.blue; ctx.lineWidth = 7;
+  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.stroke();
+  // impact marker
+  let iImp = tr.t.findIndex(t => t >= best.events.impact);
+  if (iImp < 0) iImp = tr.t.length - 1;
+  ctx.beginPath(); ctx.arc(X(tr.t[iImp]), Y(tr.gyro[iImp]), 14, 0, 7);
+  ctx.fillStyle = CARD.orange; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = CARD.bg; ctx.stroke();
+  cardText(ctx, "BEST SWING — WRIST ROTATION", 72, 990, 28, 600, CARD.muted, "left", "3px");
+  const sim = similarity();
+  cardStatRow(ctx, 1120, [
+    ["swings", String(swings.length)],
+    ["med tempo", fmt1(median(swings.map(s => s.metrics.tempo_ratio))) + ":1"],
+    ["repeat /100", sim.session != null ? `${Math.round(sim.session)}` : "—"],
+    ["avg hand", fmt1(swings.reduce((a, s) => a + s.metrics.hand_speed_mph, 0) / swings.length)],
+  ]);
+  cardFooter(ctx, "club speed estimated from wrist sensor");
+  return c;
+}
+function buildRoundCard(){
+  const date = new Date(round.startedAt).toLocaleDateString(undefined, {month:"short", day:"numeric"}).toUpperCase();
+  const [c, ctx] = cardBase(`ROUND · ${date}`);
+  const vp = vsPar();
+  const holesPlayed = Object.keys(round.holes).filter(h => holeTotals(+h).total > 0).length;
+  cardText(ctx, (round.courseName || "ON COURSE").toUpperCase(), 72, 268, 38, 600, CARD.muted, "left", "4px");
+  ctx.font = `700 250px ${CARD.disp}`;
+  const scoreTxt = String(roundTotal());
+  const vw = ctx.measureText(scoreTxt).width;
+  cardText(ctx, scoreTxt, 72, 500, 250, 700, CARD.ink);
+  cardText(ctx, vp ? `${vp.diff > 0 ? "+" : ""}${vp.diff}` : "strokes",
+           72 + vw + 24, 500, 70, 600, vp ? (vp.diff <= 0 ? CARD.aqua : CARD.muted) : CARD.muted);
+  cardText(ctx, `${holesPlayed} HOLE${holesPlayed === 1 ? "" : "S"}`, 72, 560, 36, 600, CARD.muted, "left", "1px");
+  // route art: GPS shot trail, hole by hole
+  const gps = round.shots.filter(s => s.lat != null);
+  const x0 = 132, x1 = CARD.W - 132, y0 = 620, y1 = 960;
+  if (gps.length >= 2){
+    const lats = gps.map(s => s.lat), lons = gps.map(s => s.lon);
+    const la0 = Math.min(...lats), la1 = Math.max(...lats);
+    const lo0 = Math.min(...lons), lo1 = Math.max(...lons);
+    const cosLat = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+    const spanX = Math.max((lo1 - lo0) * cosLat, 1e-6), spanY = Math.max(la1 - la0, 1e-6);
+    const sc = Math.min((x1 - x0) / spanX, (y1 - y0) / spanY);
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    const P = s => [mx + ((s.lon - (lo0 + lo1) / 2) * cosLat) * sc,
+                    my - (s.lat - (la0 + la1) / 2) * sc];
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    const byHole = new Map();
+    for (const s of gps){ if (!byHole.has(s.hole)) byHole.set(s.hole, []); byHole.get(s.hole).push(s); }
+    for (const pts of byHole.values()){
+      if (pts.length < 2) continue;
+      ctx.beginPath();
+      pts.forEach((s, i) => { const p = P(s); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
+      ctx.strokeStyle = "rgba(245,244,239,0.75)"; ctx.lineWidth = 5; ctx.stroke();
+    }
+    for (const s of gps){
+      const p = P(s);
+      ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, 7);
+      ctx.fillStyle = CARD.orange; ctx.fill();
+      ctx.lineWidth = 4; ctx.strokeStyle = CARD.bg; ctx.stroke();
+    }
+    cardText(ctx, "SHOT TRAIL — GPS", 72, 1010, 28, 600, CARD.muted, "left", "3px");
+  } else {
+    cardText(ctx, "NO GPS SHOTS RECORDED", 72, 800, 40, 600, CARD.muted, "left", "3px");
+  }
+  const measured = round.shots.filter(s => s.dist_m != null);
+  const longest = measured.length ? measured.reduce((a, s) => s.dist_m > a.dist_m ? s : a) : null;
+  const putts = Object.values(round.holes).reduce((a, h) => a + h.putts, 0);
+  cardStatRow(ctx, 1120, [
+    ["shots", String(round.shots.length)],
+    ["putts", String(putts)],
+    ["longest", longest ? distDisp(longest.dist_m) : "—"],
+    ["top club mph", round.shots.length ? fmt1(Math.max(...round.shots.map(s => s.club_mph))) : "—"],
+  ]);
+  cardFooter(ctx, "distances GPS-measured shot to shot");
+  return c;
+}
+function vsPar(){
+  if (!round) return null;
+  let parSum = 0, strokes = 0, n = 0;
+  for (const h of Object.keys(round.holes).map(Number)){
+    const hm = holeMeta(h), ht = holeTotals(h);
+    if (hm && hm.par && ht.total > 0){ parSum += hm.par; strokes += ht.total; n++; }
+  }
+  return n ? {diff: strokes - parSum, n} : null;
+}
+async function shareCard(){
+  await ensureCardFonts();
+  const canvas = (uiMode === "round" && round && round.shots.length)
+    ? buildRoundCard() : buildRangeCard();
+  try { window._lastCardData = canvas.toDataURL("image/png"); } catch (e) {}
+  canvas.toBlob(async blob => {
+    if (!blob) return;
+    const file = new File([blob], `swingcoach-${new Date().toISOString().slice(0,10)}.png`,
+                          {type: "image/png"});
+    try {
+      if (navigator.canShare && navigator.canShare({files: [file]})){
+        await navigator.share({files: [file]});
+        return;
+      }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, "image/png");
+}
+
 function downloadBlob(name, text, type){
   const blob = new Blob([text], {type});
   const a = document.createElement("a");
@@ -1841,6 +2040,7 @@ function initRoundControls(){
   document.getElementById("courseSearch").addEventListener("input", courseAutocomplete);
   on("refreshCourseBtn", refreshCourseData);
   on("refreshCourseBtn2", refreshCourseData);
+  on("shareBtn", shareCard);
   on("resumeRoundBtn", () => { round = loadSavedRound(); if (!round) return; renderAll(); });
   on("puttBtn", () => {
     ensureHole(round.currentHole);
@@ -2719,6 +2919,10 @@ function updateBadge(){
 
 function renderAll(){
   renderAuth();
+  const shareB = document.getElementById("shareBtn");
+  if (shareB) shareB.hidden = !(APPMODE === "ble" &&
+    ((uiMode === "range" && swings.length > 0) ||
+     (uiMode === "round" && round && round.shots.length > 0)));
   const isRound = uiMode === "round";
   document.getElementById("roundWrap").hidden = !isRound;
   document.getElementById("progressWrap").hidden = uiMode !== "progress";
