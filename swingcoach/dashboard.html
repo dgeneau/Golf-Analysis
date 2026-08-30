@@ -276,6 +276,7 @@
     </span>
     <button id="connectBtn" class="btn" hidden>Connect sensor</button>
     <button id="shareBtn" class="btn secondary" hidden>Share card</button>
+    <button id="shareOverlayBtn" class="btn secondary" hidden>Share overlay</button>
     <button id="csvBtn" class="btn secondary" hidden>Download session CSV</button>
   </div>
 
@@ -1823,11 +1824,29 @@ function refreshTargetInfo(){
 /* ---------- shareable summary card (Strava-style PNG) ---------- */
 const CARD = {
   W: 1080, H: 1350,
-  bg: "#101312", ink: "#f5f4ef", muted: "#97968c",
-  blue: "#3987e5", orange: "#d95926", aqua: "#199e70",
-  line: "rgba(245,244,239,0.12)",
   disp: '"Barlow Condensed", "Arial Narrow", sans-serif',
 };
+function cardStyle(transparent){
+  return transparent ? {
+    // sticker overlay: white ink + drop shadow so it reads on any photo
+    transparent: true, bg: null,
+    ink: "#ffffff", muted: "rgba(255,255,255,0.85)",
+    blue: "#6fb0ff", orange: "#ff8a50", aqua: "#48dfa5",
+    line: "rgba(255,255,255,0.45)",
+    traceFill: "rgba(255,255,255,0.10)",
+    routeStroke: "rgba(255,255,255,0.95)",
+    dotRing: "#ffffff",
+  } : {
+    transparent: false, bg: "#101312",
+    ink: "#f5f4ef", muted: "#97968c",
+    blue: "#3987e5", orange: "#d95926", aqua: "#199e70",
+    line: "rgba(245,244,239,0.12)",
+    traceFill: "rgba(57,135,229,0.14)",
+    routeStroke: "rgba(245,244,239,0.75)",
+    dotRing: "#101312",
+  };
+}
+let CS = cardStyle(false);
 function cardText(ctx, txt, x, y, px, weight, color, align = "left", ls = "0px"){
   ctx.font = `${weight} ${px}px ${CARD.disp}`;
   try { ctx.letterSpacing = ls; } catch (e) {}
@@ -1846,26 +1865,33 @@ function cardBase(subtitle){
   const c = document.createElement("canvas");
   c.width = CARD.W; c.height = CARD.H;
   const ctx = c.getContext("2d");
-  ctx.fillStyle = CARD.bg;
-  ctx.fillRect(0, 0, CARD.W, CARD.H);
+  if (CS.bg){
+    ctx.fillStyle = CS.bg;
+    ctx.fillRect(0, 0, CARD.W, CARD.H);
+  } else {
+    // overlay mode: everything drawn from here on gets a soft lift shadow
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 3;
+  }
   // wordmark
   ctx.textBaseline = "alphabetic";
   ctx.font = `700 64px ${CARD.disp}`;
   const w1 = ctx.measureText("SWING").width;
-  cardText(ctx, "SWING", 72, 122, 64, 700, CARD.ink, "left", "2px");
-  cardText(ctx, "COACH", 72 + w1 + 6, 122, 64, 700, CARD.blue, "left", "2px");
-  cardText(ctx, subtitle, CARD.W - 72, 118, 34, 600, CARD.muted, "right", "1px");
-  ctx.strokeStyle = CARD.line; ctx.lineWidth = 2;
+  cardText(ctx, "SWING", 72, 122, 64, 700, CS.ink, "left", "2px");
+  cardText(ctx, "COACH", 72 + w1 + 6, 122, 64, 700, CS.blue, "left", "2px");
+  cardText(ctx, subtitle, CARD.W - 72, 118, 34, 600, CS.muted, "right", "1px");
+  ctx.strokeStyle = CS.line; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 160); ctx.lineTo(CARD.W - 72, 160); ctx.stroke();
   return [c, ctx];
 }
 function cardHero(ctx, label, value, unit, sub){
-  cardText(ctx, label, 72, 268, 38, 600, CARD.muted, "left", "4px");
+  cardText(ctx, label, 72, 268, 38, 600, CS.muted, "left", "4px");
   ctx.font = `700 250px ${CARD.disp}`;
   const vw = ctx.measureText(value).width;
-  cardText(ctx, value, 72, 500, 250, 700, CARD.ink);
-  if (unit) cardText(ctx, unit, 72 + vw + 18, 500, 70, 600, CARD.muted);
-  if (sub) cardText(ctx, sub, 72, 560, 36, 600, CARD.muted, "left", "1px");
+  cardText(ctx, value, 72, 500, 250, 700, CS.ink);
+  if (unit) cardText(ctx, unit, 72 + vw + 18, 500, 70, 600, CS.muted);
+  if (sub) cardText(ctx, sub, 72, 560, 36, 600, CS.muted, "left", "1px");
 }
 function fitText(ctx, txt, maxW, px, weight, ls){
   // shrink until the text fits its column
@@ -1880,17 +1906,17 @@ function cardStatRow(ctx, y, stats){
   const colW = (CARD.W - 144) / stats.length;
   stats.forEach((s, i) => {
     const x = 72 + colW * i, maxW = colW - 30;
-    cardText(ctx, s[1], x, y, fitText(ctx, s[1], maxW, 84, 700), 700, CARD.ink);
+    cardText(ctx, s[1], x, y, fitText(ctx, s[1], maxW, 84, 700), 700, CS.ink);
     const label = s[0].toUpperCase();
     cardText(ctx, label, x, y + 46,
-             fitText(ctx, label, maxW, 28, 600, "3px"), 600, CARD.muted, "left", "3px");
+             fitText(ctx, label, maxW, 28, 600, "3px"), 600, CS.muted, "left", "3px");
   });
 }
 function cardFooter(ctx, note){
-  ctx.strokeStyle = CARD.line; ctx.lineWidth = 2;
+  ctx.strokeStyle = CS.line; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 1236); ctx.lineTo(CARD.W - 72, 1236); ctx.stroke();
-  cardText(ctx, "SWINGCOACH · WRIST-IMU GOLF ANALYTICS", 72, 1284, 28, 600, CARD.muted, "left", "3px");
-  if (note) cardText(ctx, note.toUpperCase(), 72, 1322, 22, 500, CARD.muted, "left", "2px");
+  cardText(ctx, "SWINGCOACH · WRIST-IMU GOLF ANALYTICS", 72, 1284, 28, 600, CS.muted, "left", "3px");
+  if (note) cardText(ctx, note.toUpperCase(), 72, 1322, 22, 500, CS.muted, "left", "2px");
 }
 function buildRangeCard(){
   const speeds = swings.map(s => clubSpeedMph(s));
@@ -1907,18 +1933,20 @@ function buildRangeCard(){
   ctx.beginPath();
   tr.t.forEach((t, i) => { i ? ctx.lineTo(X(t), Y(tr.gyro[i])) : ctx.moveTo(X(t), Y(tr.gyro[i])); });
   ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath();
-  ctx.fillStyle = "rgba(57,135,229,0.14)"; ctx.fill();
+  const sb0 = ctx.shadowBlur; ctx.shadowBlur = 0;   // no shadow under the wash
+  ctx.fillStyle = CS.traceFill; ctx.fill();
+  ctx.shadowBlur = sb0;
   ctx.beginPath();
   tr.t.forEach((t, i) => { i ? ctx.lineTo(X(t), Y(tr.gyro[i])) : ctx.moveTo(X(t), Y(tr.gyro[i])); });
-  ctx.strokeStyle = CARD.blue; ctx.lineWidth = 7;
+  ctx.strokeStyle = CS.blue; ctx.lineWidth = 7;
   ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.stroke();
   // impact marker
   let iImp = tr.t.findIndex(t => t >= best.events.impact);
   if (iImp < 0) iImp = tr.t.length - 1;
   ctx.beginPath(); ctx.arc(X(tr.t[iImp]), Y(tr.gyro[iImp]), 14, 0, 7);
-  ctx.fillStyle = CARD.orange; ctx.fill();
-  ctx.lineWidth = 5; ctx.strokeStyle = CARD.bg; ctx.stroke();
-  cardText(ctx, "BEST SWING — WRIST ROTATION", 72, 990, 28, 600, CARD.muted, "left", "3px");
+  ctx.fillStyle = CS.orange; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = CS.dotRing; ctx.stroke();
+  cardText(ctx, "BEST SWING — WRIST ROTATION", 72, 990, 28, 600, CS.muted, "left", "3px");
   const sim = similarity();
   cardStatRow(ctx, 1120, [
     ["swings", String(swings.length)],
@@ -1934,14 +1962,14 @@ function buildRoundCard(){
   const [c, ctx] = cardBase(`ROUND · ${date}`);
   const vp = vsPar();
   const holesPlayed = Object.keys(round.holes).filter(h => holeTotals(+h).total > 0).length;
-  cardText(ctx, (round.courseName || "ON COURSE").toUpperCase(), 72, 268, 38, 600, CARD.muted, "left", "4px");
+  cardText(ctx, (round.courseName || "ON COURSE").toUpperCase(), 72, 268, 38, 600, CS.muted, "left", "4px");
   ctx.font = `700 250px ${CARD.disp}`;
   const scoreTxt = String(roundTotal());
   const vw = ctx.measureText(scoreTxt).width;
-  cardText(ctx, scoreTxt, 72, 500, 250, 700, CARD.ink);
+  cardText(ctx, scoreTxt, 72, 500, 250, 700, CS.ink);
   cardText(ctx, vp ? `${vp.diff > 0 ? "+" : ""}${vp.diff}` : "strokes",
-           72 + vw + 24, 500, 70, 600, vp ? (vp.diff <= 0 ? CARD.aqua : CARD.muted) : CARD.muted);
-  cardText(ctx, `${holesPlayed} HOLE${holesPlayed === 1 ? "" : "S"}`, 72, 560, 36, 600, CARD.muted, "left", "1px");
+           72 + vw + 24, 500, 70, 600, vp ? (vp.diff <= 0 ? CS.aqua : CS.muted) : CS.muted);
+  cardText(ctx, `${holesPlayed} HOLE${holesPlayed === 1 ? "" : "S"}`, 72, 560, 36, 600, CS.muted, "left", "1px");
   // route art: GPS shot trail, hole by hole
   const gps = round.shots.filter(s => s.lat != null);
   const x0 = 132, x1 = CARD.W - 132, y0 = 620, y1 = 960;
@@ -1962,17 +1990,17 @@ function buildRoundCard(){
       if (pts.length < 2) continue;
       ctx.beginPath();
       pts.forEach((s, i) => { const p = P(s); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
-      ctx.strokeStyle = "rgba(245,244,239,0.75)"; ctx.lineWidth = 5; ctx.stroke();
+      ctx.strokeStyle = CS.routeStroke; ctx.lineWidth = 5; ctx.stroke();
     }
     for (const s of gps){
       const p = P(s);
       ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, 7);
-      ctx.fillStyle = CARD.orange; ctx.fill();
-      ctx.lineWidth = 4; ctx.strokeStyle = CARD.bg; ctx.stroke();
+      ctx.fillStyle = CS.orange; ctx.fill();
+      ctx.lineWidth = 4; ctx.strokeStyle = CS.dotRing; ctx.stroke();
     }
-    cardText(ctx, "SHOT TRAIL — GPS", 72, 1010, 28, 600, CARD.muted, "left", "3px");
+    cardText(ctx, "SHOT TRAIL — GPS", 72, 1010, 28, 600, CS.muted, "left", "3px");
   } else {
-    cardText(ctx, "NO GPS SHOTS RECORDED", 72, 800, 40, 600, CARD.muted, "left", "3px");
+    cardText(ctx, "NO GPS SHOTS RECORDED", 72, 800, 40, 600, CS.muted, "left", "3px");
   }
   const measured = round.shots.filter(s => s.dist_m != null);
   const longest = measured.length ? measured.reduce((a, s) => s.dist_m > a.dist_m ? s : a) : null;
@@ -1995,15 +2023,17 @@ function vsPar(){
   }
   return n ? {diff: strokes - parSum, n} : null;
 }
-async function shareCard(){
+async function shareCard(transparent){
   await ensureCardFonts();
+  CS = cardStyle(!!transparent);
   const canvas = (uiMode === "round" && round && round.shots.length)
     ? buildRoundCard() : buildRangeCard();
   try { window._lastCardData = canvas.toDataURL("image/png"); } catch (e) {}
   canvas.toBlob(async blob => {
     if (!blob) return;
-    const file = new File([blob], `swingcoach-${new Date().toISOString().slice(0,10)}.png`,
-                          {type: "image/png"});
+    const file = new File([blob],
+      `swingcoach-${new Date().toISOString().slice(0,10)}${transparent ? "-overlay" : ""}.png`,
+      {type: "image/png"});
     try {
       if (navigator.canShare && navigator.canShare({files: [file]})){
         await navigator.share({files: [file]});
@@ -2040,7 +2070,8 @@ function initRoundControls(){
   document.getElementById("courseSearch").addEventListener("input", courseAutocomplete);
   on("refreshCourseBtn", refreshCourseData);
   on("refreshCourseBtn2", refreshCourseData);
-  on("shareBtn", shareCard);
+  on("shareBtn", () => shareCard(false));
+  on("shareOverlayBtn", () => shareCard(true));
   on("resumeRoundBtn", () => { round = loadSavedRound(); if (!round) return; renderAll(); });
   on("puttBtn", () => {
     ensureHole(round.currentHole);
@@ -2919,10 +2950,13 @@ function updateBadge(){
 
 function renderAll(){
   renderAuth();
-  const shareB = document.getElementById("shareBtn");
-  if (shareB) shareB.hidden = !(APPMODE === "ble" &&
+  const shareable = APPMODE === "ble" &&
     ((uiMode === "range" && swings.length > 0) ||
-     (uiMode === "round" && round && round.shots.length > 0)));
+     (uiMode === "round" && round && round.shots.length > 0));
+  for (const id of ["shareBtn", "shareOverlayBtn"]){
+    const el = document.getElementById(id);
+    if (el) el.hidden = !shareable;
+  }
   const isRound = uiMode === "round";
   document.getElementById("roundWrap").hidden = !isRound;
   document.getElementById("progressWrap").hidden = uiMode !== "progress";
