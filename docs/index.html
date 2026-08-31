@@ -161,6 +161,97 @@
   }
   .leaflet-tooltip.distlabel::before { display: none; }
 
+  /* ---------- 1c mobile layer ---------- */
+  #mobileWrap, .mscreen { position: fixed; inset: 0; }
+  #mobileWrap { z-index: 10; background: #0f110e; }
+  .mscreen { display: flex; flex-direction: column; }
+  #mRange { background: #0f110e; color: #fff; }
+  .mtop { display: flex; align-items: center; gap: 10px; padding: max(env(safe-area-inset-top), 20px) 20px 0; }
+  .mstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c3c2b7; }
+  .mdot { width: 8px; height: 8px; border-radius: 50%; background: #fab219; flex: none; }
+  .mdot.ok { background: #0ca30c; }
+  .mdot.err { background: #ec835a; }
+  .mchip {
+    font: 600 12px system-ui; color: #c3c2b7; background: transparent;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 6px 12px;
+    -webkit-appearance: none; appearance: none;
+  }
+  #mRound .mchip, .msummary .mchip { color: #0b0b0b; background: #fcfcfb; border-color: rgba(11,11,11,.15); }
+  .mhero { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; min-height: 0; }
+  .mlabel { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 14px;
+            letter-spacing: .09em; text-transform: uppercase; color: #898781; }
+  .mbig { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: min(160px, 38vw);
+          line-height: .85; letter-spacing: -.01em; }
+  .msub { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 20px;
+          letter-spacing: .08em; text-transform: uppercase; color: #c3c2b7; margin-top: 4px; }
+  .mstats { display: flex; gap: 28px; margin-top: 4px; }
+  .mmid { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 46px; line-height: 1; }
+  .mmid small { font-size: 17px; color: #c3c2b7; margin-left: 3px; font-weight: 600; }
+  .mcue { margin-top: 22px; border-top: 1px solid #2c2c2a; padding-top: 14px; }
+  .mcue-h { display: flex; align-items: center; gap: 8px; }
+  .mcue h3 { margin: 0; font-family: "Barlow Condensed", sans-serif; font-weight: 600;
+             font-size: 18px; letter-spacing: .04em; text-transform: uppercase; }
+  .mcue p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: #c3c2b7; }
+  .mbottom { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+  .mrail { display: flex; gap: 10px; padding: 0 20px 12px; overflow-x: auto; }
+  .mrailcard { flex: none; width: 78px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
+               padding: 9px 10px; background: transparent; color: #fff; text-align: left; }
+  .mrailcard.sel { background: rgba(57,135,229,.18); border-color: rgba(57,135,229,.5); }
+  .mrailcard .n { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 11px;
+                  letter-spacing: .07em; text-transform: uppercase; color: #898781; }
+  .mrailcard .t { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 24px; line-height: 1.05; }
+  .mrailcard .c { font-size: 11px; color: #c3c2b7; font-variant-numeric: tabular-nums; }
+  .mactions { display: flex; gap: 10px; padding: 4px 20px 0; }
+  .mprimary { font: 600 15px system-ui; color: #0b0b0b; background: #fcfcfb; border: 0;
+              border-radius: 12px; padding: 16px 18px; }
+  .mghost { font: 600 15px system-ui; color: #fcfcfb; background: transparent;
+            border: 1px solid rgba(255,255,255,.25); border-radius: 12px; padding: 16px 18px; }
+  .mblue { font: 600 15px system-ui; color: #fcfcfb; background: #2a78d6; border: 0;
+           border-radius: 12px; padding: 16px 18px; }
+  #mRound { background: #e1e0d9; }
+  #mMapSlot, #mMapSlot #map { position: absolute; inset: 0; height: 100% !important; border-radius: 0 !important; }
+  #mMapSlot .leaflet-control-zoom { display: none; }  /* pinch-zoom; controls collide with cards */
+  .mprimary, .mghost, .mblue { white-space: nowrap; }
+  .movl { position: absolute; background: #fcfcfb; color: #0b0b0b; border: 1px solid rgba(11,11,11,.10);
+          border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15); z-index: 500; }
+  .mtl { top: max(env(safe-area-inset-top), 16px); left: 14px; padding: 10px 14px;
+         display: flex; align-items: center; gap: 12px; }
+  .mholeN { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 34px; line-height: 1; }
+  .mmeta { font-size: 12.5px; color: #52514e; }
+  .mtr { top: max(env(safe-area-inset-top), 16px); right: 14px; padding: 8px 14px; text-align: center; }
+  .mtr b { display: block; font-size: 26px; font-weight: 650; line-height: 1.1; }
+  .mtr span { font-size: 11px; color: #52514e; }
+  .mtr2 { top: calc(max(env(safe-area-inset-top), 16px) + 78px); right: 14px; padding: 8px 12px;
+          font-size: 11.5px; color: #52514e; text-align: right; }
+  .mtr2 b { color: #0b0b0b; }
+  .mroundbottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 500;
+    padding: 14px 14px max(env(safe-area-inset-bottom), 20px);
+    background: linear-gradient(to top, rgba(11,11,11,.55), rgba(11,11,11,0)); }
+  .mlastshot { background: #fcfcfb; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; color: #0b0b0b; }
+  .mstart { background: #fcfcfb; border-radius: 14px; padding: 14px; margin-bottom: 10px; color: #0b0b0b; }
+  .msheet { position: absolute; left: 14px; right: 14px; bottom: max(env(safe-area-inset-bottom), 20px);
+            z-index: 600; background: #fcfcfb; color: #0b0b0b; border-radius: 16px; padding: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  .msheet-item { display: block; width: 100%; text-align: left; font: 600 15px system-ui;
+                 background: transparent; border: 0; border-top: 1px solid #e1e0d9; padding: 14px 6px; color: #0b0b0b; }
+  .msheet-item:first-of-type { border-top: 0; }
+  .msummary { background: #f4f7f2; color: #0b0b0b; overflow-y: auto; }
+  .mtitle { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
+            letter-spacing: .03em; text-transform: uppercase; }
+  .msummary .mghost { color: #0b0b0b; border-color: rgba(11,11,11,.2); }
+  .mcardwrap { padding: 12px 16px max(env(safe-area-inset-bottom), 24px); display: flex; flex-direction: column; gap: 12px; }
+  .mdark { background: #0b0b0b; color: #fcfcfb; border-radius: 12px; padding: 20px 20px 18px; }
+  .mwordmark { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
+               letter-spacing: .02em; text-transform: uppercase; }
+  .mwordmark span { color: #3987e5; }
+  .msumgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; margin-top: 18px; }
+  .msumgrid .v { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 42px; line-height: 1; }
+  .msumgrid .v small { font-size: 15px; color: #c3c2b7; font-weight: 600; }
+  .mfine { margin: 14px 0 0; font-size: 12px; color: #898781; line-height: 1.5; }
+  .mlight { background: #fcfcfb; border: 1px solid rgba(11,11,11,.10); border-radius: 10px; padding: 14px 16px; }
+  .mlight h2 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 15px;
+               letter-spacing: .04em; text-transform: uppercase; margin: 0 0 8px; }
+
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
   .tile .lbl { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -504,6 +595,109 @@
     accelerometer saturated — hand speed is a floor and path/attack are suppressed from coaching
     on those swings. Path and attack angles carry roughly ±6–10° at the 60&nbsp;Hz stream rate.
   </footer>
+</div>
+
+<button id="classicBack" class="btn" hidden
+  style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.3)">◂ Back to app</button>
+
+<div id="mobileWrap" hidden>
+  <!-- 1c · heads-up range -->
+  <div class="mscreen" id="mRange">
+    <div class="mtop">
+      <span class="mstatus" id="mStatus"><span class="mdot" id="mDot"></span><span id="mStatusTxt">Not connected</span></span>
+      <span style="flex:1"></span>
+      <select id="mClubSel" class="mchip" aria-label="Club"></select>
+    </div>
+    <div class="mhero" id="mHero">
+      <div class="mlabel" id="mHeroLabel">Ready when you are</div>
+      <div class="mbig" id="mHeroNum">—</div>
+      <div class="msub" id="mHeroSub"></div>
+      <svg id="mBand" width="100%" viewBox="0 0 340 34" style="display:none;margin:20px 0 22px"></svg>
+      <div class="mstats" id="mStats" hidden>
+        <div><div class="mlabel">Est. club</div><div class="mmid" id="mClubMph">—</div></div>
+        <div><div class="mlabel">Path</div><div class="mmid" id="mPath">—</div></div>
+      </div>
+      <div class="mcue" id="mCue" hidden>
+        <div class="mcue-h"><span class="mdot" id="mCueDot"></span><h3 id="mCueTitle"></h3></div>
+        <p id="mCueDetail"></p>
+      </div>
+      <button class="mprimary" id="mConnectBtn" hidden>Connect sensor</button>
+    </div>
+    <div class="mbottom">
+      <div class="mrail" id="mRail"></div>
+      <div class="mactions">
+        <button class="mprimary" id="mSummaryBtn" style="flex:1">Session summary</button>
+        <button class="mghost" id="mRoundBtn">Round mode</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1c · round, map-first -->
+  <div class="mscreen" id="mRound" hidden>
+    <div id="mMapSlot"></div>
+    <div class="movl mtl" id="mHoleCard">
+      <div class="mholeN" id="mHoleN">–</div>
+      <div><div class="mlabel" id="mHoleMeta"></div><div class="mmeta" id="mHoleScore"></div></div>
+    </div>
+    <div class="movl mtr" id="mGreenCard" hidden>
+      <b id="mGreenDist">—</b><span id="mGreenLbl">to green</span>
+    </div>
+    <div class="movl mtr2" id="mSuggest" hidden></div>
+    <div class="mroundbottom">
+      <div class="mlastshot" id="mLastShot" hidden>
+        <div><div class="mlabel">Last shot</div><div class="mmeta" id="mLastShotTxt"></div></div>
+      </div>
+      <div class="mstart" id="mRoundStart" hidden>
+        <div class="mmeta" id="mCourseTxt" style="margin-bottom:10px"></div>
+        <div style="display:flex;gap:10px">
+          <select id="mStartHole" class="mchip" aria-label="Starting hole"></select>
+          <button class="mprimary" id="mStartBtn" style="flex:1">Start round</button>
+        </div>
+      </div>
+      <div class="mactions" id="mRoundActions" hidden>
+        <button class="mprimary" id="mPuttBtn" style="flex:1">+ Putt</button>
+        <button class="mblue" id="mNextBtn" style="flex:1">Next hole ▸</button>
+        <button class="mghost" id="mMoreBtn">⋯</button>
+      </div>
+    </div>
+    <div class="msheet" id="mSheet" hidden>
+      <div class="chips" id="mHoleGrid" style="margin-bottom:12px"></div>
+      <button class="msheet-item" id="mUndoBtn">Undo shot</button>
+      <button class="msheet-item" id="mUnitBtn">Switch to meters</button>
+      <button class="msheet-item" id="mEndBtn">End round</button>
+      <button class="msheet-item" id="mExitRoundBtn">Back to range</button>
+      <button class="msheet-item" id="mSheetClose">Close</button>
+    </div>
+  </div>
+
+  <!-- 1c · session summary / share -->
+  <div class="mscreen msummary" id="mSummary" hidden>
+    <div class="mtop" style="padding-top:14px">
+      <button class="mghost" id="mSummaryBack" style="padding:10px 14px">◂</button>
+      <div class="mtitle">Session summary</div>
+    </div>
+    <div class="mcardwrap">
+      <div class="mdark">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <div class="mwordmark">Swing<span>Coach</span></div>
+          <span style="flex:1"></span>
+          <span class="mlabel" id="mSumMeta"></span>
+        </div>
+        <div class="msumgrid" id="mSumGrid"></div>
+        <svg id="mSumBars" width="100%" viewBox="0 0 320 60" style="display:block;margin-top:16px"></svg>
+        <p class="mfine" id="mSumFine"></p>
+      </div>
+      <div class="mlight" id="mSumCue" hidden>
+        <h2>Take one thing to the next session</h2>
+        <div id="mSumCueBody"></div>
+      </div>
+      <div class="mactions">
+        <button class="mprimary" id="mShareBtn" style="flex:1">Share image</button>
+        <button class="mghost" id="mCsvBtn" style="flex:1">Session CSV</button>
+      </div>
+      <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:10px">Open full dashboard</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1773,6 +1967,10 @@ function currentGreen(){
 function updateToHole(){
   const el = document.getElementById("toHole");
   if (!el) return;
+  if (typeof mobileEligible === "function" && mobileEligible() && mScreen !== "classic"){
+    el.hidden = true;   // the mobile round screen has its own to-green card
+    return;
+  }
   const g = currentGreen();
   const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
   if (!g || !here || uiMode !== "round"){ el.hidden = true; return; }
@@ -3026,6 +3224,8 @@ function updateBadge(){
     s.textContent = ` · ${STATUS.battery}%`;
     b.appendChild(s);
   }
+  if (typeof mobileEligible === "function" && mobileEligible() && mScreen !== "classic")
+    renderMobile();   // keep the mobile status chip live
   // empty-state copy follows the sensor
   const big = document.getElementById("emptyBig");
   const sub = document.getElementById("emptySub");
@@ -3049,6 +3249,22 @@ function updateBadge(){
 
 function renderAll(){
   renderAuth();
+  const mw = document.getElementById("mobileWrap");
+  if (mw){
+    const eligible = mobileEligible();
+    const showMobile = eligible && mScreen !== "classic";
+    mw.hidden = !showMobile;
+    document.getElementById("classicBack").hidden = !(eligible && mScreen === "classic");
+    if (!showMobile){
+      // hand the map back to the dashboard card if mobile borrowed it
+      const map = document.getElementById("map");
+      if (map && map.parentElement && map.parentElement.id === "mMapSlot"){
+        document.getElementById("mapCard").insertBefore(map, document.getElementById("targetInfo"));
+        if (lmap) setTimeout(() => lmap.invalidateSize(), 80);
+      }
+    }
+    if (showMobile){ renderMobile(); return; }
+  }
   const shareable = APPMODE === "ble" &&
     ((uiMode === "range" && swings.length > 0) ||
      (uiMode === "round" && round && round.shots.length > 0));
@@ -3128,6 +3344,291 @@ async function boot(){
   APPMODE = "ble";
   initBleMode();
 }
+/* ================= 1c mobile layer (phone / native shell) ================= */
+let mScreen = "range";     // range | round | summary | classic
+let mInit = false;
+function mobileEligible(){
+  return APPMODE === "ble" && (NATIVE_BLE || innerWidth <= 520);
+}
+function initMobile(){
+  if (mInit) return;
+  mInit = true;
+  const el = id => document.getElementById(id);
+  // club chips mirror the main selector
+  for (const sel of [el("mClubSel")]){
+    for (const c of CLUBS){
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = c.inches === null ? "Custom" : `${c.name} · ${c.inches}″`;
+      sel.appendChild(o);
+    }
+    sel.value = clubId;
+    sel.addEventListener("change", () => {
+      clubId = sel.value;
+      document.getElementById("clubSel").value = clubId;
+      try { localStorage.setItem("swingcoach-club", JSON.stringify({id: clubId, in: customIn})); } catch (e) {}
+      renderAll();
+    });
+  }
+  for (let n = 1; n <= 18; n++){
+    const o = document.createElement("option");
+    o.value = String(n); o.textContent = `Hole ${n}`;
+    el("mStartHole").appendChild(o);
+  }
+  el("mConnectBtn").addEventListener("click", () => document.getElementById("connectBtn").click());
+  el("mRoundBtn").addEventListener("click", () => { mScreen = "round"; setMode("round"); });
+  el("mSummaryBtn").addEventListener("click", () => { mScreen = "summary"; renderAll(); });
+  el("mSummaryBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
+  el("mClassicBtn").addEventListener("click", () => { mScreen = "classic"; setMode("range"); });
+  el("classicBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
+  el("mStartBtn").addEventListener("click", () => {
+    newRound();
+    round.currentHole = parseInt(el("mStartHole").value) || 1;
+    ensureHole(round.currentHole);
+    if (course && course.name) round.courseName = course.name;
+    frameHole(round.currentHole);
+    saveRound(); renderAll();
+  });
+  el("mPuttBtn").addEventListener("click", () => {
+    ensureHole(round.currentHole);
+    round.holes[round.currentHole].putts++;
+    cloudRecordPutts(round.currentHole, round.holes[round.currentHole].putts);
+    saveRound(); renderAll();
+  });
+  el("mNextBtn").addEventListener("click", () => changeHole(1));
+  el("mMoreBtn").addEventListener("click", () => { el("mSheet").hidden = false; renderMobile(); });
+  el("mSheetClose").addEventListener("click", () => { el("mSheet").hidden = true; });
+  el("mUndoBtn").addEventListener("click", () => { el("mSheet").hidden = true; undoShot(); });
+  el("mUnitBtn").addEventListener("click", () => {
+    if (round){ round.unit = round.unit === "yd" ? "m" : "yd"; saveRound(); }
+    el("mSheet").hidden = true; renderAll();
+  });
+  el("mEndBtn").addEventListener("click", () => {
+    if (round){ round.endedAt = Date.now(); saveRound(); }
+    el("mSheet").hidden = true;
+    mScreen = "summary"; setMode("range");
+  });
+  el("mExitRoundBtn").addEventListener("click", () => {
+    el("mSheet").hidden = true;
+    mScreen = "range"; setMode("range");
+  });
+  el("mShareBtn").addEventListener("click", () => shareCard(false));
+  el("mCsvBtn").addEventListener("click", () => document.getElementById("csvBtn").click());
+}
+function mDistShort(m){ return m == null ? "—" : distDisp(m); }
+function renderMobile(){
+  initMobile();
+  const el = id => document.getElementById(id);
+  el("mRange").hidden = mScreen !== "range";
+  el("mRound").hidden = mScreen !== "round";
+  el("mSummary").hidden = mScreen !== "summary";
+  el("mClubSel").value = clubId;
+
+  // status chip (shared by range screen)
+  const ui = SENSOR_UI[STATUS.state] || SENSOR_UI.starting;
+  const dot = el("mDot");
+  dot.className = "mdot" + (ui.cls.includes("ok") ? " ok" : ui.cls.includes("err") ? " err" : "");
+  el("mStatusTxt").textContent =
+    (STATUS.state === "ready" ? "Listening" : ui.label) +
+    (STATUS.battery != null ? ` · DOT ${STATUS.battery}%` : "");
+
+  if (mScreen === "range") renderMRange();
+  else if (mScreen === "round") renderMRound();
+  else if (mScreen === "summary") renderMSummary();
+}
+function renderMRange(){
+  const el = id => document.getElementById(id);
+  const has = swings.length > 0;
+  const connected = ["ready", "connected", "scanning"].includes(STATUS.state);
+  el("mConnectBtn").hidden = connected;
+  el("mBand").style.display = has ? "block" : "none";
+  el("mStats").hidden = !has;
+  el("mCue").hidden = !has;
+  if (!has){
+    el("mHeroLabel").textContent = connected ? "Ready — let it rip" : "Connect your sensor";
+    el("mHeroNum").textContent = "—";
+    el("mHeroSub").textContent = connected ? "the number appears after your first swing" : "";
+    el("mRail").textContent = "";
+    return;
+  }
+  const i = selected < swings.length ? selected : swings.length - 1;
+  const sw = swings[i], m = sw.metrics;
+  el("mHeroLabel").textContent = `Swing ${i + 1} tempo`;
+  el("mHeroNum").textContent = fmt1(m.tempo_ratio);
+  el("mHeroSub").textContent = `: 1 · ` +
+    (m.tempo_ratio >= 2.5 && m.tempo_ratio <= 3.5 ? "inside target band" : "target 2.5–3.5");
+  // band bar
+  const svg = el("mBand");
+  svg.textContent = "";
+  const max = 5, x = v => 340 * Math.min(v, max) / max;
+  const mk = (n, at) => { const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+    for (const k in at) e.setAttribute(k, at[k]); svg.appendChild(e); return e; };
+  mk("rect", {x: 0, y: 12, width: 340, height: 10, rx: 5, fill: "#2c2c2a"});
+  mk("rect", {x: x(2.5), y: 12, width: x(3.5) - x(2.5), height: 10, rx: 5, fill: "rgba(57,135,229,0.28)"});
+  mk("rect", {x: Math.max(0, Math.min(335, x(m.tempo_ratio) - 2.5)), y: 4, width: 5, height: 26, rx: 2.5, fill: "#3987e5"});
+  mk("text", {x: x(2.5), y: 34, fill: "#898781", style: "font:10px system-ui"}).textContent = "2.5";
+  mk("text", {x: x(3.5), y: 34, "text-anchor": "end", fill: "#898781", style: "font:10px system-ui"}).textContent = "3.5";
+  el("mClubMph").textContent = "";
+  el("mClubMph").append(fmt1(clubSpeedMph(sw)));
+  const u1 = document.createElement("small"); u1.textContent = "mph"; el("mClubMph").appendChild(u1);
+  el("mPath").textContent = "";
+  el("mPath").append(m.acc_clipped ? "—" : `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}`);
+  const u2 = document.createElement("small"); u2.textContent = m.acc_clipped ? " clipped" : "°";
+  el("mPath").appendChild(u2);
+  const cue = sw.cues && sw.cues[0];
+  if (cue){
+    el("mCueDot").className = "mdot " + (cue.priority === 1 ? "err" : cue.priority === 2 ? "" : "ok");
+    el("mCueTitle").textContent = cue.title;
+    el("mCueDetail").textContent = cue.detail;
+  } else el("mCue").hidden = true;
+  // rail (latest first)
+  const rail = el("mRail");
+  rail.textContent = "";
+  swings.slice().reverse().forEach((s, ri) => {
+    const idx = swings.length - 1 - ri;
+    const b = document.createElement("button");
+    b.className = "mrailcard" + (idx === i ? " sel" : "");
+    const n = document.createElement("div"); n.className = "n"; n.textContent = `Sw ${idx + 1}`;
+    const t = document.createElement("div"); t.className = "t"; t.textContent = fmt1(s.metrics.tempo_ratio);
+    const c = document.createElement("div"); c.className = "c"; c.textContent = `${fmt1(clubSpeedMph(s))} mph`;
+    b.append(n, t, c);
+    b.addEventListener("click", () => { selected = idx; renderMobile(); });
+    rail.appendChild(b);
+  });
+}
+function renderMRound(){
+  const el = id => document.getElementById(id);
+  // adopt the shared map full-bleed
+  if (mapState === "off") initMap();
+  const map = document.getElementById("map");
+  if (map && map.parentElement !== el("mMapSlot")){
+    el("mMapSlot").appendChild(map);
+    if (lmap) setTimeout(() => lmap.invalidateSize(), 80);
+  }
+  const active = round && !round.endedAt;
+  el("mRoundStart").hidden = !!active;
+  el("mRoundActions").hidden = !active;
+  el("mHoleCard").hidden = !active;
+  if (!active){
+    el("mCourseTxt").textContent = course
+      ? `${course.name || "Course"} · ${course.greens.length} greens loaded`
+      : "No course loaded — pick one in the full dashboard for maps & green distances.";
+    el("mGreenCard").hidden = true;
+    el("mSuggest").hidden = true;
+    el("mLastShot").hidden = true;
+    return;
+  }
+  el("mHoleN").textContent = round.currentHole;
+  const hm = holeMeta(round.currentHole);
+  el("mHoleMeta").textContent = hm
+    ? [hm.par ? `Par ${hm.par}` : null,
+       hm.line && hm.line.length > 1 ? distDisp(lineLengthM(hm.line)) : null].filter(Boolean).join(" · ")
+    : `Hole ${round.currentHole}`;
+  const ht = holeTotals(round.currentHole);
+  const vp = vsPar();
+  el("mHoleScore").textContent = `${ht.total} stroke${ht.total === 1 ? "" : "s"} · round ${roundTotal()}` +
+    (vp ? ` (${vp.diff > 0 ? "+" : ""}${vp.diff})` : "");
+  // to-green + suggestion
+  const g = currentGreen();
+  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
+  if (g && here){
+    const fcb = greenFCB(g, here);
+    el("mGreenCard").hidden = false;
+    el("mGreenDist").textContent = distDisp(fcb.center);
+    el("mGreenLbl").textContent = `to middle · F ${distDisp(fcb.front)} · B ${distDisp(fcb.back)}`;
+    const sugg = suggestClubs(fcb.center);
+    if (sugg.length){
+      const s = el("mSuggest");
+      s.hidden = false;
+      s.textContent = "";
+      const b = document.createElement("b");
+      b.textContent = sugg[0].label;
+      s.append(b, ` from your distances (avg ${distDisp(sugg[0].avg_m)})`);
+    } else el("mSuggest").hidden = true;
+  } else { el("mGreenCard").hidden = true; el("mSuggest").hidden = true; }
+  const last = round.shots[round.shots.length - 1];
+  el("mLastShot").hidden = !last;
+  if (last){
+    const measured = round.shots.filter(s => s.dist_m != null).pop();
+    el("mLastShotTxt").textContent =
+      `${swingClub(last).label} · ${fmt1(last.tempo)}:1 · ${fmt1(last.club_mph)} mph est.` +
+      (measured ? ` · prev ${distDisp(measured.dist_m)}` : "");
+  }
+  el("mUnitBtn").textContent = round.unit === "yd" ? "Switch to meters" : "Switch to yards";
+  // hole grid inside the sheet
+  if (!el("mSheet").hidden){
+    const gr = el("mHoleGrid");
+    gr.textContent = "";
+    for (let n = 1; n <= 18; n++){
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.setAttribute("aria-pressed", String(n === round.currentHole));
+      const t = round.holes[n] ? holeTotals(n).total : 0;
+      b.textContent = t ? `${n}·${t}` : String(n);
+      b.addEventListener("click", () => { el("mSheet").hidden = true; setHole(n); });
+      gr.appendChild(b);
+    }
+  }
+}
+function renderMSummary(){
+  const el = id => document.getElementById(id);
+  el("mSumMeta").textContent =
+    `${new Date().toLocaleDateString(undefined, {day: "numeric", month: "short"})} · ${clubLabel()}`;
+  const grid = el("mSumGrid");
+  grid.textContent = "";
+  const sim = similarity();
+  const cells = swings.length ? [
+    ["Swings", String(swings.length), ""],
+    ["Med tempo", fmt1(median(swings.map(s => s.metrics.tempo_ratio))), ":1"],
+    ["Top est. club", fmt1(Math.max(...swings.map(s => clubSpeedMph(s)))), ""],
+    ["Repeatability", sim.session != null ? String(Math.round(sim.session)) : "—", sim.session != null ? "/100" : ""],
+  ] : [["Swings", "0", ""]];
+  for (const [k, v, u] of cells){
+    const d = document.createElement("div");
+    const l = document.createElement("div"); l.className = "mlabel"; l.textContent = k;
+    const vv = document.createElement("div"); vv.className = "v"; vv.append(v);
+    if (u){ const s = document.createElement("small"); s.textContent = u; vv.appendChild(s); }
+    d.append(l, vv); grid.appendChild(d);
+  }
+  // tempo bars
+  const svg = el("mSumBars");
+  svg.textContent = "";
+  const mk = (n, at) => { const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+    for (const k in at) e.setAttribute(k, at[k]); svg.appendChild(e); return e; };
+  if (swings.length){
+    const maxT = Math.max(4, ...swings.map(s => s.metrics.tempo_ratio));
+    const y = v => 50 - (v / maxT) * 42;
+    mk("rect", {x: 0, y: y(3.5), width: 320, height: y(2.5) - y(3.5), fill: "rgba(57,135,229,0.18)"});
+    const n = swings.length, bw = Math.min(28, 320 / n * 0.7);
+    swings.forEach((s, i) => {
+      const cx = 320 * (i + 0.5) / n;
+      mk("rect", {x: cx - bw / 2, y: y(s.metrics.tempo_ratio), width: bw,
+                  height: 50 - y(s.metrics.tempo_ratio), rx: 3,
+                  fill: i === n - 1 ? "#fcfcfb" : "#3987e5"});
+    });
+  }
+  const clipped = swings.filter(s => s.metrics.acc_clipped || s.metrics.gyro_clipped).length;
+  el("mSumFine").textContent = `Wrist IMU estimates · club speed needs per-club calibration` +
+    (clipped ? ` · ${clipped} of ${swings.length} swings clipped the ±16 g accelerometer.` : ".");
+  // headline cue: first priority-1/2 cue across the session's most recent swings
+  let top = null;
+  for (const s of swings.slice().reverse())
+    for (const c of s.cues || [])
+      if (c.priority <= 2 && !top) top = c;
+  el("mSumCue").hidden = !top;
+  if (top){
+    const body = el("mSumCueBody");
+    body.textContent = "";
+    const h = document.createElement("h3");
+    h.style.cssText = "margin:0;font-size:13.5px;font-weight:650";
+    h.textContent = top.title;
+    const p = document.createElement("p");
+    p.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#52514e";
+    p.textContent = top.detail;
+    body.append(h, p);
+  }
+}
+
 initClubFilter();
 boot();
 let rzT; addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(renderAll, 150); });

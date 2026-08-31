@@ -185,6 +185,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SwingCoach;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "SwingCoach connects to your Movella DOT swing sensor over Bluetooth.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Round mode stamps each shot with GPS to measure real shot distances.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -211,6 +213,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SwingCoach;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "SwingCoach connects to your Movella DOT swing sensor over Bluetooth.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Round mode stamps each shot with GPS to measure real shot distances.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
