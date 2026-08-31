@@ -2335,6 +2335,22 @@ function setSensorStatus(state, detail, battery){
   updateBadge();
 }
 
+/* ---------- native iOS shell bridge ----------
+   Inside the SwingCoach iOS app, a Swift CoreBluetooth engine owns the sensor
+   and drives these callbacks; the page never touches Web Bluetooth there. */
+const NATIVE_BLE = !!(window.webkit && window.webkit.messageHandlers &&
+                      window.webkit.messageHandlers.swingcoach);
+let nativeStreaming = false;
+window._nativeStatus = (state, detail, battery) => {
+  nativeStreaming = ["scanning", "connected", "ready"].includes(state);
+  setSensorStatus(state, detail || "", battery == null ? undefined : battery);
+  setConnectButton();
+};
+window._nativeSamples = arr => {
+  if (typeof window._feedSample === "function")
+    for (const s of arr) window._feedSample(s);
+};
+
 let userDisconnected = false;
 
 async function setupStreaming(device, onSample){
@@ -2388,7 +2404,8 @@ async function connectSensor(onSample){
 function setConnectButton(){
   const btn = document.getElementById("connectBtn");
   btn.hidden = false;
-  btn.textContent = bleDevice ? "Disconnect sensor" : "Connect sensor";
+  const active = NATIVE_BLE ? nativeStreaming : !!bleDevice;
+  btn.textContent = active ? "Disconnect sensor" : "Connect sensor";
   document.getElementById("csvBtn").hidden = rawLog.length === 0;
 }
 
@@ -2398,7 +2415,7 @@ function initBleMode(){
   initRoundControls();
   initAuthControls();
   initCloud();
-  if (!navigator.bluetooth){
+  if (!navigator.bluetooth && !NATIVE_BLE){
     setSensorStatus("unsupported",
       "This browser can't reach Bluetooth sensors — open this page in Chrome or Edge on a laptop or Android device.");
     renderAll();
@@ -2425,6 +2442,11 @@ function initBleMode(){
   window._feedSample = onSample;  // test hook
   const btn = document.getElementById("connectBtn");
   btn.addEventListener("click", async () => {
+    if (NATIVE_BLE){
+      window.webkit.messageHandlers.swingcoach.postMessage(
+        {cmd: nativeStreaming ? "disconnect" : "connect"});
+      return;
+    }
     if (bleDevice){
       userDisconnected = true;
       try { bleDevice.gatt.disconnect(); } catch (e) {}
