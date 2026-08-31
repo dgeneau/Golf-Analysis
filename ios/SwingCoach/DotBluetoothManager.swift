@@ -32,6 +32,9 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     private var battery: Int?
     private var lastState = "idle"
     private var lastDetail = ""
+    private var discovered: [String: CBPeripheral] = [:]
+    private var discoveredMeta: [(id: String, name: String, rssi: Int)] = []
+    private var scanTimeout: DispatchWorkItem?
 
     // timestamp unwrap: DOT clock is uint32 microseconds
     private var tsFirst: UInt32?
@@ -47,6 +50,9 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     func connect() {
         wantConnect = true
         tsFirst = nil; tsOffset = 0
+        discovered.removeAll()
+        discoveredMeta.removeAll()
+        pushDeviceList()
         if central == nil {
             central = CBCentralManager(delegate: self, queue: .main)
             status("scanning", "starting Bluetooth…")
@@ -60,11 +66,31 @@ final class DotBluetoothManager: NSObject, ObservableObject {
         }
     }
 
+    /// Connect to a specific sensor the user chose in the picker.
+    func pick(id: String) {
+        guard let p = discovered[id] else { return }
+        central?.stopScan()
+        scanTimeout?.cancel()
+        peripheral = p
+        p.delegate = self
+        status("connected", "connecting to \(p.name ?? "sensor")…")
+        central?.connect(p, options: nil)
+    }
+
     func disconnect() {
         wantConnect = false
+        central?.stopScan()
+        scanTimeout?.cancel()
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         peripheral = nil
         status("disconnected", "sensor disconnected")
+    }
+
+    private func pushDeviceList() {
+        let items = discoveredMeta.map {
+            "{\"id\":\(jsString($0.id)),\"name\":\(jsString($0.name)),\"rssi\":\($0.rssi)}"
+        }.joined(separator: ",")
+        evaluator?("window._nativeDevices && window._nativeDevices([\(items)]);")
     }
 
     // MARK: page callbacks
@@ -95,10 +121,21 @@ final class DotBluetoothManager: NSObject, ObservableObject {
 
     private func startScan() {
         guard let central, central.state == .poweredOn else { return }
-        status("scanning", "looking for a Movella DOT…")
+        status("scanning", "looking for Movella DOT sensors…")
         // The DOT doesn't reliably advertise its services — scan broadly and
         // filter by name prefix, like the web app does.
         central.scanForPeripherals(withServices: nil, options: nil)
+        scanTimeout?.cancel()
+        let timeout = DispatchWorkItem { [weak self] in
+            guard let self, self.peripheral == nil else { return }
+            if self.discoveredMeta.isEmpty {
+                self.central?.stopScan()
+                self.wantConnect = false
+                self.status("error", "no DOT found — is it on and charged?")
+            }
+        }
+        scanTimeout = timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: timeout)
     }
 
     private func setupComplete() {
@@ -147,11 +184,16 @@ extension DotBluetoothManager: CBCentralManagerDelegate {
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         let name = peripheral.name ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? ""
         guard name.hasPrefix("Movella DOT") || name.hasPrefix("Xsens DOT") else { return }
-        central.stopScan()
-        self.peripheral = peripheral
-        peripheral.delegate = self
-        status("connected", "connecting…")
-        central.connect(peripheral, options: nil)
+        // Don't auto-connect: collect matches and let the user pick one.
+        let id = peripheral.identifier.uuidString
+        discovered[id] = peripheral
+        if let idx = discoveredMeta.firstIndex(where: { $0.id == id }) {
+            discoveredMeta[idx].rssi = RSSI.intValue
+        } else {
+            discoveredMeta.append((id: id, name: name, rssi: RSSI.intValue))
+            status("scanning", "found \(discoveredMeta.count) sensor\(discoveredMeta.count == 1 ? "" : "s") — pick one")
+        }
+        pushDeviceList()
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {

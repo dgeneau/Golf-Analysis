@@ -58,6 +58,7 @@ struct WebContainer: UIViewRepresentable {
                   let cmd = body["cmd"] as? String else { return }
             switch cmd {
             case "connect": ble.connect()
+            case "pick": ble.pick(id: body["id"] as? String ?? "")
             case "disconnect": ble.disconnect()
             default: break
             }

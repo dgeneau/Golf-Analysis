@@ -235,6 +235,28 @@
   .msheet-item { display: block; width: 100%; text-align: left; font: 600 15px system-ui;
                  background: transparent; border: 0; border-top: 1px solid #e1e0d9; padding: 14px 6px; color: #0b0b0b; }
   .msheet-item:first-of-type { border-top: 0; }
+  /* sensor picker (native iOS shell) */
+  #mPickWrap { position: fixed; inset: 0; z-index: 700; background: rgba(11,11,11,.45);
+               display: flex; align-items: flex-end; }
+  #mPickSheet { flex: 1; margin: 0 14px max(env(safe-area-inset-bottom), 20px);
+                background: #fcfcfb; color: #0b0b0b; border-radius: 16px; padding: 16px 14px;
+                box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  #mPickSheet h3 { margin: 0 0 4px; font: 700 17px system-ui; }
+  #mPickNote { display: flex; align-items: center; gap: 8px;
+               font-size: 12.5px; color: #52514e; margin: 0 0 6px; }
+  .mpick-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+                font: 600 15px system-ui; background: transparent; border: 0;
+                border-top: 1px solid #e1e0d9; padding: 14px 6px; color: #0b0b0b; }
+  .mpick-item small { margin-left: auto; font-weight: 500; color: #52514e; }
+  .mspin { width: 13px; height: 13px; border: 2px solid #d5d4cc; border-top-color: #2a78d6;
+           border-radius: 50%; animation: mspin .9s linear infinite; flex: none; }
+  @keyframes mspin { to { transform: rotate(360deg); } }
+  /* small light-card inputs (round start, account) */
+  .minput { font: 500 15px system-ui; color: #0b0b0b; background: #fff;
+            border: 1px solid rgba(11,11,11,.18); border-radius: 10px;
+            padding: 11px 12px; width: 100%; box-sizing: border-box;
+            -webkit-appearance: none; appearance: none; }
+  .msmallbtn { padding: 11px 14px !important; flex: none; }
   .msummary { background: #f4f7f2; color: #0b0b0b; overflow-y: auto; }
   .mtitle { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
             letter-spacing: .03em; text-transform: uppercase; }
@@ -649,6 +671,12 @@
       </div>
       <div class="mstart" id="mRoundStart" hidden>
         <div class="mmeta" id="mCourseTxt" style="margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="mCourseSearch" class="minput" type="search" placeholder="Search course name…"
+                 autocomplete="off" style="flex:1">
+          <button class="mblue msmallbtn" id="mNearbyBtn">Nearby</button>
+        </div>
+        <div class="chips" id="mCourseResults" style="margin-bottom:8px"></div>
         <div style="display:flex;gap:10px">
           <select id="mStartHole" class="mchip" aria-label="Starting hole"></select>
           <button class="mprimary" id="mStartBtn" style="flex:1">Start round</button>
@@ -695,8 +723,42 @@
         <button class="mprimary" id="mShareBtn" style="flex:1">Share image</button>
         <button class="mghost" id="mCsvBtn" style="flex:1">Session CSV</button>
       </div>
+      <div class="mlight" id="mAccount" hidden>
+        <h2>Account</h2>
+        <div id="mAuthOut">
+          <p class="mmeta" style="margin:0 0 8px">Sign in to save sessions and track progress
+            — we'll email you a 6-digit code.</p>
+          <div style="display:flex;gap:8px">
+            <input id="mAuthEmail" class="minput" type="email" placeholder="you@example.com"
+                   autocomplete="email" style="flex:1">
+            <button class="mblue msmallbtn" id="mSendCodeBtn">Email code</button>
+          </div>
+          <div id="mCodeRow" hidden>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input id="mAuthCode" class="minput" inputmode="numeric" autocomplete="one-time-code"
+                     placeholder="6-digit code" style="flex:1">
+              <button class="mblue msmallbtn" id="mVerifyBtn">Verify</button>
+            </div>
+          </div>
+          <p class="mmeta" id="mAuthNote" style="margin:8px 0 0" hidden></p>
+        </div>
+        <div id="mAuthIn" hidden>
+          <p class="mmeta" style="margin:0 0 10px" id="mWhoami"></p>
+          <button class="mghost" id="mSignOutBtn" style="width:100%">Sign out</button>
+        </div>
+      </div>
       <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:10px">Open full dashboard</button>
     </div>
+  </div>
+</div>
+
+<!-- native sensor picker: overlays both the 1c layer and the classic dashboard -->
+<div id="mPickWrap" hidden>
+  <div id="mPickSheet">
+    <h3>Choose your sensor</h3>
+    <p id="mPickNote"><span class="mspin"></span><span id="mPickNoteTxt">Scanning for Movella DOTs…</span></p>
+    <div id="mPickList"></div>
+    <button class="msheet-item" id="mPickCancel" style="border-top:1px solid #e1e0d9">Cancel</button>
   </div>
 </div>
 
@@ -1165,6 +1227,8 @@ function renderAuth(){
   // The sign-in card fronts the range view until signed in or skipped;
   // Progress has its own gate and Round mode stays uncluttered.
   card.hidden = signedIn || authSkipped || uiMode !== "range";
+  // keep the mobile account card in step (sign-in state can change any time)
+  if (mInit && mobileEligible() && mScreen === "summary") renderMobile();
 }
 function initAuthControls(){
   document.getElementById("signInBtn").addEventListener("click", () => {
@@ -2539,15 +2603,62 @@ function setSensorStatus(state, detail, battery){
 const NATIVE_BLE = !!(window.webkit && window.webkit.messageHandlers &&
                       window.webkit.messageHandlers.swingcoach);
 let nativeStreaming = false;
+let nativeDevices = [];
 window._nativeStatus = (state, detail, battery) => {
   nativeStreaming = ["scanning", "connected", "ready"].includes(state);
   setSensorStatus(state, detail || "", battery == null ? undefined : battery);
   setConnectButton();
+  // the picker only makes sense while scanning; anything else closes it
+  if (state !== "scanning") closePicker(false);
 };
 window._nativeSamples = arr => {
   if (typeof window._feedSample === "function")
     for (const s of arr) window._feedSample(s);
 };
+window._nativeDevices = list => {
+  nativeDevices = Array.isArray(list) ? list : [];
+  renderPicker();
+};
+function openPicker(){
+  nativeDevices = [];
+  document.getElementById("mPickWrap").hidden = false;
+  renderPicker();
+}
+function closePicker(cancel){
+  const w = document.getElementById("mPickWrap");
+  if (!w || w.hidden) return;
+  w.hidden = true;
+  if (cancel && NATIVE_BLE)
+    window.webkit.messageHandlers.swingcoach.postMessage({cmd: "disconnect"});
+}
+function rssiBars(rssi){
+  if (rssi == null || rssi >= 0) return "";
+  return rssi >= -55 ? "▂▄▆█" : rssi >= -67 ? "▂▄▆ " : rssi >= -80 ? "▂▄  " : "▂   ";
+}
+function renderPicker(){
+  const wrap = document.getElementById("mPickWrap");
+  if (wrap.hidden) return;
+  document.getElementById("mPickNoteTxt").textContent = nativeDevices.length
+    ? "Tap your sensor — closer usually means a stronger signal."
+    : "Scanning for Movella DOTs — make sure the sensor is on…";
+  const host = document.getElementById("mPickList");
+  host.textContent = "";
+  for (const d of nativeDevices){
+    const b = document.createElement("button");
+    b.className = "mpick-item";
+    const name = document.createElement("span");
+    name.textContent = d.name || "Movella DOT";
+    const sig = document.createElement("small");
+    sig.textContent = rssiBars(d.rssi);
+    b.append(name, sig);
+    b.addEventListener("click", () => {
+      wrap.hidden = true;
+      window.webkit.messageHandlers.swingcoach.postMessage({cmd: "pick", id: d.id});
+    });
+    host.appendChild(b);
+  }
+}
+document.getElementById("mPickCancel").addEventListener("click", () => closePicker(true));
 
 let userDisconnected = false;
 
@@ -2641,8 +2752,12 @@ function initBleMode(){
   const btn = document.getElementById("connectBtn");
   btn.addEventListener("click", async () => {
     if (NATIVE_BLE){
-      window.webkit.messageHandlers.swingcoach.postMessage(
-        {cmd: nativeStreaming ? "disconnect" : "connect"});
+      if (nativeStreaming){
+        window.webkit.messageHandlers.swingcoach.postMessage({cmd: "disconnect"});
+      } else {
+        openPicker();   // fills in as Swift reports discovered DOTs
+        window.webkit.messageHandlers.swingcoach.postMessage({cmd: "connect"});
+      }
       return;
     }
     if (bleDevice){
@@ -3414,6 +3529,100 @@ function initMobile(){
   });
   el("mShareBtn").addEventListener("click", () => shareCard(false));
   el("mCsvBtn").addEventListener("click", () => document.getElementById("csvBtn").click());
+  // course picker (round start card)
+  el("mNearbyBtn").addEventListener("click", () => mSearchCourses(""));
+  let mAcT = null;
+  el("mCourseSearch").addEventListener("input", () => {
+    clearTimeout(mAcT);
+    mAcT = setTimeout(() => mSearchCourses(el("mCourseSearch").value.trim()), 250);
+  });
+  // account: email a 6-digit code (magic links open Safari, not the app)
+  el("mSendCodeBtn").addEventListener("click", async () => {
+    const email = el("mAuthEmail").value.trim();
+    const note = el("mAuthNote");
+    note.hidden = false;
+    if (!email){ note.textContent = "Enter your email first."; return; }
+    note.textContent = "Sending…";
+    const {error} = await sb.auth.signInWithOtp({email});
+    if (error){ note.textContent = "Couldn't send: " + error.message; return; }
+    el("mCodeRow").hidden = false;
+    note.textContent = `Sent — enter the 6-digit code from the email to ${email}.`;
+    el("mAuthCode").focus();
+  });
+  el("mVerifyBtn").addEventListener("click", async () => {
+    const email = el("mAuthEmail").value.trim();
+    const token = el("mAuthCode").value.trim();
+    const note = el("mAuthNote");
+    note.hidden = false;
+    if (!token){ note.textContent = "Enter the code from the email."; return; }
+    note.textContent = "Checking…";
+    const {error} = await sb.auth.verifyOtp({email, token, type: "email"});
+    if (error){ note.textContent = "Couldn't verify: " + error.message; return; }
+    note.hidden = true;
+    el("mAuthCode").value = "";
+    el("mCodeRow").hidden = true;
+    renderMobile();   // onAuthStateChange also fires; this is instant feedback
+  });
+  el("mSignOutBtn").addEventListener("click", async () => {
+    try { await sb.auth.signOut(); } catch (e) {}
+    sbUser = null; cloudSession = null;
+    toast("Signed out");
+    renderAll();
+  });
+}
+async function mSearchCourses(q){
+  const el = id => document.getElementById(id);
+  el("mCourseTxt").textContent = courseIndex
+    ? "Searching…" : "Loading the course list from OpenStreetMap…";
+  const idx = await ensureCourseIndex(false);
+  if (!idx){
+    el("mCourseTxt").textContent = refPoint()
+      ? "Couldn't reach OpenStreetMap — check internet (offline courses below still work)."
+      : "Waiting for GPS — try again in a moment.";
+    mRenderCourseChips([]);
+    return;
+  }
+  const found = filterIndex(q || null);
+  el("mCourseTxt").textContent = found.length
+    ? (q ? "Matches:" : "Nearby courses:")
+    : "No matching course within 50 km — check spelling, or it may not be on OpenStreetMap.";
+  mRenderCourseChips(found);
+}
+function mRenderCourseChips(found){
+  const host = document.getElementById("mCourseResults");
+  host.textContent = "";
+  for (const f of found){
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = f.d != null ? `${f.name} · ${(f.d/1000).toFixed(1)} km` : f.name;
+    b.addEventListener("click", () => mSelectCourse(f));
+    host.appendChild(b);
+  }
+  const cache = courseCache();
+  for (const id of Object.keys(cache)){
+    if (course && course.id === id) continue;
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = `${cache[id].name || "Course"} (offline)`;
+    b.addEventListener("click", () => {
+      course = cache[id];
+      try { localStorage.setItem("sc-course-current", id); } catch (e) {}
+      renderCourseLayer(); courseNoteRender(); updateToHole();
+      if (lmap && course.center){ lmap.setView(course.center, 16); mapCentered = true; }
+      host.textContent = "";
+      renderMobile();
+    });
+    host.appendChild(b);
+  }
+}
+async function mSelectCourse(f){
+  const el = id => document.getElementById(id);
+  el("mCourseTxt").textContent = `Loading ${f.name}…`;
+  el("mCourseResults").textContent = "";
+  const ok = await fetchCourseFeatures(f.center, f.id, f.name);
+  renderMobile();   // refreshes mCourseTxt with "<name> · N greens loaded"
+  if (!ok) el("mCourseTxt").textContent =
+    `${f.name}: no mapped greens on OSM — distances to tapped targets still work.`;
 }
 function mDistShort(m){ return m == null ? "—" : distDisp(m); }
 function renderMobile(){
@@ -3510,9 +3719,11 @@ function renderMRound(){
   el("mRoundActions").hidden = !active;
   el("mHoleCard").hidden = !active;
   if (!active){
-    el("mCourseTxt").textContent = course
-      ? `${course.name || "Course"} · ${course.greens.length} greens loaded`
-      : "No course loaded — pick one in the full dashboard for maps & green distances.";
+    // don't stomp search results/notes while course chips are showing
+    if (!el("mCourseResults").childElementCount)
+      el("mCourseTxt").textContent = course
+        ? `${course.name || "Course"} · ${course.greens.length} greens loaded`
+        : "No course loaded — search by name or tap Nearby.";
     el("mGreenCard").hidden = true;
     el("mSuggest").hidden = true;
     el("mLastShot").hidden = true;
@@ -3572,6 +3783,13 @@ function renderMRound(){
 }
 function renderMSummary(){
   const el = id => document.getElementById(id);
+  // account card (cloud sign-in via emailed 6-digit code)
+  el("mAccount").hidden = !sb;
+  if (sb){
+    el("mAuthOut").hidden = !!sbUser;
+    el("mAuthIn").hidden = !sbUser;
+    if (sbUser) el("mWhoami").textContent = `Signed in as ${sbUser.email || "your account"}`;
+  }
   el("mSumMeta").textContent =
     `${new Date().toLocaleDateString(undefined, {day: "numeric", month: "short"})} · ${clubLabel()}`;
   const grid = el("mSumGrid");

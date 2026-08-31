@@ -36,9 +36,26 @@ cloud features simply stay hidden.
    git add -A && git commit -m "Enable cloud sync" && git push
    ```
 
-## 5. Use it
-- Open the site → **Sign in** → enter your email → open the emailed link
-  **on the same device**. You stay signed in on that device.
+## 5. Put the 6-digit code in the sign-in email (needed for the iPhone app)
+Magic links tapped in Mail open Safari, not the app, so the iPhone app signs
+in with a **6-digit code** from the same email instead:
+
+1. Left sidebar → **Authentication → Email Templates → Magic Link**.
+2. Add the code to the email body, e.g.:
+
+   ```html
+   <p>Your SwingCoach sign-in code: <strong>{{ .Token }}</strong></p>
+   <p>Or open this link on the same device: <a href="{{ .ConfirmationURL }}">Sign in</a></p>
+   ```
+
+   (`{{ .Token }}` is the one-time code; keeping `{{ .ConfirmationURL }}` too
+   means the same email still works as a click-through link in the browser.)
+
+## 6. Use it
+- **Browser:** open the site → **Sign in** → enter your email → open the
+  emailed link **on the same device**. You stay signed in on that device.
+- **iPhone app:** Session summary → **Account** → enter your email →
+  **Email code** → type the 6-digit code from the email. You stay signed in.
 - From then on every swing and round syncs automatically (offline-first:
   data queues on the device and uploads when there's signal).
 - The **Progress** tab shows tempo and club-speed trends across sessions.

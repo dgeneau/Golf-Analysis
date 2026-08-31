@@ -18,8 +18,9 @@ with a normal `git push`, no rebuild.
 4. First launch on-device: iOS blocks apps from unknown developers —
    Settings → General → VPN & Device Management → trust your developer
    certificate, then launch again.
-5. In the app: **Connect sensor** → allow Bluetooth → the DOT connects
-   natively. Allow Location when Round mode asks.
+5. In the app: **Connect sensor** → allow Bluetooth → a picker sheet lists
+   every DOT in range (name + signal strength) — tap yours. Allow Location
+   when Round mode asks.
 
 Free-Apple-ID signing expires after 7 days (re-run from Xcode to refresh);
 a paid developer account ($99/yr) removes that and enables TestFlight.
@@ -33,14 +34,18 @@ a paid developer account ($99/yr) removes that and enables TestFlight.
   `{cmd: connect|disconnect}` to `webkit.messageHandlers.swingcoach`; native
   code calls `window._nativeStatus(...)` and `window._nativeSamples([...])`.
 - `DotBluetoothManager.swift` — CoreBluetooth central mirroring the web BLE
-  flow: scan by name prefix → connect → battery read → heading reset
-  (`0x2006 ← 01 00`) → notify on medium payload (`0x2003`) → start Custom
-  Mode 1 (`0x2001 ← 01 01 16h`). Parses 40-byte packets (uint32 µs timestamp
-  unwrapped to seconds + 9 little-endian floats), batches ~6 samples per
-  100 ms into one `evaluateJavaScript` call. Auto-reconnects when the sensor
-  comes back into range (pending-connect semantics).
+  flow: scan by name prefix → report matches to the page
+  (`window._nativeDevices([{id,name,rssi},…])`) so the user picks one →
+  connect → battery read → heading reset (`0x2006 ← 01 00`) → notify on
+  medium payload (`0x2003`) → start Custom Mode 1 (`0x2001 ← 01 01 16h`).
+  Parses 40-byte packets (uint32 µs timestamp unwrapped to seconds + 9
+  little-endian floats), batches ~6 samples per 100 ms into one
+  `evaluateJavaScript` call. Auto-reconnects when the sensor comes back into
+  range (pending-connect semantics). A 12 s scan timeout reports "no DOT
+  found" if nothing shows up.
 - The web side detects the shell via the `swingcoach` message handler and
-  routes the Connect button natively (`NATIVE_BLE` in dashboard.html).
+  routes the Connect button natively (`NATIVE_BLE` in dashboard.html); the
+  page posts `{cmd: "pick", id}` when the user taps a sensor in the picker.
 
 ## Known v1 limitations (by design, for the first test)
 
@@ -51,9 +56,10 @@ a paid developer account ($99/yr) removes that and enables TestFlight.
 - Share card uses the Web Share API where WKWebView allows it; the blob
   download fallback does nothing in a webview — a native share bridge is a
   planned follow-up.
-- Magic-link email sign-in opens in the webview and persists; if the link
-  opens in Safari instead of the app, sign in once via the hosted site inside
-  the app's own view (tap Sign in from within the app).
+- Email sign-in in the app uses a 6-digit code (Session summary → Account),
+  because magic links tapped in Mail open Safari instead of the app. This
+  needs `{{ .Token }}` added to the Supabase Magic Link email template —
+  see step 5 in `SETUP-CLOUD.md`.
 
 ## What Xcode errors to send back
 
