@@ -694,8 +694,11 @@
     </div>
     <div class="movl mtr2" id="mSuggest" hidden></div>
     <div class="mroundbottom">
-      <div class="mlastshot" id="mLastShot" hidden>
-        <div><div class="mlabel">Last shot</div><div class="mmeta" id="mLastShotTxt"></div></div>
+      <div id="mClubRow" hidden style="display:flex;gap:10px;align-items:stretch;margin-bottom:10px">
+        <select id="mClubSelR" class="mchip" aria-label="Club" style="flex:none"></select>
+        <div class="mlastshot" id="mLastShot" hidden style="flex:1;margin-bottom:0">
+          <div><div class="mlabel">Last shot</div><div class="mmeta" id="mLastShotTxt"></div></div>
+        </div>
       </div>
       <div class="mstart" id="mRoundStart" hidden>
         <div class="mmeta" id="mCourseTxt" style="margin-bottom:10px"></div>
@@ -3497,8 +3500,8 @@ function initMobile(){
   if (mInit) return;
   mInit = true;
   const el = id => document.getElementById(id);
-  // club chips mirror the main selector
-  for (const sel of [el("mClubSel")]){
+  // club chips mirror the main selector (range top bar + round bottom bar)
+  for (const sel of [el("mClubSel"), el("mClubSelR")]){
     for (const c of CLUBS){
       const o = document.createElement("option");
       o.value = c.id;
@@ -3670,6 +3673,7 @@ function renderMobile(){
   el("mRound").hidden = mScreen !== "round";
   el("mSummary").hidden = mScreen !== "summary";
   el("mClubSel").value = clubId;
+  el("mClubSelR").value = clubId;
 
   // status chip (shared by range screen)
   const ui = SENSOR_UI[STATUS.state] || SENSOR_UI.starting;
@@ -3827,6 +3831,7 @@ function renderMRound(){
   el("mRoundStart").hidden = !!active;
   el("mRoundActions").hidden = !active;
   el("mHoleCard").hidden = !active;
+  el("mClubRow").hidden = !active;
   if (!active){
     // don't stomp search results/notes while course chips are showing
     if (!el("mCourseResults").childElementCount)
