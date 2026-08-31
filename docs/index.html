@@ -395,6 +395,10 @@
           <span class="fnote" id="courseStartNote"></span>
         </div>
         <div class="chips" id="courseResults" style="margin:0 0 12px"></div>
+        <div class="filters" style="margin:0 0 6px">
+          <label class="flabel" for="startHoleSel">Start at hole</label>
+          <select id="startHoleSel" class="rowclub"></select>
+        </div>
         <div class="round-actions">
           <button class="btn" id="startRoundBtn">Start round</button>
           <button class="btn secondary" id="resumeRoundBtn" hidden>Resume saved round</button>
@@ -419,10 +423,11 @@
         <div class="round-actions">
           <button class="btn" id="puttBtn">+ Putt</button>
           <button class="btn" id="nextHoleBtn">Next hole ▸</button>
-          <button class="btn secondary" id="prevHoleBtn">◂ Back</button>
+          <button class="btn secondary" id="holeGridBtn">Go to hole…</button>
           <button class="btn secondary" id="undoShotBtn">Undo shot</button>
           <button class="btn secondary" id="endRoundBtn">End round</button>
         </div>
+        <div class="chips" id="holeGrid" hidden style="margin:12px 0 0"></div>
       </div>
       <div id="roundDone" hidden>
         <h2>Round complete</h2>
@@ -1121,8 +1126,21 @@ function gpsChip(){
 async function keepAwake(){
   try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
 }
-document.addEventListener("visibilitychange", () => {
-  if (uiMode === "round" && document.visibilityState === "visible") keepAwake();
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState !== "visible") return;
+  if (uiMode === "round") keepAwake();
+  // The page freezes while the screen is asleep — when it comes back,
+  // recover the sensor connection if it dropped in the meantime.
+  if (bleDevice && bleDevice.gatt && !bleDevice.gatt.connected &&
+      !userDisconnected && typeof window._feedSample === "function"){
+    setSensorStatus("scanning", "reconnecting after sleep…");
+    for (let i = 0; i < 5; i++){
+      try { await setupStreaming(bleDevice, window._feedSample); return; }
+      catch (e) { await new Promise(r => setTimeout(r, 1500)); }
+    }
+    setSensorStatus("disconnected", "couldn't reconnect — tap Connect sensor");
+    setConnectButton();
+  }
 });
 
 function saveRound(){
@@ -1149,6 +1167,8 @@ function currentFixOrNull(){
   return null;
 }
 
+const CLUSTER_M = 12;    // swings within this radius are the same shot attempt
+const CLUSTER_S = 60;    // fallback window when GPS is unavailable
 function addShot(sw, swingIndex){
   const fix = currentFixOrNull();
   const shot = {
@@ -1163,6 +1183,32 @@ function addShot(sw, swingIndex){
     dist_m: null,
   };
   const prev = round.shots[round.shots.length - 1];
+
+  // Practice-swing filter: a swing from (near) the same spot as the previous
+  // shot on this hole means the earlier detection was a practice swing or a
+  // re-hit — the LAST swing at a location is the one that counts.
+  const sameHole = prev && prev.hole === round.currentHole && !round.holeBreakSincePrev;
+  let clustered = false;
+  if (sameHole){
+    if (prev.lat != null && shot.lat != null)
+      clustered = haversineM(prev, shot) < CLUSTER_M;
+    else
+      clustered = (shot.t - prev.t) / 1000 < CLUSTER_S;
+  }
+  if (clustered){
+    shot.n = prev.n;                                  // keep the shot number
+    round.shots[round.shots.length - 1] = shot;       // replace, don't append
+    const pp = round.shots[round.shots.length - 2];
+    if (pp && pp.dist_m != null && pp.lat != null && shot.lat != null){
+      pp.dist_m = +haversineM(pp, shot).toFixed(1);   // re-measure to new spot
+      cloudRecordShot(pp);
+    }
+    cloudRecordShot(shot);
+    saveRound();
+    toast(`Same-spot swing — shot ${shot.n} updated`);
+    return;
+  }
+
   if (prev && !round.holeBreakSincePrev && prev.lat != null && shot.lat != null){
     prev.dist_m = +haversineM(prev, shot).toFixed(1);
     cloudRecordShot(prev);   // update its distance in the cloud
@@ -1187,12 +1233,27 @@ function undoShot(){
   }
   saveRound(); renderAll();
 }
-function changeHole(delta){
-  round.currentHole = Math.min(18, Math.max(1, round.currentHole + delta));
+function setHole(n){
+  round.currentHole = Math.min(18, Math.max(1, n));
   ensureHole(round.currentHole);
   round.holeBreakSincePrev = true;   // don't measure across the walk to the tee
   frameHole(round.currentHole);
   saveRound(); renderAll();
+}
+function changeHole(delta){ setHole(round.currentHole + delta); }
+function renderHoleGrid(){
+  const g = document.getElementById("holeGrid");
+  if (!g || g.hidden || !round) return;
+  g.textContent = "";
+  for (let n = 1; n <= 18; n++){
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.setAttribute("aria-pressed", String(n === round.currentHole));
+    const ht = round.holes[n] ? holeTotals(n) : {total: 0};
+    b.textContent = ht.total ? `${n} · ${ht.total}` : String(n);
+    b.addEventListener("click", () => { g.hidden = true; setHole(n); });
+    g.appendChild(b);
+  }
 }
 
 function lineLengthM(line){
@@ -1213,7 +1274,8 @@ function checkAutoHole(){
   if (!round || round.endedAt || uiMode !== "round") return;
   if (!course || !course.holes || !course.holes.length) return;
   if (!(lastFix && !lastFix.err) || lastFix.acc > 25) return;
-  const next = round.currentHole + 1;
+  let next = round.currentHole + 1;
+  if (next > 18) next = holeTotals(1).total === 0 ? 1 : 99;  // back-nine start wraps 18→1
   if (next > 18 || lastAutoHole === next) return;
   const h = holeMeta(next);
   if (!h || !h.line.length) return;
@@ -1222,7 +1284,7 @@ function checkAutoHole(){
                        {lat: tee[0], lon: tee[1]});
   if (d < 35 && holeTotals(round.currentHole).total > 0){
     lastAutoHole = next;
-    changeHole(1);
+    setHole(next);
     toast(`Hole ${next} — auto-advanced (you're on the tee)`);
   }
 }
@@ -1289,7 +1351,7 @@ function renderRound(){
       ls.appendChild(d);
     }
   } else ls.textContent = "No shots yet — play away.";
-  shotTable(); clubDistTable(); holeTable();
+  shotTable(); clubDistTable(); holeTable(); renderHoleGrid();
 }
 
 function shotTable(){
@@ -2060,10 +2122,24 @@ function initRoundControls(){
   on("modeRange", () => setMode("range"));
   on("modeRound", () => setMode("round"));
   on("modeProgress", () => setMode("progress"));
+  const shSel = document.getElementById("startHoleSel");
+  for (let n = 1; n <= 18; n++){
+    const o = document.createElement("option");
+    o.value = String(n); o.textContent = String(n);
+    shSel.appendChild(o);
+  }
   on("startRoundBtn", () => {
     newRound();
+    round.currentHole = parseInt(shSel.value) || 1;
+    ensureHole(round.currentHole);
     if (course && course.name) round.courseName = course.name;
+    frameHole(round.currentHole);
     saveRound(); renderAll();
+  });
+  on("holeGridBtn", () => {
+    const g = document.getElementById("holeGrid");
+    g.hidden = !g.hidden;
+    renderHoleGrid();
   });
   on("findCourseBtn", () => searchCourses(document.getElementById("courseSearch").value.trim() || null));
   on("nearbyCourseBtn", () => searchCourses(null));
@@ -2080,7 +2156,6 @@ function initRoundControls(){
     saveRound(); renderAll();
   });
   on("nextHoleBtn", () => changeHole(1));
-  on("prevHoleBtn", () => changeHole(-1));
   on("undoShotBtn", undoShot);
   on("loadCourseBtn", loadCourseData);
   on("centerMapBtn", () => { mapCentered = false; updateYouMarker(true); });
