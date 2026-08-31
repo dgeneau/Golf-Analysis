@@ -178,6 +178,15 @@
   }
   #mRound .mchip, .msummary .mchip { color: #0b0b0b; background: #fcfcfb; border-color: rgba(11,11,11,.15); }
   .mhero { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; min-height: 0; }
+  /* swipeable graph pages on the range screen */
+  .mswipe { display: flex; width: 100%; overflow-x: auto; scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .mswipe::-webkit-scrollbar { display: none; }
+  .mswipe .mpage { flex: none; width: 100%; min-width: 0; scroll-snap-align: center; scroll-snap-stop: always; }
+  .mgcap { font-size: 11.5px; color: #898781; margin-top: 6px; }
+  .mdots { display: flex; gap: 7px; justify-content: center; margin: 12px 0 2px; }
+  .mdots span { width: 6px; height: 6px; border-radius: 50%; background: #3a3a37; }
+  .mdots span.on { background: #fcfcfb; }
   .mlabel { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 14px;
             letter-spacing: .09em; text-transform: uppercase; color: #898781; }
   .mbig { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: min(160px, 38vw);
@@ -214,15 +223,16 @@
   .mprimary, .mghost, .mblue { white-space: nowrap; }
   .movl { position: absolute; background: #fcfcfb; color: #0b0b0b; border: 1px solid rgba(11,11,11,.10);
           border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15); z-index: 500; }
-  .mtl { top: max(env(safe-area-inset-top), 16px); left: 14px; padding: 10px 14px;
-         display: flex; align-items: center; gap: 12px; }
+  .mtl { top: calc(max(env(safe-area-inset-top), 16px) + 8px); left: 14px; padding: 10px 14px;
+         display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
   .mholeN { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 34px; line-height: 1; }
   .mmeta { font-size: 12.5px; color: #52514e; }
-  .mtr { top: max(env(safe-area-inset-top), 16px); right: 14px; padding: 8px 14px; text-align: center; }
+  .mtr { top: calc(max(env(safe-area-inset-top), 16px) + 8px); right: 14px; padding: 8px 14px;
+         text-align: center; max-width: 42%; box-sizing: border-box; }
   .mtr b { display: block; font-size: 26px; font-weight: 650; line-height: 1.1; }
   .mtr span { font-size: 11px; color: #52514e; }
-  .mtr2 { top: calc(max(env(safe-area-inset-top), 16px) + 78px); right: 14px; padding: 8px 12px;
-          font-size: 11.5px; color: #52514e; text-align: right; }
+  .mtr2 { top: calc(max(env(safe-area-inset-top), 16px) + 96px); right: 14px; padding: 8px 12px;
+          font-size: 11.5px; color: #52514e; text-align: right; max-width: 46%; box-sizing: border-box; }
   .mtr2 b { color: #0b0b0b; }
   .mroundbottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 500;
     padding: 14px 14px max(env(safe-area-inset-bottom), 20px);
@@ -626,15 +636,33 @@
   <!-- 1c · heads-up range -->
   <div class="mscreen" id="mRange">
     <div class="mtop">
-      <span class="mstatus" id="mStatus"><span class="mdot" id="mDot"></span><span id="mStatusTxt">Not connected</span></span>
+      <div class="mwordmark" style="font-size:21px">Swing<span>Coach</span></div>
       <span style="flex:1"></span>
       <select id="mClubSel" class="mchip" aria-label="Club"></select>
     </div>
+    <div class="mtop" style="padding-top:10px">
+      <span class="mstatus" id="mStatus"><span class="mdot" id="mDot"></span><span id="mStatusTxt">Not connected</span></span>
+    </div>
     <div class="mhero" id="mHero">
-      <div class="mlabel" id="mHeroLabel">Ready when you are</div>
-      <div class="mbig" id="mHeroNum">—</div>
-      <div class="msub" id="mHeroSub"></div>
-      <svg id="mBand" width="100%" viewBox="0 0 340 34" style="display:none;margin:20px 0 22px"></svg>
+      <div class="mswipe" id="mSwipe">
+        <div class="mpage">
+          <div class="mlabel" id="mHeroLabel">Ready when you are</div>
+          <div class="mbig" id="mHeroNum">—</div>
+          <div class="msub" id="mHeroSub"></div>
+          <svg id="mBand" width="100%" viewBox="0 0 340 34" style="display:none;margin:20px 0 22px"></svg>
+        </div>
+        <div class="mpage" id="mPageTrace" hidden>
+          <div class="mlabel">Swing trace</div>
+          <svg id="mTraceSvg" width="100%" viewBox="0 0 340 150" style="margin-top:10px"></svg>
+          <div class="mgcap" id="mTraceCap"></div>
+        </div>
+        <div class="mpage" id="mPagePath" hidden>
+          <div class="mlabel">Hand path · top-down</div>
+          <svg id="mPathSvg" width="100%" viewBox="0 0 340 150" style="margin-top:10px"></svg>
+          <div class="mgcap" id="mPathCap"></div>
+        </div>
+      </div>
+      <div class="mdots" id="mDots" hidden><span class="on"></span><span></span><span></span></div>
       <div class="mstats" id="mStats" hidden>
         <div><div class="mlabel">Est. club</div><div class="mmid" id="mClubMph">—</div></div>
         <div><div class="mlabel">Path</div><div class="mmid" id="mPath">—</div></div>
@@ -3491,6 +3519,16 @@ function initMobile(){
     el("mStartHole").appendChild(o);
   }
   el("mConnectBtn").addEventListener("click", () => document.getElementById("connectBtn").click());
+  // graph carousel: keep the dots in step with the swipe position
+  const swipe = el("mSwipe");
+  let swT = null;
+  swipe.addEventListener("scroll", () => {
+    clearTimeout(swT);
+    swT = setTimeout(() => {
+      const idx = Math.round(swipe.scrollLeft / Math.max(1, swipe.clientWidth));
+      document.querySelectorAll("#mDots span").forEach((d, i) => d.classList.toggle("on", i === idx));
+    }, 60);
+  }, {passive: true});
   el("mRoundBtn").addEventListener("click", () => { mScreen = "round"; setMode("round"); });
   el("mSummaryBtn").addEventListener("click", () => { mScreen = "summary"; renderAll(); });
   el("mSummaryBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
@@ -3653,6 +3691,9 @@ function renderMRange(){
   el("mBand").style.display = has ? "block" : "none";
   el("mStats").hidden = !has;
   el("mCue").hidden = !has;
+  el("mPageTrace").hidden = !has;
+  el("mPagePath").hidden = !has;
+  el("mDots").hidden = !has;
   if (!has){
     el("mHeroLabel").textContent = connected ? "Ready — let it rip" : "Connect your sensor";
     el("mHeroNum").textContent = "—";
@@ -3677,6 +3718,8 @@ function renderMRange(){
   mk("rect", {x: Math.max(0, Math.min(335, x(m.tempo_ratio) - 2.5)), y: 4, width: 5, height: 26, rx: 2.5, fill: "#3987e5"});
   mk("text", {x: x(2.5), y: 34, fill: "#898781", style: "font:10px system-ui"}).textContent = "2.5";
   mk("text", {x: x(3.5), y: 34, "text-anchor": "end", fill: "#898781", style: "font:10px system-ui"}).textContent = "3.5";
+  renderMTrace(sw);
+  renderMPath(sw);
   el("mClubMph").textContent = "";
   el("mClubMph").append(fmt1(clubSpeedMph(sw)));
   const u1 = document.createElement("small"); u1.textContent = "mph"; el("mClubMph").appendChild(u1);
@@ -3704,6 +3747,72 @@ function renderMRange(){
     b.addEventListener("click", () => { selected = idx; renderMobile(); });
     rail.appendChild(b);
   });
+}
+function mkSvg(svg, n, at){
+  const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+  for (const k in at) e.setAttribute(k, at[k]);
+  svg.appendChild(e);
+  return e;
+}
+/* wrist-speed + accel over the swing, with top/impact markers */
+function renderMTrace(sw){
+  const svg = document.getElementById("mTraceSvg");
+  svg.textContent = "";
+  const T = sw.trace, ev = sw.events;
+  if (!T || T.t.length < 3) return;
+  const W = 340, H = 150, padT = 8, padB = 18;
+  const t0 = T.t[0], t1 = T.t[T.t.length - 1];
+  const xs = t => W * (t - t0) / Math.max(1e-6, t1 - t0);
+  const gmax = Math.max(1, ...T.gyro), amax = Math.max(1, ...T.acc);
+  const y = (v, vmax) => padT + (H - padT - padB) * (1 - v / vmax);
+  for (const [tt, lbl] of [[ev.top, "top"], [ev.impact, "impact"]]){
+    const x = xs(tt);
+    mkSvg(svg, "line", {x1: x, y1: padT, x2: x, y2: H - padB,
+                        stroke: "#3a3a37", "stroke-width": 1, "stroke-dasharray": "3 4"});
+    mkSvg(svg, "text", {x: x + 3, y: H - 5, fill: "#898781",
+                        style: "font:9.5px system-ui"}).textContent = lbl;
+  }
+  const line = (arr, vmax, color, w) =>
+    mkSvg(svg, "polyline", {fill: "none", stroke: color, "stroke-width": w,
+      points: arr.map((v, i) => `${xs(T.t[i]).toFixed(1)},${y(v, vmax).toFixed(1)}`).join(" ")});
+  line(T.acc, amax, "rgba(252,252,251,0.4)", 1.5);
+  line(T.gyro, gmax, "#3987e5", 2);
+  document.getElementById("mTraceCap").textContent =
+    `wrist speed (blue) peak ${Math.round(gmax)}°/s · accel (white) peak ${(amax / 9.81).toFixed(1)} g` +
+    (sw.metrics.acc_clipped ? " · clipped at impact" : "");
+}
+/* hand path viewed from above: backswing grey, downswing blue, follow-through faint */
+function renderMPath(sw){
+  const svg = document.getElementById("mPathSvg");
+  svg.textContent = "";
+  const P = sw.path;
+  if (!P || P.x.length < 3) return;
+  const W = 340, H = 150, pad = 14;
+  const minx = Math.min(...P.x), maxx = Math.max(...P.x);
+  const miny = Math.min(...P.y), maxy = Math.max(...P.y);
+  const s = Math.min((W - 2 * pad) / Math.max(1e-3, maxx - minx),
+                     (H - 2 * pad) / Math.max(1e-3, maxy - miny));
+  const X = v => pad + (v - minx) * s + ((W - 2 * pad) - (maxx - minx) * s) / 2;
+  const Y = v => pad + (maxy - v) * s + ((H - 2 * pad) - (maxy - miny) * s) / 2;
+  const seg = (a, b, color, w) => {
+    if (b - a < 1) return;
+    const pts = [];
+    for (let i = a; i <= b; i++) pts.push(`${X(P.x[i]).toFixed(1)},${Y(P.y[i]).toFixed(1)}`);
+    mkSvg(svg, "polyline", {points: pts.join(" "), fill: "none", stroke: color,
+                            "stroke-width": w, "stroke-linecap": "round"});
+  };
+  const iT = Math.max(0, Math.min(P.i_top, P.x.length - 1));
+  const iI = Math.max(iT, Math.min(P.i_impact, P.x.length - 1));
+  seg(iI, P.x.length - 1, "rgba(252,252,251,0.22)", 2);   // follow-through
+  seg(0, iT, "#898781", 2);                                // backswing
+  seg(iT, iI, "#3987e5", 3);                               // downswing
+  mkSvg(svg, "circle", {cx: X(P.x[0]), cy: Y(P.y[0]), r: 3.5, fill: "#0f110e",
+                        stroke: "#898781", "stroke-width": 1.5});
+  mkSvg(svg, "circle", {cx: X(P.x[iI]), cy: Y(P.y[iI]), r: 4.5, fill: "#3987e5"});
+  const span = Math.max(maxx - minx, maxy - miny);
+  document.getElementById("mPathCap").textContent =
+    `backswing grey · downswing blue · dot = impact · arc spans ${span.toFixed(1)} m` +
+    (sw.metrics.acc_clipped ? " (accel clipped — path is approximate)" : "");
 }
 function renderMRound(){
   const el = id => document.getElementById(id);
