@@ -1854,7 +1854,9 @@ function refreshTargetInfo(){
         .bindTooltip(distDisp(dYou), {permanent: true, direction: "center",
                                       className: "distlabel"}).openTooltip();
   } else parts.push("You → target: waiting for GPS");
-  const g = nearestGreen(target) || currentGreen();
+  // Project onto the green of the hole being played — never a neighbouring
+  // hole's green that happens to be closer to the tapped point.
+  const g = currentGreen() || nearestGreen(target);
   if (g){
     const on = haversineM({lat: target[0], lon: target[1]}, {lat: g.centroid[0], lon: g.centroid[1]});
     if (on > 15){
