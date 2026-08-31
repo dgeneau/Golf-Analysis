@@ -38,18 +38,33 @@ cloud features simply stay hidden.
 
 ## 5. Put the 6-digit code in the sign-in email (needed for the iPhone app)
 Magic links tapped in Mail open Safari, not the app, so the iPhone app signs
-in with a **6-digit code** from the same email instead:
+in with a **6-digit code** from the same email instead.
 
-1. Left sidebar → **Authentication → Email Templates → Magic Link**.
-2. Add the code to the email body, e.g.:
+Supabase now requires **custom SMTP** before email templates can be edited
+(the Source tab is read-only on the built-in sender). Setting up SMTP also
+removes the built-in sender's ~2 emails/hour limit.
+
+1. **Get SMTP credentials.** Easiest is Gmail: in a Google account turn on
+   2-Step Verification, then Security → **App passwords** → generate one.
+   (Alternative: Brevo free tier, 300/day, verified sender only —
+   host `smtp-relay.brevo.com`, port 587.)
+2. In Supabase: **Authentication → Emails** → banner → **Set up SMTP**.
+   Gmail values: host `smtp.gmail.com`, port `465`, username = your Gmail
+   address, password = the app password, sender = same address,
+   sender name `SwingCoach`. Save.
+3. Still in **Authentication → Emails**, open the magic-link template
+   ("Send a one-time sign-in link or one-time password") and switch the
+   Body box from **Preview** to **Source** (top right). Set the body to:
 
    ```html
-   <p>Your SwingCoach sign-in code: <strong>{{ .Token }}</strong></p>
+   <h2>Sign in to SwingCoach</h2>
+   <p>Your sign-in code: <strong style="font-size:24px">{{ .Token }}</strong></p>
    <p>Or open this link on the same device: <a href="{{ .ConfirmationURL }}">Sign in</a></p>
    ```
 
    (`{{ .Token }}` is the one-time code; keeping `{{ .ConfirmationURL }}` too
    means the same email still works as a click-through link in the browser.)
+4. Save the template.
 
 ## 6. Use it
 - **Browser:** open the site → **Sign in** → enter your email → open the
