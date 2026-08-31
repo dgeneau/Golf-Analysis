@@ -28,7 +28,7 @@ def _render_page() -> bytes:
     body = TEMPLATE.read_text()
     body = body.replace("/*__DATA__*/", "null", 1)
     page = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">"
             "</head><body>" + body + "</body></html>")
     return page.encode()
 
