@@ -162,7 +162,7 @@ async def stream_forever(on_sample: Callable[[p.Sample], None],
         st("connected", "setting up…")
         level, charging = await dot.battery()
         log.info("Battery: %d%%%s", level, " (charging)" if charging else "")
-        st("connected", "zeroing heading — hold still, aim down the target line",
+        st("connected", "calibrating — hold the sensor still for a second",
            battery=level)
         await dot.reset_heading()
         await dot.start_streaming(on_sample)

@@ -244,7 +244,7 @@ extension DotBluetoothManager: CBPeripheralDelegate {
         }
         // Once the measurement service is fully mapped, run the start sequence.
         if let resetC, let mediumC, let controlC, service.uuid == DOT.measurementService {
-            status("connected", "zeroing heading — hold still, aim down the target line")
+            status("connected", "calibrating — hold the sensor still for a second")
             tsFirst = nil; tsOffset = 0
             peripheral.writeValue(Data([0x01, 0x00]), for: resetC, type: .withResponse)
             peripheral.setNotifyValue(true, for: mediumC)

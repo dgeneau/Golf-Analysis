@@ -1056,11 +1056,38 @@ function computeMetricsJS(rec, leverM){
     m.swing_plane_tilt_deg = Math.acos(Math.min(1, Math.max(-1, nrm[2]))) * 180/Math.PI;
   } else m.notes.push("Not enough clean velocity samples to fit a swing plane.");
 
+  // Path is referenced to the wrist's own heading during the still address
+  // window before takeaway (circular mean of yaw), NOT to the one-time
+  // heading reset at connect — repeatable across resets, drift, and aim.
+  // Must stay in lockstep with metrics.py.
   m.path_angle_deg = 0; m.attack_angle_deg = 0;
+  let addr = [];
+  for (let j = 0; j <= i0; j++)
+    if (t[i0] - t[j] <= 0.8 && gyro[j] < 30.0) addr.push(j);
+  if (addr.length < 3){
+    addr = [];
+    for (let j = 0; j <= i0; j++) if (t[i0] - t[j] <= 0.8) addr.push(j);
+  }
+  let psi;
+  if (addr.length){
+    let ss = 0, cc = 0;
+    for (const j of addr){
+      const r = s[j].yaw * Math.PI/180;
+      ss += Math.sin(r); cc += Math.cos(r);
+    }
+    psi = Math.atan2(ss / addr.length, cc / addr.length);
+  } else {
+    psi = s[i0].yaw * Math.PI/180;
+    m.notes.push("No still address window found; path reference is the takeaway sample.");
+  }
+  m.address_yaw_deg = psi * 180/Math.PI;
   if (m.hand_speed_mps > 1.0){
-    const horiz = Math.hypot(vI[0], vI[1]);
+    const c = Math.cos(psi), sn = Math.sin(psi);
+    const vxr = vI[0]*c + vI[1]*sn;      // rotate into the address frame
+    const vyr = -vI[0]*sn + vI[1]*c;
+    const horiz = Math.hypot(vxr, vyr);
     if (horiz > 0.5){
-      m.path_angle_deg = -Math.atan2(vI[1], vI[0]) * 180/Math.PI;
+      m.path_angle_deg = -Math.atan2(vyr, vxr) * 180/Math.PI;
       m.attack_angle_deg = Math.atan2(vI[2], horiz) * 180/Math.PI;
     }
   }
@@ -2701,7 +2728,7 @@ async function setupStreaming(device, onSample){
     const bs = await server.getPrimaryService(BLE.batteryService);
     battery = (await (await bs.getCharacteristic(BLE.batteryChar)).readValue()).getUint8(0);
   } catch (e) {}
-  setSensorStatus("connected", "zeroing heading — hold still, aim down the target line", battery);
+  setSensorStatus("connected", "calibrating — hold the sensor still for a second", battery);
   const ms = await server.getPrimaryService(BLE.measurementService);
   await (await ms.getCharacteristic(BLE.resetChar)).writeValue(new Uint8Array([1, 0]));
   const medium = await ms.getCharacteristic(BLE.mediumChar);

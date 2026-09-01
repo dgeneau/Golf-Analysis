@@ -5,9 +5,14 @@ provide. Free acceleration from the DOT is gravity-removed and expressed in
 the EARTH frame, so integrating it over the short downswing window gives
 world-frame hand velocity with minimal drift.
 
-Conventions (after a heading reset at address, aimed down the target line):
-  +X = toward the target, +Y = left of target, +Z = up  (ENU-style)
-  Path angle > 0  => in-to-out (right of target line for a RH golfer)
+Conventions:
+  Earth frame is ENU-style (+Z up); its horizontal orientation comes from the
+  sensor's heading filter. The PATH ANGLE is referenced per swing to the
+  wrist's own heading during the still address window before takeaway, so it
+  does not depend on when the heading reset happened, on session drift, or on
+  where the golfer aims from shot to shot. A constant per-golfer/mount offset
+  remains (calibratable).
+  Path angle > 0  => in-to-out (right of the address line for a RH golfer)
   Attack angle > 0 => hitting up on the ball
 """
 from __future__ import annotations
@@ -41,6 +46,11 @@ class SwingMetrics:
     swing_plane_tilt_deg: float = 0.0     # plane tilt from horizontal
     path_angle_deg: float = 0.0           # + in-to-out, - out-to-in
     attack_angle_deg: float = 0.0         # + up, - down
+    # heading reference used for the path angle: the wrist's yaw during the
+    # still address window right before takeaway. Referencing each swing to
+    # its own address kills heading-reset timing errors, session drift, and
+    # per-shot aim changes; what remains is a constant per-golfer offset.
+    address_yaw_deg: float = 0.0
     # release timing: when peak wrist rotation occurs within the downswing
     # (0 = at the top -> casting; ~0.8-1.0 = late release, near impact)
     release_fraction: float = 0.0
@@ -134,14 +144,34 @@ def compute_metrics(rec: SwingRecord, lever_m: float = DEFAULT_LEVER_M) -> Swing
     else:
         m.notes.append("Not enough clean velocity samples to fit a swing plane.")
 
-    # --- path & attack angle at impact (needs heading reset at address) -----
+    # --- path & attack angle at impact ---------------------------------------
+    # Path is referenced to the wrist's own heading during the still address
+    # window before takeaway (circular mean of yaw), NOT to the one-time
+    # heading reset at connect. This makes the number repeatable: no reset-
+    # timing error, no session drift, no dependence on where the golfer aims
+    # shot to shot. A constant per-golfer/mount offset remains.
+    yaw = np.array([x.yaw for x in s])
+    addr = [j for j in range(i0 + 1)
+            if t[i0] - t[j] <= 0.8 and gyro_mag[j] < 30.0]
+    if len(addr) < 3:   # waggly address — take the window regardless of quiet
+        addr = [j for j in range(i0 + 1) if t[i0] - t[j] <= 0.8]
+    if addr:
+        yr = np.deg2rad(yaw[addr])
+        psi = float(np.arctan2(np.mean(np.sin(yr)), np.mean(np.cos(yr))))
+    else:
+        psi = float(np.deg2rad(yaw[i0]))
+        m.notes.append("No still address window found; path reference is the takeaway sample.")
+    m.address_yaw_deg = float(np.rad2deg(psi))
     if m.hand_speed_mps > 1.0:
         vx, vy, vz = v_impact
-        horiz = float(np.hypot(vx, vy))
+        c, sn = np.cos(psi), np.sin(psi)
+        vxr = vx * c + vy * sn          # rotate into the address frame
+        vyr = -vx * sn + vy * c
+        horiz = float(np.hypot(vxr, vyr))
         if horiz > 0.5:
-            # angle of horizontal velocity relative to +X (target line);
-            # +Y is left, so positive atan2(vy,vx) = out-to-in for RH golfer
-            m.path_angle_deg = float(-np.rad2deg(np.arctan2(vy, vx)))
+            # angle of horizontal velocity relative to address heading;
+            # +Y is left, so positive atan2 = out-to-in for a RH golfer
+            m.path_angle_deg = float(-np.rad2deg(np.arctan2(vyr, vxr)))
             m.attack_angle_deg = float(np.rad2deg(np.arctan2(vz, horiz)))
 
     # --- release timing -------------------------------------------------------
