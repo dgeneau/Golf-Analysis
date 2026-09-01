@@ -162,11 +162,15 @@
   .leaflet-tooltip.distlabel::before { display: none; }
 
   /* ---------- 1c mobile layer ---------- */
+  /* Safe-area insets as vars: browsers get env() (with viewport-fit=cover);
+     the iOS shell zeroes env() in its webview, so native code injects the
+     real inset values into --sat/--sab after each page load. */
+  :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
   #mobileWrap, .mscreen { position: fixed; inset: 0; }
   #mobileWrap { z-index: 10; background: #0f110e; }
   .mscreen { display: flex; flex-direction: column; }
   #mRange { background: #0f110e; color: #fff; }
-  .mtop { display: flex; align-items: center; gap: 10px; padding: max(env(safe-area-inset-top), 20px) 20px 0; }
+  .mtop { display: flex; align-items: center; gap: 10px; padding: max(var(--sat), 20px) 20px 0; }
   .mstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c3c2b7; }
   .mdot { width: 8px; height: 8px; border-radius: 50%; background: #fab219; flex: none; }
   .mdot.ok { background: #0ca30c; }
@@ -201,7 +205,7 @@
   .mcue h3 { margin: 0; font-family: "Barlow Condensed", sans-serif; font-weight: 600;
              font-size: 18px; letter-spacing: .04em; text-transform: uppercase; }
   .mcue p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: #c3c2b7; }
-  .mbottom { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+  .mbottom { padding-bottom: max(var(--sab), 16px); }
   .mrail { display: flex; gap: 10px; padding: 0 20px 12px; overflow-x: auto; }
   .mrailcard { flex: none; width: 78px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
                padding: 9px 10px; background: transparent; color: #fff; text-align: left; }
@@ -223,23 +227,23 @@
   .mprimary, .mghost, .mblue { white-space: nowrap; }
   .movl { position: absolute; background: #fcfcfb; color: #0b0b0b; border: 1px solid rgba(11,11,11,.10);
           border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15); z-index: 500; }
-  .mtl { top: calc(max(env(safe-area-inset-top), 16px) + 8px); left: 14px; padding: 10px 14px;
+  .mtl { top: calc(max(var(--sat), 16px) + 8px); left: 14px; padding: 10px 14px;
          display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
   .mholeN { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 34px; line-height: 1; }
   .mmeta { font-size: 12.5px; color: #52514e; }
-  .mtr { top: calc(max(env(safe-area-inset-top), 16px) + 8px); right: 14px; padding: 8px 14px;
+  .mtr { top: calc(max(var(--sat), 16px) + 8px); right: 14px; padding: 8px 14px;
          text-align: center; max-width: 42%; box-sizing: border-box; }
   .mtr b { display: block; font-size: 26px; font-weight: 650; line-height: 1.1; }
   .mtr span { font-size: 11px; color: #52514e; }
-  .mtr2 { top: calc(max(env(safe-area-inset-top), 16px) + 96px); right: 14px; padding: 8px 12px;
+  .mtr2 { top: calc(max(var(--sat), 16px) + 96px); right: 14px; padding: 8px 12px;
           font-size: 11.5px; color: #52514e; text-align: right; max-width: 46%; box-sizing: border-box; }
   .mtr2 b { color: #0b0b0b; }
   .mroundbottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 500;
-    padding: 14px 14px max(env(safe-area-inset-bottom), 20px);
+    padding: 14px 14px max(var(--sab), 20px);
     background: linear-gradient(to top, rgba(11,11,11,.55), rgba(11,11,11,0)); }
   .mlastshot { background: #fcfcfb; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; color: #0b0b0b; }
   .mstart { background: #fcfcfb; border-radius: 14px; padding: 14px; margin-bottom: 10px; color: #0b0b0b; }
-  .msheet { position: absolute; left: 14px; right: 14px; bottom: max(env(safe-area-inset-bottom), 20px);
+  .msheet { position: absolute; left: 14px; right: 14px; bottom: max(var(--sab), 20px);
             z-index: 600; background: #fcfcfb; color: #0b0b0b; border-radius: 16px; padding: 14px;
             box-shadow: 0 8px 30px rgba(0,0,0,.35); }
   .msheet-item { display: block; width: 100%; text-align: left; font: 600 15px system-ui;
@@ -248,7 +252,7 @@
   /* sensor picker (native iOS shell) */
   #mPickWrap { position: fixed; inset: 0; z-index: 700; background: rgba(11,11,11,.45);
                display: flex; align-items: flex-end; }
-  #mPickSheet { flex: 1; margin: 0 14px max(env(safe-area-inset-bottom), 20px);
+  #mPickSheet { flex: 1; margin: 0 14px max(var(--sab), 20px);
                 background: #fcfcfb; color: #0b0b0b; border-radius: 16px; padding: 16px 14px;
                 box-shadow: 0 8px 30px rgba(0,0,0,.35); }
   #mPickSheet h3 { margin: 0 0 4px; font: 700 17px system-ui; }
@@ -271,7 +275,7 @@
   .mtitle { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
             letter-spacing: .03em; text-transform: uppercase; }
   .msummary .mghost { color: #0b0b0b; border-color: rgba(11,11,11,.2); }
-  .mcardwrap { padding: 12px 16px max(env(safe-area-inset-bottom), 24px); display: flex; flex-direction: column; gap: 12px; }
+  .mcardwrap { padding: 12px 16px max(var(--sab), 24px); display: flex; flex-direction: column; gap: 12px; }
   .mdark { background: #0b0b0b; color: #fcfcfb; border-radius: 12px; padding: 20px 20px 18px; }
   .mwordmark { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
                letter-spacing: .02em; text-transform: uppercase; }
@@ -633,6 +637,32 @@
   style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.3)">◂ Back to app</button>
 
 <div id="mobileWrap" hidden>
+  <!-- sign-in gate: fronts the app until signed in or skipped -->
+  <div class="mscreen" id="mGate" hidden style="background:#0f110e;color:#fff;z-index:5">
+    <div class="mtop">
+      <div class="mwordmark" style="font-size:24px">Swing<span>Coach</span></div>
+    </div>
+    <div class="mhero" style="justify-content:center">
+      <div class="mlabel" style="margin-bottom:6px">Sign in</div>
+      <p style="margin:0 0 14px;font-size:14px;color:#c3c2b7;line-height:1.5">
+        Save every session and track your progress over time.
+        We'll email you a 6-digit code — no password.</p>
+      <input id="gAuthEmail" class="minput" type="email" placeholder="you@example.com"
+             autocomplete="email" style="background:#1a1c19;color:#fff;border-color:rgba(255,255,255,.2)">
+      <button class="mblue" id="gSendCodeBtn" style="width:100%;margin-top:10px">Email me a code</button>
+      <div id="gCodeRow" hidden>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <input id="gAuthCode" class="minput" inputmode="numeric" autocomplete="one-time-code"
+                 placeholder="6-digit code" style="flex:1;background:#1a1c19;color:#fff;border-color:rgba(255,255,255,.2)">
+          <button class="mprimary msmallbtn" id="gVerifyBtn">Verify</button>
+        </div>
+      </div>
+      <p class="mgcap" id="gAuthNote" style="margin:10px 0 0" hidden></p>
+    </div>
+    <div class="mbottom" style="padding:0 20px max(var(--sab), 16px)">
+      <button class="mghost" id="gSkipBtn" style="width:100%">Skip for now — straight to the range</button>
+    </div>
+  </div>
   <!-- 1c · heads-up range -->
   <div class="mscreen" id="mRange">
     <div class="mtop">
@@ -731,8 +761,8 @@
 
   <!-- 1c · session summary / share -->
   <div class="mscreen msummary" id="mSummary" hidden>
-    <div class="mtop" style="padding-top:14px">
-      <button class="mghost" id="mSummaryBack" style="padding:10px 14px">◂</button>
+    <div class="mtop" style="padding-bottom:10px">
+      <button class="mghost" id="mSummaryBack" style="padding:10px 16px">◂ Back</button>
       <div class="mtitle">Session summary</div>
     </div>
     <div class="mcardwrap">
@@ -778,7 +808,8 @@
           <button class="mghost" id="mSignOutBtn" style="width:100%">Sign out</button>
         </div>
       </div>
-      <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:10px">Open full dashboard</button>
+      <button class="mprimary" id="mHomeBtn" style="width:100%;margin-top:10px;background:#0b0b0b;color:#fcfcfb">◂ Back to range</button>
+      <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:8px">Open full dashboard</button>
     </div>
   </div>
 </div>
@@ -1285,8 +1316,8 @@ function renderAuth(){
   // The sign-in card fronts the range view until signed in or skipped;
   // Progress has its own gate and Round mode stays uncluttered.
   card.hidden = signedIn || authSkipped || uiMode !== "range";
-  // keep the mobile account card in step (sign-in state can change any time)
-  if (mInit && mobileEligible() && mScreen === "summary") renderMobile();
+  // keep the mobile layer in step (launch gate + account card react to sign-in)
+  if (mobileEligible()) renderMobile();
 }
 function initAuthControls(){
   document.getElementById("signInBtn").addEventListener("click", () => {
@@ -3604,33 +3635,16 @@ function initMobile(){
     clearTimeout(mAcT);
     mAcT = setTimeout(() => mSearchCourses(el("mCourseSearch").value.trim()), 250);
   });
-  // account: email a 6-digit code (magic links open Safari, not the app)
-  el("mSendCodeBtn").addEventListener("click", async () => {
-    const email = el("mAuthEmail").value.trim();
-    const note = el("mAuthNote");
-    note.hidden = false;
-    if (!email){ note.textContent = "Enter your email first."; return; }
-    note.textContent = "Sending…";
-    const {error} = await sb.auth.signInWithOtp({email});
-    if (error){ note.textContent = "Couldn't send: " + error.message; return; }
-    el("mCodeRow").hidden = false;
-    note.textContent = `Sent — enter the 6-digit code from the email to ${email}.`;
-    el("mAuthCode").focus();
+  // account: email a 6-digit code (magic links open Safari, not the app).
+  // Same flow on the launch gate and the summary card.
+  wireOtp("mAuthEmail", "mSendCodeBtn", "mCodeRow", "mAuthCode", "mVerifyBtn", "mAuthNote");
+  wireOtp("gAuthEmail", "gSendCodeBtn", "gCodeRow", "gAuthCode", "gVerifyBtn", "gAuthNote");
+  el("gSkipBtn").addEventListener("click", () => {
+    authSkipped = true;
+    try { sessionStorage.setItem("sc-skip-auth", "1"); } catch (e) {}
+    renderMobile();
   });
-  el("mVerifyBtn").addEventListener("click", async () => {
-    const email = el("mAuthEmail").value.trim();
-    const token = el("mAuthCode").value.trim();
-    const note = el("mAuthNote");
-    note.hidden = false;
-    if (!token){ note.textContent = "Enter the code from the email."; return; }
-    note.textContent = "Checking…";
-    const {error} = await sb.auth.verifyOtp({email, token, type: "email"});
-    if (error){ note.textContent = "Couldn't verify: " + error.message; return; }
-    note.hidden = true;
-    el("mAuthCode").value = "";
-    el("mCodeRow").hidden = true;
-    renderMobile();   // onAuthStateChange also fires; this is instant feedback
-  });
+  el("mHomeBtn").addEventListener("click", () => { mScreen = "range"; renderAll(); });
   el("mSignOutBtn").addEventListener("click", async () => {
     try { await sb.auth.signOut(); } catch (e) {}
     sbUser = null; cloudSession = null;
@@ -3692,6 +3706,35 @@ async function mSelectCourse(f){
   if (!ok) el("mCourseTxt").textContent =
     `${f.name}: no mapped greens on OSM — distances to tapped targets still work.`;
 }
+function wireOtp(emailId, sendId, rowId, codeId, verifyId, noteId){
+  const el = id => document.getElementById(id);
+  el(sendId).addEventListener("click", async () => {
+    const email = el(emailId).value.trim();
+    const note = el(noteId);
+    note.hidden = false;
+    if (!email){ note.textContent = "Enter your email first."; return; }
+    note.textContent = "Sending…";
+    const {error} = await sb.auth.signInWithOtp({email});
+    if (error){ note.textContent = "Couldn't send: " + error.message; return; }
+    el(rowId).hidden = false;
+    note.textContent = `Sent — enter the 6-digit code from the email to ${email}.`;
+    el(codeId).focus();
+  });
+  el(verifyId).addEventListener("click", async () => {
+    const email = el(emailId).value.trim();
+    const token = el(codeId).value.trim();
+    const note = el(noteId);
+    note.hidden = false;
+    if (!token){ note.textContent = "Enter the code from the email."; return; }
+    note.textContent = "Checking…";
+    const {error} = await sb.auth.verifyOtp({email, token, type: "email"});
+    if (error){ note.textContent = "Couldn't verify: " + error.message; return; }
+    note.hidden = true;
+    el(codeId).value = "";
+    el(rowId).hidden = true;
+    renderMobile();   // onAuthStateChange also fires; this is instant feedback
+  });
+}
 function mDistShort(m){ return m == null ? "—" : distDisp(m); }
 function renderMobile(){
   initMobile();
@@ -3699,6 +3742,8 @@ function renderMobile(){
   el("mRange").hidden = mScreen !== "range";
   el("mRound").hidden = mScreen !== "round";
   el("mSummary").hidden = mScreen !== "summary";
+  // launch gate: fronts the app until signed in or skipped (cloud configured)
+  el("mGate").hidden = !(sb && !sbUser && !authSkipped);
   el("mClubSel").value = clubId;
   el("mClubSelR").value = clubId;
 

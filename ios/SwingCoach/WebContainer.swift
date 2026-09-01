@@ -64,6 +64,15 @@ struct WebContainer: UIViewRepresentable {
             }
         }
 
+        // The webview is full-bleed and env(safe-area-inset-*) reads 0 inside
+        // it, so hand the page the real insets as CSS variables instead.
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let ins = webView.safeAreaInsets
+            let js = "document.documentElement.style.setProperty('--sat','\(max(ins.top, 20))px');"
+                   + "document.documentElement.style.setProperty('--sab','\(max(ins.bottom, 16))px');"
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+
         // Simple offline fallback: show a retry page instead of a white screen.
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!,
                      withError error: Error) {
