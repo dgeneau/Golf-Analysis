@@ -34,12 +34,15 @@ struct WebContainer: UIViewRepresentable {
         if #available(iOS 16.4, *) { webView.isInspectable = true }
         #endif
 
-        // The BLE engine pushes JS into whichever page is loaded.
-        ble.evaluator = { [weak webView] js in
+        // The BLE engine and the watch link push JS into whichever page is loaded.
+        let evaluate: (String) -> Void = { [weak webView] js in
             DispatchQueue.main.async {
                 webView?.evaluateJavaScript(js, completionHandler: nil)
             }
         }
+        ble.evaluator = evaluate
+        WatchLink.shared.evaluator = evaluate
+        WatchLink.shared.start()
 
         webView.load(URLRequest(url: WebContainer.appURL))
         return webView

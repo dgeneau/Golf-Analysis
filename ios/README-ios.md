@@ -61,6 +61,31 @@ a paid developer account ($99/yr) removes that and enables TestFlight.
   needs `{{ .Token }}` added to the Supabase Magic Link email template —
   see step 5 in `SETUP-CLOUD.md`.
 
+## Apple Watch capture (experimental)
+
+The project has a second target, **SwingCoachWatch** — the watch becomes the
+sensor instead of the DOT:
+
+- **Series 8 / Ultra or later, watchOS 10+**: captures 200 Hz fused motion via
+  `CMBatchedSensorManager` (Apple's golf-swing API). Older watches fall back
+  to 100 Hz CoreMotion, where the accelerometer clips ~±8 g on fast swings —
+  fine for tempo, weak for speed/path.
+- The watch runs a golf **workout session** while capturing (keeps it alive
+  with the wrist down), detects swing bursts on-wrist, and ships each swing's
+  segment to the iPhone over WatchConnectivity in binary chunks. On the phone,
+  `WatchLink.swift` feeds the samples into the same `_nativeSamples` pipeline
+  the DOT uses — tempo, path, square calibration, rounds, cloud all unchanged.
+
+Run it: select the **SwingCoachWatch** scheme → your watch (paired to the
+iPhone that runs SwingCoach) → Run; then run the **SwingCoach** scheme on the
+iPhone. On the watch tap **Start session**, allow Health + Motion prompts,
+swing; each captured swing buzzes the wrist and appears in the phone app.
+
+Notes: use one sensor at a time (watch or DOT — their clocks differ);
+first launch on watch can take a minute to install; verify the earth-frame
+rotation on grass — if hand paths look dynamically skewed rather than just
+rotated, flip the quaternion rotation noted in `WatchMotionManager.feed`.
+
 ## What Xcode errors to send back
 
 This project was generated outside Xcode. If the first build complains,
