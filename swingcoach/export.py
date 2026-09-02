@@ -45,9 +45,16 @@ def _hand_path(rec: SwingRecord) -> dict:
     }
 
 
-def swing_to_dict(rec: SwingRecord, lever_m: float = 1.05) -> dict:
-    """Serialize one segmented swing (metrics + cues + trace + path) for the dashboard."""
+def swing_to_dict(rec: SwingRecord, lever_m: float = 1.05,
+                  path_cal_deg: float = 0.0) -> dict:
+    """Serialize one segmented swing (metrics + cues + trace + path) for the dashboard.
+
+    path_cal_deg: the golfer's "square" calibration — median raw path over a
+    few normal swings. Subtracted so path_angle_deg reads vs the target line.
+    """
     m = compute_metrics(rec, lever_m=lever_m)
+    if path_cal_deg:
+        m.path_angle_deg = m.path_angle_raw_deg - path_cal_deg
     cues = coach(m)
     seg = rec.samples[rec.i_takeaway:rec.i_finish + 1]
     t0 = rec.t_takeaway

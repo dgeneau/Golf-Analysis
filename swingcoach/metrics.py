@@ -44,12 +44,16 @@ class SwingMetrics:
     # geometry
     backswing_rotation_deg: float = 0.0   # total rotation takeaway -> top
     swing_plane_tilt_deg: float = 0.0     # plane tilt from horizontal
-    path_angle_deg: float = 0.0           # + in-to-out, - out-to-in
+    path_angle_deg: float = 0.0           # + in-to-out, - out-to-in (after calibration)
+    path_angle_raw_deg: float = 0.0       # as measured vs the address wrist heading
     attack_angle_deg: float = 0.0         # + up, - down
     # heading reference used for the path angle: the wrist's yaw during the
     # still address window right before takeaway. Referencing each swing to
     # its own address kills heading-reset timing errors, session drift, and
-    # per-shot aim changes; what remains is a constant per-golfer offset.
+    # per-shot aim changes. BUT the wrist does not point down the target line
+    # at address (it points roughly at the ball), so the raw value carries a
+    # LARGE constant offset (~90-120°) — a one-time "square" calibration
+    # (median raw path over a few normal swings) sets the zero.
     address_yaw_deg: float = 0.0
     # release timing: when peak wrist rotation occurs within the downswing
     # (0 = at the top -> casting; ~0.8-1.0 = late release, near impact)
@@ -172,6 +176,7 @@ def compute_metrics(rec: SwingRecord, lever_m: float = DEFAULT_LEVER_M) -> Swing
             # angle of horizontal velocity relative to address heading;
             # +Y is left, so positive atan2 = out-to-in for a RH golfer
             m.path_angle_deg = float(-np.rad2deg(np.arctan2(vyr, vxr)))
+            m.path_angle_raw_deg = m.path_angle_deg
             m.attack_angle_deg = float(np.rad2deg(np.arctan2(vz, horiz)))
 
     # --- release timing -------------------------------------------------------

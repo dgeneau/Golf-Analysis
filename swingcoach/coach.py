@@ -64,7 +64,13 @@ def coach(m: SwingMetrics) -> List[Cue]:
     # --- swing path ------------------------------------------------------------
     # Path direction comes from integrated acceleration; skip the cue when the
     # accelerometer clipped, because the direction can't be trusted then.
-    if abs(m.path_angle_deg) > 0.1 and not m.acc_clipped:
+    if not m.acc_clipped and abs(m.path_angle_deg) > 30:
+        # A wrist IMU can't know the target line by itself — an offset this
+        # big means the square calibration hasn't been done yet.
+        cues.append(Cue(3, "Path not squared yet",
+            "The path reference is off by a large constant — hit a few normal "
+            "swings, then tap Set square on the path screen to zero it."))
+    elif abs(m.path_angle_deg) > 0.1 and not m.acc_clipped:
         if m.path_angle_deg < -4:
             cues.append(Cue(1, "Out-to-in path ({:.0f}°)".format(m.path_angle_deg),
                 "Hands are cutting across the ball — classic slice/pull pattern. "

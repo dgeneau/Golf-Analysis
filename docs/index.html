@@ -691,6 +691,12 @@
           <svg id="mPathSvg" width="100%" viewBox="0 0 340 170" style="margin-top:8px"></svg>
           <svg id="mPathBand" width="100%" viewBox="0 0 340 40" style="margin-top:2px"></svg>
           <div class="mgcap" id="mPathCap"></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="mghost" id="mSquareBtn"
+                    style="flex:1;padding:10px 12px;font-size:13px">Set square from last swings</button>
+            <button class="mghost" id="mSquareClr" hidden
+                    style="padding:10px 12px;font-size:13px">Clear</button>
+          </div>
         </div>
       </div>
       <div class="mdots" id="mDots" hidden><span class="on"></span><span></span><span></span></div>
@@ -1120,9 +1126,11 @@ function computeMetricsJS(rec, leverM){
     const horiz = Math.hypot(vxr, vyr);
     if (horiz > 0.5){
       m.path_angle_deg = -Math.atan2(vyr, vxr) * 180/Math.PI;
+      m.path_angle_raw_deg = m.path_angle_deg;
       m.attack_angle_deg = Math.atan2(vI[2], horiz) * 180/Math.PI;
     }
   }
+  if (m.path_angle_raw_deg == null) m.path_angle_raw_deg = 0;
 
   m.release_fraction = 0;
   if (i2 > i1 && t[i2] > t[i1]){
@@ -1170,7 +1178,11 @@ function coachJS(m){
     C(2, "Stalling at the top", `You sat at the top for ${m.pause_top_s.toFixed(2)}s. A brief settle is good; a full stop kills the stretch-shorten cycle — feel the lower body start down as the arms finish going back.`);
   else if (m.tempo_ratio > 0 && m.tempo_ratio < 2.4 && m.pause_top_s < 0.04)
     C(2, "No pause at the top", "The club never settled before the downswing — transition is doing the rushing. Feel one beat of stillness at the top before you go.");
-  if (Math.abs(m.path_angle_deg) > 0.1 && !m.acc_clipped){
+  if (!m.acc_clipped && Math.abs(m.path_angle_deg) > 30){
+    // A wrist IMU can't know the target line by itself — an offset this
+    // big means the square calibration hasn't been done yet.
+    C(3, "Path not squared yet", "The path reference is off by a large constant — hit a few normal swings, then tap Set square on the path screen to zero it.");
+  } else if (Math.abs(m.path_angle_deg) > 0.1 && !m.acc_clipped){
     if (m.path_angle_deg < -4)
       C(1, `Out-to-in path (${Math.round(m.path_angle_deg)}°)`, "Hands are cutting across the ball — classic slice/pull pattern. Rehearse swinging toward 1 o'clock (right of target) through impact.");
     else if (m.path_angle_deg > 6)
@@ -1191,6 +1203,10 @@ function coachJS(m){
 
 function swingToJson(rec, leverM){
   const m = computeMetricsJS(rec, leverM);
+  // "square" calibration (median raw path over a few normal swings) — set by
+  // the app layer; zero when running standalone (tests, parity with Python).
+  const cal = (typeof window !== "undefined" && window.__pathCal) || 0;
+  if (cal) m.path_angle_deg = m.path_angle_raw_deg - cal;
   const cues = coachJS(m);
   const s = rec.samples, i0 = rec.iTakeaway, i3 = rec.iFinish;
   const seg = s.slice(i0, i3 + 1), t0 = s[i0].t;
@@ -3550,6 +3566,23 @@ async function boot(){
   initBleMode();
 }
 /* ================= 1c mobile layer (phone / native shell) ================= */
+// path "square" calibration: median raw path over a few normal swings = zero
+try { window.__pathCal = parseFloat(localStorage.getItem("sc-path-cal")) || 0; }
+catch (e) { window.__pathCal = 0; }
+function applyPathCal(cal){
+  window.__pathCal = cal;
+  try {
+    if (cal) localStorage.setItem("sc-path-cal", String(cal));
+    else localStorage.removeItem("sc-path-cal");
+  } catch (e) {}
+  for (const sw of swings){          // re-zero this session's swings + cues
+    const m = sw.metrics;
+    if (m.path_angle_raw_deg == null) continue;
+    m.path_angle_deg = m.path_angle_raw_deg - cal;
+    sw.cues = coachJS(m);
+  }
+  renderAll();
+}
 let mScreen = "range";     // range | round | summary | classic
 let mInit = false;
 function mobileEligible(){
@@ -3646,6 +3679,22 @@ function initMobile(){
     renderMobile();
   });
   el("mHomeBtn").addEventListener("click", () => { mScreen = "range"; renderAll(); });
+  // path square calibration
+  el("mSquareBtn").addEventListener("click", () => {
+    const raws = swings
+      .filter(s => !s.metrics.acc_clipped && s.metrics.path_angle_raw_deg != null)
+      .slice(-8).map(s => s.metrics.path_angle_raw_deg);
+    if (raws.length < 3){
+      toast("Hit at least 3 clean swings at a real target first, then square.");
+      return;
+    }
+    applyPathCal(median(raws));
+    toast(`Path squared — zero set from your last ${raws.length} swings.`);
+  });
+  el("mSquareClr").addEventListener("click", () => {
+    applyPathCal(0);
+    toast("Path calibration cleared — raw wrist-frame angles again.");
+  });
   el("mSignOutBtn").addEventListener("click", async () => {
     try { await sb.auth.signOut(); } catch (e) {}
     sbUser = null; cloudSession = null;
@@ -3866,7 +3915,8 @@ function renderMPath(sw){
   svg.textContent = "";
   const P = sw.path, m = sw.metrics;
   if (!P || P.x.length < 3) return;
-  const psi = (m.address_yaw_deg || 0) * Math.PI/180;
+  // rotate into the CALIBRATED frame: vertical = squared target line
+  const psi = ((m.address_yaw_deg || 0) - (window.__pathCal || 0)) * Math.PI/180;
   const cp = Math.cos(psi), sp = Math.sin(psi);
   const xr = [], yr = [];
   for (let i = 0; i < P.x.length; i++){
@@ -3937,9 +3987,20 @@ function renderPathBand(m){
                       style: "font:9.5px system-ui"}).textContent = "out-to-in";
   mkSvg(svg, "text", {x: W, y: 8, "text-anchor": "end", fill: "#898781",
                       style: "font:9.5px system-ui"}).textContent = "in-to-out";
+  const cal = window.__pathCal || 0;
+  const sq = document.getElementById("mSquareBtn");
+  sq.textContent = cal ? "Re-square path" : "Set square from last swings";
+  document.getElementById("mSquareClr").hidden = !cal;
   const p = m.path_angle_deg;
   if (m.acc_clipped || p == null){
     cap.textContent = "accelerometer clipped at impact — path isn't reliable for this swing";
+    cap.style.color = "#898781";
+    return;
+  }
+  if (!cal && Math.abs(p) > 12){
+    mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
+                        height: 24, rx: 2.5, fill: "#898781"});
+    cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° raw — the wrist doesn't point down the target line at address, so a big constant offset is expected. Hit a few normal swings at a target, then tap Set square.`;
     cap.style.color = "#898781";
     return;
   }
