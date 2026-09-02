@@ -687,8 +687,9 @@
           <div class="mgcap" id="mTraceCap"></div>
         </div>
         <div class="mpage" id="mPagePath" hidden>
-          <div class="mlabel">Hand path · top-down</div>
-          <svg id="mPathSvg" width="100%" viewBox="0 0 340 150" style="margin-top:10px"></svg>
+          <div class="mlabel">Hand path · target line up</div>
+          <svg id="mPathSvg" width="100%" viewBox="0 0 340 170" style="margin-top:8px"></svg>
+          <svg id="mPathBand" width="100%" viewBox="0 0 340 40" style="margin-top:2px"></svg>
           <div class="mgcap" id="mPathCap"></div>
         </div>
       </div>
@@ -3857,38 +3858,104 @@ function renderMTrace(sw){
     `wrist speed (blue) peak ${Math.round(gmax)}°/s · accel (white) peak ${(amax / 9.81).toFixed(1)} g` +
     (sw.metrics.acc_clipped ? " · clipped at impact" : "");
 }
-/* hand path viewed from above: backswing grey, downswing blue, follow-through faint */
+/* hand path from above, rotated into the address frame so the target line is
+   straight up the screen — the arrow's lean off that line IS the path angle */
+const PATH_TGT = {lo: -4, hi: 6};   // must match the coaching-cue thresholds
 function renderMPath(sw){
   const svg = document.getElementById("mPathSvg");
   svg.textContent = "";
-  const P = sw.path;
+  const P = sw.path, m = sw.metrics;
   if (!P || P.x.length < 3) return;
-  const W = 340, H = 150, pad = 14;
-  const minx = Math.min(...P.x), maxx = Math.max(...P.x);
-  const miny = Math.min(...P.y), maxy = Math.max(...P.y);
-  const s = Math.min((W - 2 * pad) / Math.max(1e-3, maxx - minx),
-                     (H - 2 * pad) / Math.max(1e-3, maxy - miny));
-  const X = v => pad + (v - minx) * s + ((W - 2 * pad) - (maxx - minx) * s) / 2;
-  const Y = v => pad + (maxy - v) * s + ((H - 2 * pad) - (maxy - miny) * s) / 2;
+  const psi = (m.address_yaw_deg || 0) * Math.PI/180;
+  const cp = Math.cos(psi), sp = Math.sin(psi);
+  const xr = [], yr = [];
+  for (let i = 0; i < P.x.length; i++){
+    xr.push(P.x[i]*cp + P.y[i]*sp);      // + = toward the address direction
+    yr.push(-P.x[i]*sp + P.y[i]*cp);     // + = left of it
+  }
+  const W = 340, H = 170, pad = 18;
+  const minx = Math.min(...xr), maxx = Math.max(...xr);
+  const miny = Math.min(...yr), maxy = Math.max(...yr);
+  const s = Math.min((H - 2*pad) / Math.max(1e-3, maxx - minx),
+                     (W - 2*pad) / Math.max(1e-3, maxy - miny));
+  const SX = i => W/2 - (yr[i] - (miny + maxy)/2) * s;   // left of target → screen left
+  const SY = i => H/2 - (xr[i] - (minx + maxx)/2) * s;   // target direction → up
+  const iT = Math.max(0, Math.min(P.i_top, xr.length - 1));
+  const iI = Math.max(iT, Math.min(P.i_impact, xr.length - 1));
+  const ix = SX(iI), iy = SY(iI);
+  // target line through impact, straight up the screen
+  mkSvg(svg, "line", {x1: ix, y1: 6, x2: ix, y2: H - 6,
+                      stroke: "#3a3a37", "stroke-width": 1, "stroke-dasharray": "4 5"});
+  mkSvg(svg, "text", {x: ix + 5, y: 14, fill: "#898781",
+                      style: "font:9.5px system-ui"}).textContent = "address line";
   const seg = (a, b, color, w) => {
     if (b - a < 1) return;
     const pts = [];
-    for (let i = a; i <= b; i++) pts.push(`${X(P.x[i]).toFixed(1)},${Y(P.y[i]).toFixed(1)}`);
+    for (let i = a; i <= b; i++) pts.push(`${SX(i).toFixed(1)},${SY(i).toFixed(1)}`);
     mkSvg(svg, "polyline", {points: pts.join(" "), fill: "none", stroke: color,
                             "stroke-width": w, "stroke-linecap": "round"});
   };
-  const iT = Math.max(0, Math.min(P.i_top, P.x.length - 1));
-  const iI = Math.max(iT, Math.min(P.i_impact, P.x.length - 1));
-  seg(iI, P.x.length - 1, "rgba(252,252,251,0.22)", 2);   // follow-through
-  seg(0, iT, "#898781", 2);                                // backswing
-  seg(iT, iI, "#3987e5", 3);                               // downswing
-  mkSvg(svg, "circle", {cx: X(P.x[0]), cy: Y(P.y[0]), r: 3.5, fill: "#0f110e",
+  seg(iI, xr.length - 1, "rgba(252,252,251,0.22)", 2);   // follow-through
+  seg(0, iT, "#898781", 2);                               // backswing
+  seg(iT, iI, "#3987e5", 3);                              // downswing
+  mkSvg(svg, "circle", {cx: SX(0), cy: SY(0), r: 3.5, fill: "#0f110e",
                         stroke: "#898781", "stroke-width": 1.5});
-  mkSvg(svg, "circle", {cx: X(P.x[iI]), cy: Y(P.y[iI]), r: 4.5, fill: "#3987e5"});
-  const span = Math.max(maxx - minx, maxy - miny);
-  document.getElementById("mPathCap").textContent =
-    `backswing grey · downswing blue · dot = impact · arc spans ${span.toFixed(1)} m` +
-    (sw.metrics.acc_clipped ? " (accel clipped — path is approximate)" : "");
+  mkSvg(svg, "circle", {cx: ix, cy: iy, r: 4.5, fill: "#3987e5"});
+  // impact-direction arrow: its lean off the vertical is the path angle
+  if (!m.acc_clipped && m.path_angle_deg != null){
+    const a = m.path_angle_deg * Math.PI/180, L = 40;
+    const ex = ix + Math.sin(a)*L, ey = iy - Math.cos(a)*L;
+    const bx = ex - Math.sin(a)*9, by = ey + Math.cos(a)*9;   // arrowhead base
+    const px = Math.cos(a)*4.5, py = Math.sin(a)*4.5;
+    mkSvg(svg, "line", {x1: ix, y1: iy, x2: bx, y2: by,
+                        stroke: "#fcfcfb", "stroke-width": 2.5});
+    mkSvg(svg, "polygon", {points: `${ex},${ey} ${bx+px},${by+py} ${bx-px},${by-py}`,
+                           fill: "#fcfcfb"});
+    mkSvg(svg, "text", {x: ex + (m.path_angle_deg >= 0 ? 6 : -6), y: ey - 2,
+                        "text-anchor": m.path_angle_deg >= 0 ? "start" : "end",
+                        fill: "#fcfcfb", style: "font:600 12px system-ui"})
+      .textContent = `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}°`;
+  }
+  renderPathBand(m);
+}
+/* target band for the path angle — same idea as the tempo band */
+function renderPathBand(m){
+  const svg = document.getElementById("mPathBand");
+  svg.textContent = "";
+  const cap = document.getElementById("mPathCap");
+  const MAXA = 12, W = 340;
+  const x = v => W * (Math.min(Math.max(v, -MAXA), MAXA) + MAXA) / (2 * MAXA);
+  mkSvg(svg, "rect", {x: 0, y: 14, width: W, height: 8, rx: 4, fill: "#2c2c2a"});
+  mkSvg(svg, "rect", {x: x(PATH_TGT.lo), y: 14, width: x(PATH_TGT.hi) - x(PATH_TGT.lo),
+                      height: 8, rx: 4, fill: "rgba(57,135,229,0.28)"});
+  mkSvg(svg, "line", {x1: x(0), y1: 12, x2: x(0), y2: 24, stroke: "#898781", "stroke-width": 1});
+  mkSvg(svg, "text", {x: x(PATH_TGT.lo), y: 36, "text-anchor": "middle", fill: "#898781",
+                      style: "font:10px system-ui"}).textContent = `${PATH_TGT.lo}°`;
+  mkSvg(svg, "text", {x: x(PATH_TGT.hi), y: 36, "text-anchor": "middle", fill: "#898781",
+                      style: "font:10px system-ui"}).textContent = `+${PATH_TGT.hi}°`;
+  mkSvg(svg, "text", {x: 0, y: 8, fill: "#898781",
+                      style: "font:9.5px system-ui"}).textContent = "out-to-in";
+  mkSvg(svg, "text", {x: W, y: 8, "text-anchor": "end", fill: "#898781",
+                      style: "font:9.5px system-ui"}).textContent = "in-to-out";
+  const p = m.path_angle_deg;
+  if (m.acc_clipped || p == null){
+    cap.textContent = "accelerometer clipped at impact — path isn't reliable for this swing";
+    cap.style.color = "#898781";
+    return;
+  }
+  const inBand = p >= PATH_TGT.lo && p <= PATH_TGT.hi;
+  mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
+                      height: 24, rx: 2.5, fill: inBand ? "#3987e5" : "#ec835a"});
+  if (p < PATH_TGT.lo){
+    cap.textContent = `${fmt1(p)}° out-to-in — cutting across it. Rehearse swinging toward 1 o'clock through impact.`;
+    cap.style.color = "#ec835a";
+  } else if (p > PATH_TGT.hi){
+    cap.textContent = `+${fmt1(p)}° strongly in-to-out — draw territory, but this much invites pushes and hooks.`;
+    cap.style.color = "#f2b63d";
+  } else {
+    cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° — inside the target window (${PATH_TGT.lo}° to +${PATH_TGT.hi}°).`;
+    cap.style.color = "#8fd694";
+  }
 }
 function renderMRound(){
   const el = id => document.getElementById(id);
