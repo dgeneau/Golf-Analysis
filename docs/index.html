@@ -759,6 +759,7 @@
     <div class="msheet" id="mSheet" hidden>
       <div class="chips" id="mHoleGrid" style="margin-bottom:12px"></div>
       <button class="msheet-item" id="mUndoBtn">Undo shot</button>
+      <button class="msheet-item" id="mOrientBtn">Switch to north-up map</button>
       <button class="msheet-item" id="mUnitBtn">Switch to meters</button>
       <button class="msheet-item" id="mEndBtn">End round</button>
       <button class="msheet-item" id="mExitRoundBtn">Back to range</button>
@@ -1804,6 +1805,7 @@ let mapCentered = false;
 
 const LEAFLET_JS = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
 const LEAFLET_CSS = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+const LEAFLET_ROTATE_JS = "https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js";
 function loadCss(href){
   return new Promise((res, rej) => {
     const l = document.createElement("link");
@@ -1818,7 +1820,12 @@ async function initMap(){
   try {
     await Promise.all([loadCss(LEAFLET_CSS),
                        window.L ? Promise.resolve() : loadScript(LEAFLET_JS)]);
-    lmap = L.map("map", {zoomControl: true});
+    // true map rotation (hole-up orientation); the app works without it
+    let canRotate = false;
+    try { await loadScript(LEAFLET_ROTATE_JS); canRotate = true; } catch (e) {}
+    lmap = L.map("map", canRotate
+      ? {zoomControl: true, rotate: true, rotateControl: false, touchRotate: false}
+      : {zoomControl: true});
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {maxZoom: 20, attribution: "Tiles © Esri — Maxar, Earthstar Geographics"}).addTo(lmap);
     lmap.setView([48.4634, -123.3117], 15);
@@ -2102,8 +2109,39 @@ function renderCourseLayer(){
       L.polyline(h.line, {color: "#fcfcfb", weight: 1.5, opacity: 0.7,
                           dashArray: "6 6"}).addTo(courseLayer);
 }
+/* -- map orientation: hole-up (tee→green points up the screen) or north-up -- */
+let mapOrient = "hole";
+try { mapOrient = localStorage.getItem("sc-map-orient") || "hole"; } catch (e) {}
+function bearingDeg(a, b){   // initial bearing a→b, degrees clockwise from north
+  const r = Math.PI / 180;
+  const dLon = (b[1] - a[1]) * r;
+  const y = Math.sin(dLon) * Math.cos(b[0] * r);
+  const x = Math.cos(a[0] * r) * Math.sin(b[0] * r) -
+            Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos(dLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+function holeBearing(n){
+  const h = course && course.holes && course.holes.find(x => x.ref === n);
+  if (h && h.line && h.line.length > 1)
+    return bearingDeg(h.line[0], h.line[h.line.length - 1]);   // OSM: tee → green
+  const g = currentGreen();
+  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
+  if (g && here) return bearingDeg(here, g.centroid);
+  return null;
+}
+function updateMapOrientation(){
+  if (!lmap || typeof lmap.setBearing !== "function") return;   // plugin absent
+  let want = 0;
+  if (mapOrient === "hole" && uiMode === "round" && round && !round.endedAt){
+    const b = holeBearing(round.currentHole);
+    if (b != null) want = -b;          // rotate so the hole direction points up
+  }
+  const cur = ((lmap.getBearing() - want) % 360 + 360) % 360;
+  if (cur > 0.5 && cur < 359.5) lmap.setBearing(want);
+}
 function frameHole(n){
   if (!lmap || !course) return;
+  updateMapOrientation();
   const h = course.holes.find(x => x.ref === n);
   if (h && h.line.length > 1){ lmap.fitBounds(L.latLngBounds(h.line).pad(0.2)); mapCentered = true; }
 }
@@ -3651,6 +3689,12 @@ function initMobile(){
     if (round){ round.unit = round.unit === "yd" ? "m" : "yd"; saveRound(); }
     el("mSheet").hidden = true; renderAll();
   });
+  el("mOrientBtn").addEventListener("click", () => {
+    mapOrient = mapOrient === "hole" ? "north" : "hole";
+    try { localStorage.setItem("sc-map-orient", mapOrient); } catch (e) {}
+    updateMapOrientation();
+    el("mSheet").hidden = true; renderAll();
+  });
   el("mEndBtn").addEventListener("click", () => {
     if (round){ round.endedAt = Date.now(); saveRound(); }
     el("mSheet").hidden = true;
@@ -4080,6 +4124,8 @@ function renderMRound(){
       (measured ? ` · prev ${distDisp(measured.dist_m)}` : "");
   }
   el("mUnitBtn").textContent = round.unit === "yd" ? "Switch to meters" : "Switch to yards";
+  el("mOrientBtn").textContent = mapOrient === "hole" ? "Switch to north-up map" : "Switch to hole-up map";
+  updateMapOrientation();
   // hole grid inside the sheet
   if (!el("mSheet").hidden){
     const gr = el("mHoleGrid");
