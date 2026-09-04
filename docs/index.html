@@ -183,11 +183,15 @@
   #mRound .mchip, .msummary .mchip { color: #0b0b0b; background: #fcfcfb; border-color: rgba(11,11,11,.15); }
   .mhero { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; min-height: 0; }
   /* swipeable graph pages on the range screen */
-  .mswipe { display: flex; width: 100%; overflow-x: auto; scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .mswipe { display: flex; width: 100%; overflow-x: auto; overflow-y: hidden;
+            scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            touch-action: pan-x;            /* horizontal swipes only — no vertical rubber-band */
+            overscroll-behavior: contain; }
   .mswipe::-webkit-scrollbar { display: none; }
   .mswipe .mpage { flex: none; width: 100%; min-width: 0; scroll-snap-align: center; scroll-snap-stop: always; }
-  .mgcap { font-size: 11.5px; color: #898781; margin-top: 6px; }
+  .mgcap { font-size: 11.5px; color: #898781; margin-top: 6px;
+           min-height: 33px; }             /* reserve two lines so pages don't change height */
   .mdots { display: flex; gap: 7px; justify-content: center; margin: 12px 0 2px; }
   .mdots span { width: 6px; height: 6px; border-radius: 50%; background: #3a3a37; }
   .mdots span.on { background: #fcfcfb; }
@@ -204,7 +208,8 @@
   .mcue-h { display: flex; align-items: center; gap: 8px; }
   .mcue h3 { margin: 0; font-family: "Barlow Condensed", sans-serif; font-weight: 600;
              font-size: 18px; letter-spacing: .04em; text-transform: uppercase; }
-  .mcue p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: #c3c2b7; }
+  .mcue p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: #c3c2b7;
+            min-height: 61px; }            /* three lines reserved — cue swaps don't shift layout */
   .mbottom { padding-bottom: max(var(--sab), 16px); }
   .mrail { display: flex; gap: 10px; padding: 0 20px 12px; overflow-x: auto; }
   .mrailcard { flex: none; width: 78px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
@@ -3897,12 +3902,18 @@ function renderMRange(){
   el("mPath").append(m.acc_clipped ? "—" : `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}`);
   const u2 = document.createElement("small"); u2.textContent = m.acc_clipped ? " clipped" : "°";
   el("mPath").appendChild(u2);
+  // always render the cue box (placeholder when clean) so the layout height
+  // never changes between swings — no vertical jumping
   const cue = sw.cues && sw.cues[0];
   if (cue){
     el("mCueDot").className = "mdot " + (cue.priority === 1 ? "err" : cue.priority === 2 ? "" : "ok");
     el("mCueTitle").textContent = cue.title;
     el("mCueDetail").textContent = cue.detail;
-  } else el("mCue").hidden = true;
+  } else {
+    el("mCueDot").className = "mdot ok";
+    el("mCueTitle").textContent = "No coaching flag";
+    el("mCueDetail").textContent = "This swing didn't trip any cue — keep doing that.";
+  }
   // rail (latest first)
   const rail = el("mRail");
   rail.textContent = "";
@@ -4044,7 +4055,7 @@ function renderPathBand(m){
   if (!cal && Math.abs(p) > 12){
     mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
                         height: 24, rx: 2.5, fill: "#898781"});
-    cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° raw — the wrist doesn't point down the target line at address, so a big constant offset is expected. Hit a few normal swings at a target, then tap Set square.`;
+    cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° raw — not squared yet. Hit a few normal swings at a target, then tap Set square.`;
     cap.style.color = "#898781";
     return;
   }
