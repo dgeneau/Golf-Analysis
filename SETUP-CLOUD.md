@@ -75,6 +75,13 @@ removes the built-in sender's ~2 emails/hour limit.
   data queues on the device and uploads when there's signal).
 - The **Progress** tab shows tempo and club-speed trends across sessions.
 
+## Migrations (existing projects)
+If your project was created before a schema change, run the migration files in
+`supabase/` the same way as step 2 (SQL Editor → paste → Run). Currently:
+- `migration-round-analytics.sql` — adds course identity to round sessions and
+  par to holes, powering the Progress tab's Round analytics (fairways, GIR,
+  distances over time, strokes gained). Safe to run more than once.
+
 ## Costs & limits
 Free tier: 500 MB database (thousands of sessions of metrics), 50k monthly
 auth users, 1 GB file storage. No card required. Upgrade only if a whole

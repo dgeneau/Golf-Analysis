@@ -626,6 +626,41 @@
         <h2>Sessions</h2>
         <div class="scroll-x"><table class="all" id="progTable"></table></div>
       </div>
+      <div class="card">
+        <h2>Round analytics</h2>
+        <p class="note" id="raNote">Loading rounds…</p>
+        <div id="raBody" hidden>
+          <div class="grid2">
+            <div class="card">
+              <h2>Fairways hit</h2>
+              <p class="note">Par 4/5 tee shots that finished on a mapped fairway (drives that reached the green count as hits). Needs fairways mapped on OpenStreetMap.</p>
+              <div id="raFair"></div>
+            </div>
+            <div class="card">
+              <h2>Greens in regulation</h2>
+              <p class="note">Holes reached in par−2 tracked strokes, of completed holes with known par.</p>
+              <div id="raGir"></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <h2 id="raDistTitle">Shot distances by round</h2>
+              <p class="note" id="raDistNote">Every GPS-measured shot with the selected club (dots) and the per-round median (line). Uses the club selector above.</p>
+              <div id="raDist"></div>
+            </div>
+            <div class="card">
+              <h2>Strokes gained by round</h2>
+              <p class="note">Broadie-style, vs a PGA TOUR scratch baseline — absolute values read low for amateurs; the round-to-round movement and the split are the signal.</p>
+              <div id="raSG"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Rounds</h2>
+            <div class="scroll-x"><table class="all" id="raTable"></table></div>
+            <p class="note">Honesty notes: putting SG is approximate (we track putt counts, not putt distances — baseline 1.9 expected putts per green); penalty strokes aren't tracked; holes without GPS positions or OSM geometry are excluded from position-based stats.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1419,9 +1454,24 @@ function ensureCloudSession(type){
   if (!sb) return null;
   if (cloudSession && cloudSession.type === type) return cloudSession;
   cloudSession = {id: crypto.randomUUID(), type};
-  enqueue("sessions", {id: cloudSession.id, type,
-                       started_at: new Date().toISOString()});
+  const row = {id: cloudSession.id, type, started_at: new Date().toISOString()};
+  if (type === "round" && course){
+    row.course_id = course.id || null;
+    row.course_name = course.name || null;
+    row.course_lat = course.center ? course.center[0] : null;
+    row.course_lon = course.center ? course.center[1] : null;
+  }
+  enqueue("sessions", row);
   return cloudSession;
+}
+// Stamp/refresh the course on the round's session row (course can be picked
+// after the first swing, so this also fires when a course loads mid-round).
+function cloudStampCourse(){
+  if (!sb || !course || !cloudSession || cloudSession.type !== "round") return;
+  enqueue("sessions", {id: cloudSession.id, type: "round",
+                       course_id: course.id || null, course_name: course.name || null,
+                       course_lat: course.center ? course.center[0] : null,
+                       course_lon: course.center ? course.center[1] : null});
 }
 function cloudRecordSwing(sw, seq){
   const cs = ensureCloudSession(uiMode === "round" ? "round" : "range");
@@ -1438,6 +1488,7 @@ function cloudRecordSwing(sw, seq){
 }
 function cloudRecordShot(shot){
   if (!cloudSession || cloudSession.type !== "round") return;
+  cloudEnsureHoleRow(shot.hole);
   enqueue("shots", {
     session_id: cloudSession.id, seq: shot.n, hole: shot.hole,
     hit_at: new Date(shot.t).toISOString(),
@@ -1448,7 +1499,22 @@ function cloudRecordShot(shot){
 }
 function cloudRecordPutts(hole, putts){
   if (!cloudSession || cloudSession.type !== "round") return;
-  enqueue("holes", {session_id: cloudSession.id, hole, putts}, "session_id,hole");
+  const hm = typeof holeMeta === "function" ? holeMeta(hole) : null;
+  enqueue("holes", {session_id: cloudSession.id, hole, putts,
+                    par: (hm && hm.par) || null}, "session_id,hole");
+}
+// A holes row per played hole (even before any putt) so analytics knows the
+// hole was played and what par it is.
+function cloudEnsureHoleRow(hole){
+  if (!cloudSession || cloudSession.type !== "round") return;
+  cloudEnsureHoleRow._done = cloudEnsureHoleRow._done || new Set();
+  const key = cloudSession.id + ":" + hole;
+  if (cloudEnsureHoleRow._done.has(key)) return;
+  cloudEnsureHoleRow._done.add(key);
+  const hm = typeof holeMeta === "function" ? holeMeta(hole) : null;
+  enqueue("holes", {session_id: cloudSession.id, hole,
+                    putts: (round && round.holes[hole] && round.holes[hole].putts) || 0,
+                    par: (hm && hm.par) || null}, "session_id,hole");
 }
 
 /* ---------- Round mode (on-course shot tracking) ---------- */
@@ -2061,15 +2127,15 @@ async function selectCourse(f){
     : `${f.name}: no mapped greens on OSM — distances to your tapped targets still work.`;
   document.getElementById("courseResults").textContent = "";
 }
-async function fetchCourseFeatures(center, id, name, recenter = true){
-  let js;
-  try {
-    js = await overpass(`(
-      way["golf"="green"](around:2500,${center[0]},${center[1]});
-      way["golf"="tee"](around:2500,${center[0]},${center[1]});
-      way["golf"="hole"](around:2500,${center[0]},${center[1]}););out geom tags;`);
-  } catch (e){ return false; }
-  const greens = [], tees = [], holes = [];
+async function fetchCourseGeom(center){
+  // greens/tees/hole lines drive live play; fairways/bunkers feed analytics
+  const js = await overpass(`(
+    way["golf"="green"](around:2500,${center[0]},${center[1]});
+    way["golf"="tee"](around:2500,${center[0]},${center[1]});
+    way["golf"="hole"](around:2500,${center[0]},${center[1]});
+    way["golf"="fairway"](around:2500,${center[0]},${center[1]});
+    way["golf"="bunker"](around:2500,${center[0]},${center[1]}););out geom tags;`);
+  const greens = [], tees = [], holes = [], fairways = [], bunkers = [];
   for (const el of js.elements || []){
     if (!el.geometry) continue;
     const pts = el.geometry.map(g => [g.lat, g.lon]);
@@ -2079,13 +2145,23 @@ async function fetchCourseFeatures(center, id, name, recenter = true){
       const cx = pts.reduce((a,p)=>a+p[1],0)/pts.length;
       greens.push({poly: pts, centroid: [cy, cx]});
     } else if (golf === "tee") tees.push(pts[0]);
+    else if (golf === "fairway") fairways.push({poly: pts});
+    else if (golf === "bunker") bunkers.push({poly: pts});
     else if (golf === "hole") holes.push({
       ref: parseInt((el.tags||{}).ref) || null,
       par: parseInt((el.tags||{}).par) || null,
       line: pts,
     });
   }
-  course = {id: id || null, name: name || null, center, fetchedAt: Date.now(), greens, tees, holes};
+  return {greens, tees, holes, fairways, bunkers};
+}
+async function fetchCourseFeatures(center, id, name, recenter = true){
+  let geom;
+  try { geom = await fetchCourseGeom(center); } catch (e){ return false; }
+  const {greens, tees, holes, fairways, bunkers} = geom;
+  course = {id: id || null, name: name || null, center, fetchedAt: Date.now(),
+            greens, tees, holes, fairways, bunkers};
+  cloudStampCourse();
   if (id){
     const cache = courseCache(); cache[id] = course; saveCourseCache(cache);
     try { localStorage.setItem("sc-course-current", id); } catch (e) {}
@@ -2615,6 +2691,7 @@ async function loadProgress(){
     map.get(r.session_id).swings.push(r);
   }
   progressData = [...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  loadRoundAnalytics();
   renderAll();
 }
 function lineChart(hostId, pts, opts){
@@ -2705,6 +2782,302 @@ function renderProgressCharts(){
      avg(cl).toFixed(1), Math.max(...cl).toFixed(1)]
       .forEach((c,k)=>{ const td=document.createElement("td"); td.textContent=c;
                         if(k===0) td.style.textAlign="left"; row.appendChild(td); });
+    t.appendChild(row);
+  }
+  renderRoundAnalytics();   // uses cached raData; distance chart follows the club selector
+}
+
+/* ---------- Round analytics: fairways, distances over time, strokes gained ----------
+   Positions come from the shots table (GPS at each stroke); lies come from
+   OSM geometry (fairway/green/bunker polygons). Putting SG is approximate:
+   we track putt counts, not putt distances — flagged in the UI. */
+let raData = null;                 // null=loading | {error} | {rounds:[...]}
+const PUTT_BASE = 1.9;             // expected putts once on the green (distance unknown)
+const RA_YD = 1.09361;
+// Broadie-style PGA TOUR scratch baseline: expected strokes to hole out (yards → strokes)
+const RA_E = {
+  tee: [[100,2.92],[120,2.99],[140,2.97],[160,2.99],[180,3.05],[200,3.12],[220,3.17],[240,3.25],[260,3.45],[280,3.65],[300,3.71],[320,3.79],[340,3.86],[360,3.92],[380,3.96],[400,3.99],[420,4.02],[440,4.08],[460,4.17],[480,4.28],[500,4.41],[540,4.65],[580,4.79]],
+  fairway: [[20,2.40],[40,2.60],[60,2.70],[80,2.75],[100,2.80],[120,2.85],[140,2.91],[160,2.98],[180,3.08],[200,3.19],[220,3.32],[240,3.42],[260,3.53],[280,3.62],[300,3.71],[320,3.79],[340,3.86],[380,3.96],[420,4.02],[460,4.17]],
+  rough: [[20,2.59],[40,2.78],[60,2.91],[80,2.96],[100,3.02],[120,3.08],[140,3.15],[160,3.23],[180,3.31],[200,3.42],[220,3.53],[240,3.64],[260,3.74],[280,3.83],[300,3.90],[340,4.06],[380,4.22],[420,4.38],[460,4.54]],
+  sand: [[20,2.53],[40,2.82],[60,3.15],[80,3.24],[100,3.23],[120,3.21],[140,3.22],[160,3.28],[180,3.40],[200,3.55],[220,3.70],[240,3.84],[260,3.93],[280,4.00],[320,4.12],[360,4.41],[400,4.69],[440,4.97]],
+};
+function expStrokes(lie, yd){
+  const t = RA_E[lie] || RA_E.rough;
+  if (yd <= t[0][0]) return t[0][1];
+  for (let i = 1; i < t.length; i++)
+    if (yd <= t[i][0]){
+      const [x0, y0] = t[i-1], [x1, y1] = t[i];
+      return y0 + (y1 - y0) * (yd - x0) / (x1 - x0);
+    }
+  const [x0, y0] = t[t.length-2], [x1, y1] = t[t.length-1];
+  return y1 + (y1 - y0) * (yd - x1) / (x1 - x0);   // gentle extrapolation
+}
+function pointInPoly(p, poly){    // ray cast on [lat,lon] rings
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const yi = poly[i][0], xi = poly[i][1], yj = poly[j][0], xj = poly[j][1];
+    if (((yi > p[0]) !== (yj > p[0])) &&
+        (p[1] < (xj - xi) * (p[0] - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function raLie(p, geom){
+  for (const g of geom.greens || []) if (pointInPoly(p, g.poly)) return "green";
+  for (const b of geom.bunkers || []) if (pointInPoly(p, b.poly)) return "sand";
+  for (const f of geom.fairways || []) if (pointInPoly(p, f.poly)) return "fairway";
+  return "rough";
+}
+function raGreenFor(geom, holeNo){
+  const h = (geom.holes || []).find(x => x.ref === holeNo);
+  if (!h || !h.line || h.line.length < 2) return null;
+  const end = h.line[h.line.length - 1];
+  let best = null, bd = 1e12;
+  for (const g of geom.greens || []){
+    const d = haversineM({lat: end[0], lon: end[1]}, {lat: g.centroid[0], lon: g.centroid[1]});
+    if (d < bd){ bd = d; best = g; }
+  }
+  return bd < 150 ? best : null;
+}
+function analyzeRound(sess, shots, holeRows, geom){
+  const r = {id: sess.id, date: sess.started_at, course: sess.course_name || "—",
+             holesPlayed: 0, score: 0, toPar: 0, parKnown: 0, putts: 0,
+             firHit: 0, firElig: 0, girHit: 0, girElig: 0,
+             sg: {ott: 0, app: 0, short: 0, putt: 0}, sgHoles: 0, dists: []};
+  const byHole = new Map();
+  for (const s of shots){
+    if (!byHole.has(s.hole)) byHole.set(s.hole, []);
+    byHole.get(s.hole).push(s);
+    if (s.dist_m != null && s.club_id) r.dists.push({club: s.club_id, yd: s.dist_m * RA_YD});
+  }
+  const hr = new Map(holeRows.map(h => [h.hole, h]));
+  for (const [holeNo, hs] of byHole){
+    hs.sort((a, b) => a.seq - b.seq);
+    r.holesPlayed++;
+    const row = hr.get(holeNo);
+    const par = (row && row.par) || null;
+    const putts = row ? row.putts : 0;
+    const completed = putts > 0;    // chip-ins look incomplete — noted in the UI
+    if (completed) r.putts += putts;
+    if (completed && par){
+      r.score += hs.length + putts;
+      r.toPar += hs.length + putts - par;
+      r.parKnown++;
+      r.girElig++;
+      if (hs.length <= par - 2) r.girHit++;
+    }
+    const pos = hs.map(s => (s.lat != null ? [s.lat, s.lon] : null));
+    // fairway hit: par 4/5, judged where the SECOND stroke was taken from
+    if (par >= 4 && geom && (geom.fairways || []).length && pos[0]){
+      if (pos.length >= 2 && pos[1]){
+        const lie = raLie(pos[1], geom);
+        r.firElig++;
+        if (lie === "fairway" || lie === "green") r.firHit++;
+      } else if (completed && hs.length === 1){ r.firElig++; r.firHit++; }   // drove the green
+    }
+    // strokes gained: every stroke needs a fix, plus green + par + completion
+    const green = geom ? raGreenFor(geom, holeNo) : null;
+    if (green && completed && par && pos.length && pos.every(p => p)){
+      const d = pos.map(p => haversineM({lat: p[0], lon: p[1]},
+        {lat: green.centroid[0], lon: green.centroid[1]}) * RA_YD);
+      if (!d.some(v => v > 700)){    // a fix that far out is GPS junk, not golf
+        for (let i = 0; i < pos.length; i++){
+          const lie = i === 0 ? (par >= 4 ? "tee" : "fairway") : raLie(pos[i], geom);
+          const nextLie = i < pos.length - 1 ? raLie(pos[i + 1], geom) : "green";
+          const eAfter = nextLie === "green" ? PUTT_BASE : expStrokes(nextLie, d[i + 1]);
+          const sg = expStrokes(lie, d[i]) - eAfter - 1;
+          if (i === 0 && par >= 4) r.sg.ott += sg;
+          else if (d[i] > 33) r.sg.app += sg;
+          else r.sg.short += sg;
+        }
+        r.sg.putt += PUTT_BASE - putts;
+        r.sgHoles++;
+      }
+    }
+  }
+  return r;
+}
+async function loadRoundAnalytics(){
+  raData = null;
+  renderRoundAnalytics();
+  if (!sb || !sbUser) return;
+  try {
+    const {data: sess, error: e1} = await sb.from("sessions")
+      .select("id,started_at,type,course_id,course_name,course_lat,course_lon")
+      .eq("type", "round").order("started_at", {ascending: true}).limit(500);
+    if (e1) throw e1;
+    const rs = sess || [];
+    if (!rs.length){ raData = {rounds: []}; renderRoundAnalytics(); return; }
+    const ids = rs.map(s => s.id);
+    const [shotsQ, holesQ] = await Promise.all([
+      sb.from("shots").select("session_id,seq,hole,club_id,club_inches,lat,lon,dist_m")
+        .in("session_id", ids).order("seq", {ascending: true}).limit(10000),
+      sb.from("holes").select("session_id,hole,putts,par").in("session_id", ids).limit(4000),
+    ]);
+    if (shotsQ.error) throw shotsQ.error;
+    if (holesQ.error) throw holesQ.error;
+    // one geometry fetch per distinct course; reuse the offline course cache
+    const geoms = new Map();
+    for (const s of rs){
+      const key = s.course_id ||
+        (s.course_lat != null ? `${s.course_lat.toFixed(3)},${s.course_lon.toFixed(3)}` : null);
+      if (!key || geoms.has(key)) continue;
+      let g = null;
+      const cache = courseCache();
+      if (s.course_id && cache[s.course_id] && cache[s.course_id].fairways)
+        g = cache[s.course_id];
+      if (!g && s.course_lat != null){
+        try { g = await fetchCourseGeom([s.course_lat, s.course_lon]); } catch (e) {}
+      }
+      geoms.set(key, g);
+    }
+    const rounds = rs.map(s => {
+      const key = s.course_id ||
+        (s.course_lat != null ? `${s.course_lat.toFixed(3)},${s.course_lon.toFixed(3)}` : null);
+      return analyzeRound(s,
+        (shotsQ.data || []).filter(x => x.session_id === s.id),
+        (holesQ.data || []).filter(x => x.session_id === s.id),
+        key ? geoms.get(key) : null);
+    }).filter(r => r.holesPlayed > 0);
+    raData = {rounds};
+  } catch (e){ raData = {error: e.message || String(e)}; }
+  renderRoundAnalytics();
+}
+function raDlab(iso){ return new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"}); }
+function raDistChart(rounds){
+  const host = document.getElementById("raDist");
+  host.textContent = "";
+  document.getElementById("raDistTitle").textContent = `Shot distances by round — ${clubLabel()}`;
+  const per = rounds
+    .map(r => ({label: raDlab(r.date), ds: r.dists.filter(d => d.club === clubId).map(d => d.yd)}))
+    .filter(p => p.ds.length);
+  if (!per.length){
+    div("note", host, "No GPS-measured shots with this club yet — a distance is measured whenever the next shot's position is recorded.");
+    return;
+  }
+  const W = host.clientWidth || 480, H = 210, m = {t: 12, r: 12, b: 24, l: 38};
+  const svg = el("svg", {width: W, height: H, role: "img", "aria-label": "Shot distances by round"}, host);
+  const maxY = Math.max(...per.flatMap(p => p.ds)) * 1.1;
+  const y = v => m.t + (H - m.t - m.b) * (1 - v / maxY);
+  const x = i => m.l + (per.length === 1 ? (W - m.l - m.r) / 2 : (W - m.l - m.r) * i / (per.length - 1));
+  for (const tv of niceTicks(maxY)){
+    el("line", {x1: m.l, x2: W - m.r, y1: y(tv), y2: y(tv), stroke: "var(--grid)"}, svg);
+    el("text", {x: m.l - 6, y: y(tv) + 3, "text-anchor": "end", class: "tickv"}, svg).textContent = tv;
+  }
+  const med = a => { const s = [...a].sort((p, q) => p - q); return s[Math.floor(s.length / 2)]; };
+  const dline = per.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(med(p.ds)).toFixed(1)}`).join("");
+  el("path", {d: dline, fill: "none", stroke: "var(--s1)", "stroke-width": 2,
+              "stroke-linejoin": "round"}, svg);
+  per.forEach((p, i) => {
+    p.ds.forEach((v, k) => el("circle", {cx: x(i) + ((k % 5) - 2) * 3, cy: y(v), r: 3,
+      fill: "var(--s1)", "fill-opacity": 0.45}, svg));
+    el("circle", {cx: x(i), cy: y(med(p.ds)), r: 4.5, fill: "var(--s1)",
+                  stroke: "var(--surface)", "stroke-width": 2}, svg);
+    el("text", {x: x(i), y: H - 8, "text-anchor": "middle"}, svg).textContent = p.label;
+    const hit = el("rect", {x: x(i) - 14, y: m.t, width: 28, height: H - m.t - m.b,
+                            fill: "transparent"}, svg);
+    attachBarTip(hit, host, p.label,
+      [["var(--s1)", `${Math.round(med(p.ds))} yd median · ${p.ds.length} shot${p.ds.length === 1 ? "" : "s"}`, clubLabel()]]);
+  });
+}
+const RA_CATS = [["ott", "Off the tee", "var(--s1)"], ["app", "Approach", "var(--s3)"],
+                 ["short", "Short game", "var(--s1-soft)"], ["putt", "Putting", "var(--s2)"]];
+function raSGChart(rounds){
+  const host = document.getElementById("raSG");
+  host.textContent = "";
+  const per = rounds.filter(r => r.sgHoles > 0);
+  if (!per.length){
+    div("note", host, "Strokes gained needs completed holes with GPS on every stroke, hole par, and a mapped green — play a round on a mapped course and this fills in.");
+    return;
+  }
+  const W = host.clientWidth || 480, H = 230, m = {t: 26, r: 12, b: 24, l: 38};
+  const svg = el("svg", {width: W, height: H, role: "img", "aria-label": "Strokes gained by round"}, host);
+  let maxUp = 0.5, maxDn = 0.5;
+  for (const r of per){
+    let up = 0, dn = 0;
+    for (const [k] of RA_CATS){ const v = r.sg[k]; if (v > 0) up += v; else dn -= v; }
+    maxUp = Math.max(maxUp, up); maxDn = Math.max(maxDn, dn);
+  }
+  const ph = H - m.t - m.b;
+  const y0 = m.t + ph * maxUp / (maxUp + maxDn);
+  const scale = ph / (maxUp + maxDn);
+  el("line", {x1: m.l, x2: W - m.r, y1: y0, y2: y0, stroke: "var(--baseline)"}, svg);
+  const bw = Math.min(34, (W - m.l - m.r) / per.length * 0.6);
+  per.forEach((r, i) => {
+    const cx = m.l + (W - m.l - m.r) * (i + 0.5) / per.length;
+    let up = 0, dn = 0;
+    for (const [k, , color] of RA_CATS){
+      const v = r.sg[k];
+      if (!v) continue;
+      const h = Math.abs(v) * scale;
+      const ry = v > 0 ? y0 - up - h : y0 + dn;
+      el("rect", {x: cx - bw / 2, y: ry, width: bw, height: Math.max(1, h), fill: color}, svg);
+      if (v > 0) up += h; else dn += h;
+    }
+    el("text", {x: cx, y: H - 8, "text-anchor": "middle"}, svg).textContent = raDlab(r.date);
+    const total = RA_CATS.reduce((a, [k]) => a + r.sg[k], 0);
+    const hit = el("rect", {x: cx - bw / 2 - 4, y: m.t, width: bw + 8, height: ph,
+                            fill: "transparent"}, svg);
+    attachBarTip(hit, host, `${raDlab(r.date)} · ${r.sgHoles} holes`,
+      RA_CATS.map(([k, label, color]) =>
+        [color, (r.sg[k] >= 0 ? "+" : "") + r.sg[k].toFixed(1), label])
+      .concat([["var(--baseline)", (total >= 0 ? "+" : "") + total.toFixed(1), "Total"]]));
+  });
+  RA_CATS.forEach(([, label, color], i) => {
+    const lx = m.l + i * ((W - m.l - m.r) / RA_CATS.length);
+    el("rect", {x: lx, y: 6, width: 9, height: 9, rx: 2, fill: color}, svg);
+    el("text", {x: lx + 13, y: 14, class: "tickv"}, svg).textContent = label;
+  });
+}
+function renderRoundAnalytics(){
+  const note = document.getElementById("raNote");
+  const body = document.getElementById("raBody");
+  if (!note) return;
+  if (!sbUser){ note.hidden = false; body.hidden = true;
+    note.textContent = "Sign in to see round analytics."; return; }
+  if (raData == null){ note.hidden = false; body.hidden = true;
+    note.textContent = "Loading rounds…"; return; }
+  if (raData.error){ note.hidden = false; body.hidden = true;
+    note.textContent = "Couldn't load rounds: " + raData.error; return; }
+  const rounds = raData.rounds;
+  if (!rounds.length){ note.hidden = false; body.hidden = true;
+    note.textContent = "No rounds synced yet — play a round while signed in and the analytics build themselves."; return; }
+  note.hidden = true; body.hidden = false;
+  const firPts = rounds.filter(r => r.firElig)
+    .map(r => ({label: raDlab(r.date), y: 100 * r.firHit / r.firElig}));
+  if (firPts.length) lineChart("raFair", firPts,
+    {label: "Fairways hit percentage by round", series: "fairways hit", unit: "%", dp: 0, minMax: 100});
+  else { const h = document.getElementById("raFair"); h.textContent = "";
+    div("note", h, "Needs fairways mapped on OpenStreetMap for your courses — map them once and this fills in."); }
+  const girPts = rounds.filter(r => r.girElig)
+    .map(r => ({label: raDlab(r.date), y: 100 * r.girHit / r.girElig}));
+  if (girPts.length) lineChart("raGir", girPts,
+    {label: "Greens in regulation percentage by round", series: "GIR", unit: "%", dp: 0, minMax: 100});
+  else { const h = document.getElementById("raGir"); h.textContent = "";
+    div("note", h, "Needs completed holes with known par (par comes from OSM hole lines)."); }
+  raDistChart(rounds);
+  raSGChart(rounds);
+  const t = document.getElementById("raTable");
+  t.textContent = "";
+  const head = ["Date", "Course", "Holes", "Score", "Putts", "FIR", "GIR",
+                "SG tee", "SG appr", "SG short", "SG putt", "SG total"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+  t.appendChild(tr);
+  for (const r of [...rounds].reverse()){
+    const row = document.createElement("tr");
+    const fmtSg = v => { const t = Math.round(v * 10) / 10 + 0;   // +0 kills "-0.0"
+                         return (t >= 0 ? "+" : "") + t.toFixed(1); };
+    const sgc = k => r.sgHoles ? fmtSg(r.sg[k]) : "—";
+    const total = RA_CATS.reduce((a, [k]) => a + r.sg[k], 0);
+    [new Date(r.date).toLocaleDateString(), r.course, String(r.holesPlayed),
+     r.parKnown ? `${r.score} (${r.toPar >= 0 ? "+" : ""}${r.toPar})` : "—",
+     r.putts ? String(r.putts) : "—",
+     r.firElig ? `${r.firHit}/${r.firElig}` : "—",
+     r.girElig ? `${r.girHit}/${r.girElig}` : "—",
+     sgc("ott"), sgc("app"), sgc("short"), sgc("putt"),
+     r.sgHoles ? fmtSg(total) : "—"]
+      .forEach((c, k) => { const td = document.createElement("td"); td.textContent = c;
+                           if (k <= 1) td.style.textAlign = "left"; row.appendChild(td); });
     t.appendChild(row);
   }
 }

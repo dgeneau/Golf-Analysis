@@ -32,7 +32,11 @@ create table if not exists public.sessions (
   type text not null check (type in ('range', 'round')),
   started_at timestamptz not null default now(),
   ended_at timestamptz,
-  notes text
+  notes text,
+  course_id text,
+  course_name text,
+  course_lat double precision,
+  course_lon double precision
 );
 alter table public.sessions enable row level security;
 create policy "own sessions" on public.sessions
@@ -94,6 +98,7 @@ create table if not exists public.holes (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   hole int not null,
   putts int not null default 0,
+  par int,
   primary key (session_id, hole)
 );
 alter table public.holes enable row level security;
