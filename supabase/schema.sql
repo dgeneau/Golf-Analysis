@@ -85,6 +85,7 @@ create table if not exists public.shots (
   acc_m numeric,
   dist_m numeric,
   club_mph numeric,
+  swing_seq int,   -- joins this shot to its swing's metrics row
   unique (session_id, seq)
 );
 alter table public.shots enable row level security;
@@ -98,6 +99,7 @@ create table if not exists public.holes (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   hole int not null,
   putts int not null default 0,
+  penalties int not null default 0,
   par int,
   primary key (session_id, hole)
 );

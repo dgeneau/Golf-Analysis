@@ -657,7 +657,7 @@
           <div class="card">
             <h2>Rounds</h2>
             <div class="scroll-x"><table class="all" id="raTable"></table></div>
-            <p class="note">Honesty notes: putting SG is approximate (we track putt counts, not putt distances — baseline 1.9 expected putts per green); penalty strokes aren't tracked; holes without GPS positions or OSM geometry are excluded from position-based stats.</p>
+            <p class="note">Honesty notes: putting SG is approximate (we track putt counts, not putt distances — baseline 1.9 expected putts per green); holes with penalty strokes count in scoring but are excluded from SG (the position chain has invisible strokes); holes without GPS positions or OSM geometry are excluded from position-based stats.</p>
           </div>
         </div>
       </div>
@@ -799,6 +799,7 @@
     <div class="msheet" id="mSheet" hidden>
       <div class="chips" id="mHoleGrid" style="margin-bottom:12px"></div>
       <button class="msheet-item" id="mUndoBtn">Undo shot</button>
+      <button class="msheet-item" id="mPenaltyBtn">+1 penalty stroke</button>
       <button class="msheet-item" id="mOrientBtn">Switch to north-up map</button>
       <button class="msheet-item" id="mUnitBtn">Switch to meters</button>
       <button class="msheet-item" id="mEndBtn">End round</button>
@@ -1505,12 +1506,14 @@ function cloudRecordShot(shot){
     club_id: shot.club.id, club_inches: shot.club.inches,
     lat: shot.lat, lon: shot.lon, acc_m: shot.acc, dist_m: shot.dist_m,
     club_mph: shot.club_mph,
+    swing_seq: shot.swingIndex != null ? shot.swingIndex : null,   // mechanics ↔ outcome join
   }, "session_id,seq");
 }
 function cloudRecordPutts(hole, putts){
   if (!cloudSession || cloudSession.type !== "round") return;
   const hm = typeof holeMeta === "function" ? holeMeta(hole) : null;
   enqueue("holes", {session_id: cloudSession.id, hole, putts,
+                    penalties: (round && round.holes[hole] && round.holes[hole].penalties) || 0,
                     par: (hm && hm.par) || null}, "session_id,hole");
 }
 // A holes row per played hole (even before any putt) so analytics knows the
@@ -1524,6 +1527,7 @@ function cloudEnsureHoleRow(hole){
   const hm = typeof holeMeta === "function" ? holeMeta(hole) : null;
   enqueue("holes", {session_id: cloudSession.id, hole,
                     putts: (round && round.holes[hole] && round.holes[hole].putts) || 0,
+                    penalties: (round && round.holes[hole] && round.holes[hole].penalties) || 0,
                     par: (hm && hm.par) || null}, "session_id,hole");
 }
 
@@ -1737,8 +1741,9 @@ function checkAutoHole(){
 
 function holeTotals(h){
   const shots = round.shots.filter(s => s.hole === h).length;
-  const putts = (round.holes[h] || {putts: 0}).putts;
-  return {shots, putts, total: shots + putts};
+  const hr = round.holes[h] || {};
+  const putts = hr.putts || 0, penalties = hr.penalties || 0;
+  return {shots, putts, penalties, total: shots + putts + penalties};
 }
 function roundTotal(){
   let t = 0;
@@ -2887,11 +2892,12 @@ function analyzeRound(sess, shots, holeRows, geom){
     const row = hr.get(holeNo);
     const par = (row && row.par) || null;
     const putts = row ? row.putts : 0;
+    const pens = (row && row.penalties) || 0;
     const completed = putts > 0;    // chip-ins look incomplete — noted in the UI
     if (completed) r.putts += putts;
     if (completed && par){
-      r.score += hs.length + putts;
-      r.toPar += hs.length + putts - par;
+      r.score += hs.length + putts + pens;
+      r.toPar += hs.length + putts + pens - par;
       r.parKnown++;
       r.girElig++;
       if (hs.length <= par - 2) r.girHit++;
@@ -2905,9 +2911,10 @@ function analyzeRound(sess, shots, holeRows, geom){
         if (lie === "fairway" || lie === "green") r.firHit++;
       } else if (completed && hs.length === 1){ r.firElig++; r.firHit++; }   // drove the green
     }
-    // strokes gained: every stroke needs a fix, plus green + par + completion
+    // strokes gained: every stroke needs a fix, plus green + par + completion.
+    // Penalty holes are excluded — the position chain has invisible strokes.
     const green = geom ? raGreenFor(geom, holeNo) : null;
-    if (green && completed && par && pos.length && pos.every(p => p)){
+    if (green && completed && par && pens === 0 && pos.length && pos.every(p => p)){
       const d = pos.map(p => haversineM({lat: p[0], lon: p[1]},
         {lat: green.centroid[0], lon: green.centroid[1]}) * RA_YD);
       if (!d.some(v => v > 700)){    // a fix that far out is GPS junk, not golf
@@ -2942,7 +2949,7 @@ async function loadRoundAnalytics(){
     const [shotsQ, holesQ] = await Promise.all([
       sb.from("shots").select("session_id,seq,hole,club_id,club_inches,lat,lon,dist_m")
         .in("session_id", ids).order("seq", {ascending: true}).limit(10000),
-      sb.from("holes").select("session_id,hole,putts,par").in("session_id", ids).limit(4000),
+      sb.from("holes").select("session_id,hole,putts,penalties,par").in("session_id", ids).limit(4000),
     ]);
     if (shotsQ.error) throw shotsQ.error;
     if (holesQ.error) throw holesQ.error;
@@ -3330,17 +3337,27 @@ function initBleMode(){
       setConnectButton();
     }
   });
-  document.getElementById("csvBtn").addEventListener("click", () => {
+  document.getElementById("csvBtn").addEventListener("click", async () => {
     const lines = [CSV_HEADER];
     for (const s of rawLog)
       lines.push([s.t.toFixed(6), s.roll.toFixed(3), s.pitch.toFixed(3), s.yaw.toFixed(3),
                   s.ax.toFixed(4), s.ay.toFixed(4), s.az.toFixed(4),
                   s.gx.toFixed(3), s.gy.toFixed(3), s.gz.toFixed(3)].join(","));
+    const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+    const name = `swingcoach-session-${stamp}.csv`;
     const blob = new Blob([lines.join("\n")], {type: "text/csv"});
+    // Blob downloads do nothing inside the iOS app's webview — the share
+    // sheet (AirDrop / Save to Files) is the way raw data leaves the phone.
+    try {
+      const file = new File([blob], name, {type: "text/csv"});
+      if (navigator.canShare && navigator.canShare({files: [file]})){
+        await navigator.share({files: [file], title: name});
+        return;
+      }
+    } catch (e) { if (e && e.name === "AbortError") return; }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-    a.download = `swingcoach-session-${stamp}.csv`;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -4094,6 +4111,15 @@ function initMobile(){
   el("mMoreBtn").addEventListener("click", () => { el("mSheet").hidden = false; renderMobile(); });
   el("mSheetClose").addEventListener("click", () => { el("mSheet").hidden = true; });
   el("mUndoBtn").addEventListener("click", () => { el("mSheet").hidden = true; undoShot(); });
+  el("mPenaltyBtn").addEventListener("click", () => {
+    ensureHole(round.currentHole);
+    const hr = round.holes[round.currentHole];
+    hr.penalties = (hr.penalties || 0) + 1;
+    cloudRecordPutts(round.currentHole, hr.putts || 0);   // upserts putts+penalties+par
+    toast(`Penalty added — hole ${round.currentHole} now ${holeTotals(round.currentHole).total} strokes`);
+    el("mSheet").hidden = true;
+    saveRound(); renderAll();
+  });
   el("mUnitBtn").addEventListener("click", () => {
     if (round){ round.unit = round.unit === "yd" ? "m" : "yd"; saveRound(); }
     el("mSheet").hidden = true; renderAll();
