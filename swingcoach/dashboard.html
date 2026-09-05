@@ -2030,8 +2030,28 @@ function refPoint(){
 /* Course index: one Overpass fetch of every course within 50 km, cached a
    week — autocomplete then filters this list instantly and offline. */
 let courseIndex = null;   // {fetchedAt, center, list:[{id, name, center}]}
+const COURSE_INDEX_V = 2;   // bump to invalidate cached indexes when the query changes
 function loadCourseIndexCache(){
-  try { return JSON.parse(localStorage.getItem("sc-course-index")); } catch (e) { return null; }
+  try {
+    const c = JSON.parse(localStorage.getItem("sc-course-index"));
+    return c && c.v === COURSE_INDEX_V ? c : null;
+  } catch (e) { return null; }
+}
+// Some courses carry no name tag in OSM (e.g. Cedar Hill: the NAME is on the
+// surrounding leisure=park; the golf_course way has only operator/website).
+// Derive a searchable name rather than filing them as "Unnamed course".
+function courseDisplayName(tags){
+  tags = tags || {};
+  if (tags.name) return tags.name;
+  const w = tags.website || tags["contact:website"] || "";
+  const m = w.match(/\/([a-z0-9-]*golf[a-z0-9-]*)(?:\.\w+)?\/?$/i) ||
+            w.match(/\/([a-z][a-z0-9-]{5,})(?:\.\w+)?\/?$/i);
+  if (m){
+    const s = m[1].replace(/[-_]+/g, " ").trim();
+    if (s) return s.replace(/\b\w/g, ch => ch.toUpperCase());
+  }
+  if (tags.operator) return `${tags.operator} golf course`;
+  return "Unnamed course";
 }
 let indexFetching = false;
 async function ensureCourseIndex(force){
@@ -2045,19 +2065,20 @@ async function ensureCourseIndex(force){
   if (!c || indexFetching) return courseIndex;   // best effort with what we have
   indexFetching = true;
   try {
-    const js = await overpass(`(
-      way["leisure"="golf_course"](around:50000,${c[0]},${c[1]});
-      relation["leisure"="golf_course"](around:50000,${c[0]},${c[1]}););out tags center;`);
+    // nwr covers node + way + relation in one clause
+    const js = await overpass(
+      `nwr["leisure"="golf_course"](around:50000,${c[0]},${c[1]});out tags center;`);
     const seen = new Set();
     const list = (js.elements || [])
-      .filter(el => el.center)
-      .map(el => ({id: `${el.type}/${el.id}`,
-                   name: (el.tags || {}).name || "Unnamed course",
-                   center: [el.center.lat, el.center.lon]}))
+      .map(el => ({el, ctr: el.center || (el.lat != null ? {lat: el.lat, lon: el.lon} : null)}))
+      .filter(x => x.ctr)
+      .map(x => ({id: `${x.el.type}/${x.el.id}`,
+                  name: courseDisplayName(x.el.tags),
+                  center: [x.ctr.lat, x.ctr.lon]}))
       .filter(x => { const k = x.name + x.center[0].toFixed(3);
                      if (seen.has(k)) return false; seen.add(k); return true; });
     if (list.length){
-      courseIndex = {fetchedAt: Date.now(), center: c, list};
+      courseIndex = {v: COURSE_INDEX_V, fetchedAt: Date.now(), center: c, list};
       try { localStorage.setItem("sc-course-index", JSON.stringify(courseIndex)); } catch (e) {}
     }
   } catch (e) {} finally { indexFetching = false; }
