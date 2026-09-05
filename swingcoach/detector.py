@@ -108,8 +108,15 @@ def segment_swing(samples: List[Sample]) -> Optional[SwingRecord]:
     if peak_gyro < SWING_GYRO:
         return None
     i_peak_gyro = gyro.index(peak_gyro)
-    lo = _idx_at(samples, samples[i_peak_gyro].t - 0.15, default=0)
-    hi = _idx_at(samples, samples[i_peak_gyro].t + 0.15, default=n - 1)
+    # The strike happens while the club is moving FAST. Search barely before
+    # the wrist-speed peak (release timing) but generously after (a clipped
+    # gyro plateau puts the true peak later), and require high angular
+    # velocity at the candidate: an aggressive transition produces its own
+    # sharp acceleration spike early in the downswing, and at 60 Hz that can
+    # out-jerk the undersampled ball-strike shock — the field-observed
+    # systematic early-impact bug.
+    lo = _idx_at(samples, samples[i_peak_gyro].t - 0.06, default=0)
+    hi = _idx_at(samples, samples[i_peak_gyro].t + 0.18, default=n - 1)
     lo = max(lo, 1)
 
     def jerk(i: int) -> float:
@@ -118,12 +125,18 @@ def segment_swing(samples: List[Sample]) -> Optional[SwingRecord]:
         daz = samples[i].az - samples[i - 1].az
         return (dax * dax + day * day + daz * daz) ** 0.5
 
-    i_impact = max(range(lo, hi + 1), key=jerk)
+    cands = [i for i in range(lo, hi + 1) if gyro[i] >= 0.5 * peak_gyro]
+    if not cands:
+        cands = list(range(lo, hi + 1))
+    i_impact = max(cands, key=jerk)
     # Walk back to the shock ONSET so impact isn't timed at the tail of the
-    # spike (the shock spans 2-3 samples at 60 Hz).
+    # spike (the shock spans 2-3 samples at 60 Hz) — but never more than
+    # 3 samples, so the onset can't slide down a long acceleration ramp.
     jmax = jerk(i_impact)
-    while i_impact - 1 > lo and jerk(i_impact - 1) > 0.4 * jmax:
+    steps = 0
+    while i_impact - 1 > lo and steps < 3 and jerk(i_impact - 1) > 0.4 * jmax:
         i_impact -= 1
+        steps += 1
     if max(acc[lo:hi + 1]) < MIN_SWING_PEAK_ACC:
         return None  # too gentle: a rehearsal or handling motion
 

@@ -1019,15 +1019,25 @@ function segmentSwing(samples){
   const peakGyro = Math.max(...gyro);
   if (peakGyro < P.SWING_GYRO) return null;
   const iPk = gyro.indexOf(peakGyro);
-  let lo = Math.max(1, idxAt(samples, samples[iPk].t - 0.15, 0));
-  const hi = idxAt(samples, samples[iPk].t + 0.15, n - 1);
+  // The strike happens while the club is moving FAST — asymmetric window and
+  // a wrist-speed gate keep an aggressive transition's early acceleration
+  // spike from out-jerking the undersampled ball-strike shock.
+  // Must stay in lockstep with detector.py.
+  let lo = Math.max(1, idxAt(samples, samples[iPk].t - 0.06, 0));
+  const hi = idxAt(samples, samples[iPk].t + 0.18, n - 1);
   const jerk = i => Math.hypot(samples[i].ax - samples[i-1].ax,
                                samples[i].ay - samples[i-1].ay,
                                samples[i].az - samples[i-1].az);
-  let iImpact = lo;
-  for (let i = lo; i <= hi; i++) if (jerk(i) > jerk(iImpact)) iImpact = i;
+  let iImpact = -1;
+  for (let i = lo; i <= hi; i++)
+    if (gyro[i] >= 0.5 * peakGyro && (iImpact < 0 || jerk(i) > jerk(iImpact))) iImpact = i;
+  if (iImpact < 0){
+    iImpact = lo;
+    for (let i = lo; i <= hi; i++) if (jerk(i) > jerk(iImpact)) iImpact = i;
+  }
   const jmax = jerk(iImpact);
-  while (iImpact - 1 > lo && jerk(iImpact - 1) > 0.4 * jmax) iImpact--;
+  let wb = 0;
+  while (iImpact - 1 > lo && wb < 3 && jerk(iImpact - 1) > 0.4 * jmax){ iImpact--; wb++; }
   if (Math.max(...acc.slice(lo, hi + 1)) < P.MIN_SWING_PEAK_ACC) return null;
 
   let iTop = null;
