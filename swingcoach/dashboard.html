@@ -187,6 +187,16 @@
   }
   #mRound .mchip, .msummary .mchip { color: #0b0b0b; background: #fcfcfb; border-color: rgba(11,11,11,.15); }
   .mhero { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; min-height: 0; }
+  /* pre-first-swing empty state: replaces the graph carousel entirely */
+  .mempty p, .mempty h2 { margin: 0; }
+  .mempty h2 { margin: 18px 0 10px; font-family: "Barlow Condensed", sans-serif; font-weight: 700;
+               font-size: 44px; line-height: .95; letter-spacing: .01em; text-transform: uppercase; }
+  .mempty p { font-size: 14.5px; line-height: 1.55; color: #898781; max-width: 300px; }
+  .mempty .mprimary { width: 100%; margin-top: 28px; }
+  @keyframes mpulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+  .mempty.live circle { fill: #0ca30c; }
+  .mempty.live path { stroke: #0ca30c; animation: mpulse 2.2s ease-in-out infinite; }
+  .mempty.live path + path { animation-delay: .35s; }
   /* swipeable graph pages on the range screen */
   .mswipe { display: flex; width: 100%; overflow-x: auto; overflow-y: hidden;
             scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
@@ -719,6 +729,17 @@
       <span class="mstatus" id="mStatus"><span class="mdot" id="mDot"></span><span id="mStatusTxt">Not connected</span></span>
     </div>
     <div class="mhero" id="mHero">
+      <!-- empty state: shown until the first swing of the session lands -->
+      <div class="mempty" id="mEmpty" hidden>
+        <svg id="mEmptyGlyph" width="46" height="46" viewBox="0 0 46 46" fill="none" aria-hidden="true">
+          <circle cx="23" cy="27" r="6" fill="#3987e5"/>
+          <path d="M13 17a14 14 0 0 1 20 0"  stroke="#3987e5" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+          <path d="M8 11.5a21 21 0 0 1 30 0" stroke="#3987e5" stroke-width="2.5" stroke-linecap="round" opacity=".3"/>
+        </svg>
+        <h2 id="mEmptyTitle">Connect your sensor</h2>
+        <p id="mEmptySub"></p>
+        <button class="mprimary" id="mConnectBtn">Connect sensor</button>
+      </div>
       <div class="mswipe" id="mSwipe">
         <div class="mpage">
           <div class="mlabel" id="mHeroLabel">Ready when you are</div>
@@ -753,7 +774,6 @@
         <div class="mcue-h"><span class="mdot" id="mCueDot"></span><h3 id="mCueTitle"></h3></div>
         <p id="mCueDetail"></p>
       </div>
-      <button class="mprimary" id="mConnectBtn" hidden>Connect sensor</button>
     </div>
     <div class="mbottom">
       <div class="mrail" id="mRail"></div>
@@ -4348,6 +4368,8 @@ function renderMRange(){
   const has = swings.length > 0;
   const connected = ["ready", "connected", "scanning"].includes(STATUS.state);
   el("mConnectBtn").hidden = connected;
+  el("mEmpty").hidden = has;
+  el("mSwipe").hidden = !has;
   el("mBand").style.display = has ? "block" : "none";
   el("mStats").hidden = !has;
   el("mCue").hidden = !has;
@@ -4355,9 +4377,11 @@ function renderMRange(){
   el("mPagePath").hidden = !has;
   el("mDots").hidden = !has;
   if (!has){
-    el("mHeroLabel").textContent = connected ? "Ready — let it rip" : "Connect your sensor";
-    el("mHeroNum").textContent = "—";
-    el("mHeroSub").textContent = connected ? "the number appears after your first swing" : "";
+    el("mEmpty").classList.toggle("live", connected);
+    el("mEmptyTitle").textContent = connected ? "Ready when you are" : "Connect your sensor";
+    el("mEmptySub").textContent = connected
+      ? "Listening for swings — your first tempo lands right here."
+      : "Strap the DOT to your lead wrist, pick your club up top, and connect to see tempo, path and club speed live.";
     el("mRail").textContent = "";
     return;
   }
