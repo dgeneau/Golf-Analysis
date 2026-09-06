@@ -43,6 +43,7 @@ struct WebContainer: UIViewRepresentable {
         ble.evaluator = evaluate
         WatchLink.shared.evaluator = evaluate
         WatchLink.shared.start()
+        LocationTrail.shared.evaluator = evaluate
 
         webView.load(URLRequest(url: WebContainer.appURL))
         return webView
@@ -60,9 +61,13 @@ struct WebContainer: UIViewRepresentable {
                   let body = message.body as? [String: Any],
                   let cmd = body["cmd"] as? String else { return }
             switch cmd {
-            case "connect": ble.connect()
-            case "pick": ble.pick(id: body["id"] as? String ?? "")
-            case "disconnect": ble.disconnect()
+            case "connect":
+                ble.connect()
+                LocationTrail.shared.start()   // native GPS trail: places
+            case "pick": ble.pick(id: body["id"] as? String ?? "")   // locked-phone swings
+            case "disconnect":
+                ble.disconnect()
+                LocationTrail.shared.stop()
             default: break
             }
         }

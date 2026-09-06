@@ -1,5 +1,6 @@
 import CoreBluetooth
 import Foundation
+import UIKit
 
 /// Native CoreBluetooth client for the Movella DOT, mirroring the web app's
 /// Web Bluetooth flow: connect → battery → heading reset → notifications on
@@ -41,9 +42,30 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     private var tsLast: UInt32 = 0
     private var tsOffset: Double = 0
 
-    // sample batching (evaluateJavaScript is expensive at 60 Hz)
+    // sample batching (evaluateJavaScript is expensive at 60 Hz). While the
+    // app is backgrounded/locked the webview's JS is suspended, so samples
+    // BUFFER here (bluetooth-central keeps the stream alive) and replay in
+    // chunks when the app returns to the foreground.
     private var sampleBuf: [String] = []
     private var flushTimer: Timer?
+    private var appActive = true
+    private let bufCap = 300_000        // ~80 min at 60 Hz; oldest dropped past this
+
+    override init() {
+        super.init()
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: UIApplication.didBecomeActiveNotification,
+                       object: nil, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            self.appActive = true
+            LocationTrail.shared.flushNow()          // trail first, so replayed
+            self.status(self.lastState, self.lastDetail)  // swings can be placed
+        }
+        nc.addObserver(forName: UIApplication.willResignActiveNotification,
+                       object: nil, queue: .main) { [weak self] _ in
+            self?.appActive = false
+        }
+    }
 
     // MARK: public API (called from the page via the message handler)
 
@@ -97,6 +119,7 @@ final class DotBluetoothManager: NSObject, ObservableObject {
 
     private func status(_ state: String, _ detail: String) {
         lastState = state; lastDetail = detail
+        guard appActive else { return }   // re-emitted on didBecomeActive
         let batt = battery.map(String.init) ?? "null"
         let js = "window._nativeStatus && window._nativeStatus(\(jsString(state)), \(jsString(detail)), \(batt));"
         evaluator?(js)
@@ -111,9 +134,11 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     }
 
     private func flushSamples() {
-        guard !sampleBuf.isEmpty else { return }
-        let payload = sampleBuf.joined(separator: ",")
-        sampleBuf.removeAll(keepingCapacity: true)
+        guard appActive, !sampleBuf.isEmpty else { return }
+        // Chunked so a long locked-phone backlog drains smoothly (~40k/s).
+        let n = min(sampleBuf.count, 4000)
+        let payload = sampleBuf.prefix(n).joined(separator: ",")
+        sampleBuf.removeFirst(n)
         evaluator?("window._nativeSamples && window._nativeSamples([\(payload)]);")
     }
 
@@ -157,10 +182,14 @@ final class DotBluetoothManager: NSObject, ObservableObject {
             }
         }
         // Keys must match the web pipeline's Sample fields exactly.
+        // "ep" (wall-clock epoch ms) rides along so the page can place swings
+        // captured while the phone was locked at the right time and position.
         let json = String(
-            format: "{\"t\":%.6f,\"roll\":%.3f,\"pitch\":%.3f,\"yaw\":%.3f,\"ax\":%.4f,\"ay\":%.4f,\"az\":%.4f,\"gx\":%.3f,\"gy\":%.3f,\"gz\":%.3f}",
-            t, f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8])
+            format: "{\"t\":%.6f,\"roll\":%.3f,\"pitch\":%.3f,\"yaw\":%.3f,\"ax\":%.4f,\"ay\":%.4f,\"az\":%.4f,\"gx\":%.3f,\"gy\":%.3f,\"gz\":%.3f,\"ep\":%.0f}",
+            t, f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8],
+            Date().timeIntervalSince1970 * 1000)
         sampleBuf.append(json)
+        if sampleBuf.count > bufCap { sampleBuf.removeFirst(sampleBuf.count - bufCap) }
     }
 }
 

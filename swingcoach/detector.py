@@ -118,6 +118,7 @@ def segment_swing(samples: List[Sample]) -> Optional[SwingRecord]:
     lo = _idx_at(samples, samples[i_peak_gyro].t - 0.06, default=0)
     hi = _idx_at(samples, samples[i_peak_gyro].t + 0.18, default=n - 1)
     lo = max(lo, 1)
+    hi = max(hi, lo)   # guard: non-monotonic timestamps can invert the window
 
     def jerk(i: int) -> float:
         dax = samples[i].ax - samples[i - 1].ax

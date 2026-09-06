@@ -798,6 +798,7 @@
     </div>
     <div class="msheet" id="mSheet" hidden>
       <div class="chips" id="mHoleGrid" style="margin-bottom:12px"></div>
+      <button class="msheet-item" id="mSensorBtn">Reconnect sensor</button>
       <button class="msheet-item" id="mUndoBtn">Undo shot</button>
       <button class="msheet-item" id="mPenaltyBtn">+1 penalty stroke</button>
       <button class="msheet-item" id="mOrientBtn">Switch to north-up map</button>
@@ -1025,7 +1026,7 @@ function segmentSwing(samples){
   // spike from out-jerking the undersampled ball-strike shock.
   // Must stay in lockstep with detector.py.
   let lo = Math.max(1, idxAt(samples, samples[iPk].t - 0.06, 0));
-  const hi = idxAt(samples, samples[iPk].t + 0.18, n - 1);
+  const hi = Math.max(lo, idxAt(samples, samples[iPk].t + 0.18, n - 1));   // parity guard
   const jerk = i => Math.hypot(samples[i].ax - samples[i-1].ax,
                                samples[i].ay - samples[i-1].ay,
                                samples[i].az - samples[i-1].az);
@@ -1551,11 +1552,39 @@ function distDisp(m){
   return yd ? `${Math.round(m*1.09361)} yd` : `${Math.round(m)} m`;
 }
 
+/* GPS trail: live browser fixes + the native background trail (recorded while
+   the phone is locked). Lets swings captured asleep be PLACED where they were
+   hit, not where the phone woke up. */
+let gpsTrail = [];   // {ep, lat, lon, acc}, ep = epoch ms, kept sorted
+function trailPush(e){
+  gpsTrail.push(e);
+  if (gpsTrail.length > 8000) gpsTrail.splice(0, gpsTrail.length - 8000);
+}
+function trailFixAt(ep){
+  let best = null, bd = 120000;   // usable within 2 minutes of the swing
+  for (let i = gpsTrail.length - 1; i >= 0; i--){
+    const d = Math.abs(gpsTrail[i].ep - ep);
+    if (d < bd){ bd = d; best = gpsTrail[i]; }
+    if (gpsTrail[i].ep < ep - 120000) break;
+  }
+  return best && best.acc <= 35
+    ? {lat: best.lat, lon: best.lon, acc: best.acc, ts: best.ep} : null;
+}
+window._nativeTrail = arr => {
+  for (const e of arr || [])
+    if (e && e.ep != null) trailPush({ep: +e.ep, lat: +e.lat, lon: +e.lon, acc: +e.acc});
+  gpsTrail.sort((a, b) => a.ep - b.ep);
+  const last = gpsTrail[gpsTrail.length - 1];
+  if (last && (!lastFix || lastFix.err || last.ep > (lastFix.ts || 0)))
+    lastFix = {lat: last.lat, lon: last.lon, acc: last.acc, ts: last.ep};
+  if (typeof gpsChip === "function"){ gpsChip(); updateYouMarker(false); }
+};
 function startGps(){
   if (gpsWatch != null || !navigator.geolocation) return;
   gpsWatch = navigator.geolocation.watchPosition(
     p => { lastFix = {lat: p.coords.latitude, lon: p.coords.longitude,
                       acc: p.coords.accuracy, ts: Date.now()};
+           trailPush({ep: Date.now(), lat: lastFix.lat, lon: lastFix.lon, acc: lastFix.acc});
            gpsChip(); updateYouMarker(false); checkAutoHole(); },
     e => { lastFix = {err: e.message || "GPS unavailable", ts: Date.now()}; gpsChip(); },
     {enableHighAccuracy: true, maximumAge: 2000, timeout: 15000});
@@ -1619,11 +1648,15 @@ function currentFixOrNull(){
 
 const CLUSTER_M = 12;    // swings within this radius are the same shot attempt
 const CLUSTER_S = 60;    // fallback window when GPS is unavailable
-function addShot(sw, swingIndex){
-  const fix = currentFixOrNull();
+function addShot(sw, swingIndex, epImpact){
+  // Place the shot at the swing's own moment: for live swings ep ≈ now, but a
+  // swing replayed from the locked-phone buffer gets its position from the
+  // GPS trail at impact time, not from wherever the phone woke up.
+  const ep = epImpact || Date.now();
+  const fix = trailFixAt(ep) || currentFixOrNull();
   const shot = {
     n: round.shots.length + 1, hole: round.currentHole, club: currentClubTag(),
-    t: Date.now(), swingIndex,
+    t: ep, swingIndex,
     lat: fix ? fix.lat : null, lon: fix ? fix.lon : null,
     acc: fix ? Math.round(fix.acc) : null,
     hand_mph: +sw.metrics.hand_speed_mph.toFixed(1),
@@ -3293,7 +3326,18 @@ function initBleMode(){
   setSensorStatus("idle", "");
   renderAll();
   const det = new SwingDetector();
-  const onSample = s => {
+  // Timestamp continuity: every sensor (re)connect resets the DOT clock to 0,
+  // corrupting the stream's time axis (4 resets in one real round). Re-base
+  // here so the detector, rawLog, and CSV exports stay monotonic.
+  let contOff = 0, contLast = -Infinity;
+  const onSample = raw => {
+    let t = raw.t + contOff;
+    if (t < contLast - 0.5){
+      contOff = contLast + 2.0 - raw.t;
+      t = raw.t + contOff;
+    }
+    contLast = t;
+    const s = t === raw.t ? raw : Object.assign({}, raw, {t});
     rawLog.push(s);
     if (rawLog.length === 1) setConnectButton();  // reveal CSV button
     const rec = det.feed(s);
@@ -3304,7 +3348,7 @@ function initBleMode(){
       selected = swings.length - 1;
       cloudRecordSwing(sw, swings.length - 1);
       if (uiMode === "round" && round && !round.endedAt)
-        addShot(sw, swings.length - 1);
+        addShot(sw, swings.length - 1, rec.samples[rec.iImpact].ep || Date.now());
       renderAll();
     }
   };
@@ -4110,6 +4154,12 @@ function initMobile(){
   el("mNextBtn").addEventListener("click", () => changeHole(1));
   el("mMoreBtn").addEventListener("click", () => { el("mSheet").hidden = false; renderMobile(); });
   el("mSheetClose").addEventListener("click", () => { el("mSheet").hidden = true; });
+  el("mSensorBtn").addEventListener("click", () => {
+    el("mSheet").hidden = true;
+    const active = NATIVE_BLE ? nativeStreaming : !!bleDevice;
+    if (active){ toast("Sensor is already connected"); return; }
+    document.getElementById("connectBtn").click();   // native: opens the picker
+  });
   el("mUndoBtn").addEventListener("click", () => { el("mSheet").hidden = true; undoShot(); });
   el("mPenaltyBtn").addEventListener("click", () => {
     ensureHole(round.currentHole);
@@ -4565,6 +4615,8 @@ function renderMRound(){
       (measured ? ` · prev ${distDisp(measured.dist_m)}` : "");
   }
   el("mUnitBtn").textContent = round.unit === "yd" ? "Switch to meters" : "Switch to yards";
+  el("mSensorBtn").textContent = (NATIVE_BLE ? nativeStreaming : !!bleDevice)
+    ? "Sensor connected ✓" : "Reconnect sensor";
   el("mOrientBtn").textContent = mapOrient === "hole" ? "Switch to north-up map" : "Switch to hole-up map";
   updateMapOrientation();
   // hole grid inside the sheet
