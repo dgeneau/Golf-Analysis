@@ -166,6 +166,11 @@
      the iOS shell zeroes env() in its webview, so native code injects the
      real inset values into --sat/--sab after each page load. */
   :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
+  /* No page zoom: production apps don't scale their chrome. Double-tap zoom is
+     killed here; pinch is killed by the viewport meta (+ native lock in the
+     shell). Leaflet's own map pinch-zoom is unaffected — it handles touches
+     itself on the map element. */
+  html, body { touch-action: manipulation; }
   #mobileWrap, .mscreen { position: fixed; inset: 0; }
   #mobileWrap { z-index: 10; background: #0f110e; }
   .mscreen { display: flex; flex-direction: column; }

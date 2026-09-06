@@ -27,6 +27,13 @@ struct WebContainer: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
+        // The app UI must never scale like a web page. The page's viewport
+        // meta (user-scalable=no) is the primary lock; this pins the webview's
+        // own zoom as belt-and-braces. Map zoom is unaffected (Leaflet handles
+        // pinches itself).
+        webView.scrollView.bouncesZoom = false
+        webView.scrollView.minimumZoomScale = 1
+        webView.scrollView.maximumZoomScale = 1
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.06, alpha: 1)
         webView.navigationDelegate = context.coordinator
@@ -75,6 +82,9 @@ struct WebContainer: UIViewRepresentable {
         // The webview is full-bleed and env(safe-area-inset-*) reads 0 inside
         // it, so hand the page the real insets as CSS variables instead.
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // Navigation can reset the scroll view's zoom range — re-pin it.
+            webView.scrollView.minimumZoomScale = 1
+            webView.scrollView.maximumZoomScale = 1
             let ins = webView.safeAreaInsets
             let js = "document.documentElement.style.setProperty('--sat','\(max(ins.top, 20))px');"
                    + "document.documentElement.style.setProperty('--sab','\(max(ins.bottom, 16))px');"
