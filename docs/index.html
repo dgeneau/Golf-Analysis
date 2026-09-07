@@ -970,7 +970,7 @@ function swingClub(sw){
 function clubSpeedMph(sw){
   const m = sw.metrics;
   if (m.omega_impact_dps == null) return m.club_speed_est_mph;  // older data
-  const lever = swingClub(sw).inches * 0.0254;
+  const lever = swingClub(sw).inches * 0.0254 * EFF_LEVER_K;
   return (m.hand_speed_mps + m.omega_impact_dps * Math.PI/180 * lever) * 2.23694;
 }
 function initClubFilter(){
@@ -990,7 +990,7 @@ function initClubFilter(){
     if (!Number.isNaN(v)) customIn = Math.min(50, Math.max(30, v));
     document.getElementById("customWrap").hidden = clubId !== "custom";
     document.getElementById("leverNote").textContent =
-      `≈ ${leverMeters().toFixed(2)} m wrist→clubhead lever`;
+      `≈ ${leverMeters().toFixed(2)} m lever · ×1.40 release cal`;
     try { localStorage.setItem("swingcoach-club", JSON.stringify({id: clubId, in: customIn})); } catch (e) {}
     renderAll();
   };
@@ -999,7 +999,7 @@ function initClubFilter(){
   inp.addEventListener("input", apply);
   document.getElementById("customWrap").hidden = clubId !== "custom";
   document.getElementById("leverNote").textContent =
-    `≈ ${leverMeters().toFixed(2)} m wrist→clubhead lever`;
+    `≈ ${leverMeters().toFixed(2)} m lever · ×1.40 release cal`;
 }
 
 /* ================= PIPELINE-BEGIN (JS port of swingcoach detector/metrics/coach —
@@ -1009,6 +1009,11 @@ const P = {
   QUIET_TIME: 0.6, PRE_BUFFER: 3.0, MAX_SWING_WINDOW: 6.0,
   GYRO_CLIP: 1900.0, ACC_CLIP: 150.0, PAUSE_THRESH: 60.0,
 };
+// Effective-lever multiplier, field-calibrated vs Toptracer (2026-09-06,
+// data/range/2026-09-06-toptracer-calibration.md): the wrist gyro can't see
+// shaft rotation from release, so omega*club_length underreads ~1.3-1.6x.
+// Keep in lockstep with swingcoach/metrics.py EFF_LEVER_K.
+const EFF_LEVER_K = 1.40;
 const gmag = s => Math.hypot(s.gx, s.gy, s.gz);
 const amag = s => Math.hypot(s.ax, s.ay, s.az);
 
@@ -1148,7 +1153,7 @@ function computeMetricsJS(rec, leverM){
   for (let i = Math.max(i1, i2-1); i <= i2; i++) om = Math.max(om, gyro[i]);
   m.omega_impact_dps = om;
   m.peak_gyro_dps = Math.max(...gyro.slice(i1, i2+1));
-  m.club_speed_est_mph = (m.hand_speed_mps + om*Math.PI/180*leverM) * 2.23694;
+  m.club_speed_est_mph = (m.hand_speed_mps + om*Math.PI/180*leverM*EFF_LEVER_K) * 2.23694;
 
   let rot = 0;
   for (let i = i0 + 1; i <= i1; i++) rot += gyro[i]*(t[i]-t[i-1]);
@@ -3190,7 +3195,7 @@ const BLE = {
 };
 let bleDevice = null;
 let rawLog = [];
-const CSV_HEADER = "t,roll,pitch,yaw,ax,ay,az,gx,gy,gz";
+const CSV_HEADER = "t,roll,pitch,yaw,ax,ay,az,gx,gy,gz,club";
 
 function makeUnwrapper(){
   let first = null, lastRaw = null, offset = 0;
@@ -3279,6 +3284,10 @@ function renderPicker(){
 document.getElementById("mPickCancel").addEventListener("click", () => closePicker(true));
 
 let userDisconnected = false;
+// Stream watchdog (web BLE): the DOT can silently stop measuring while the
+// link stays up. setupStreaming refreshes these; a 5 s interval in
+// initBleMode restarts the stream, then escalates to a full reconnect.
+let bleRestart = null, bleLastSampleMs = 0, bleStallRetries = 0;
 
 async function setupStreaming(device, onSample){
   setSensorStatus("connected", "connecting…");
@@ -3294,10 +3303,18 @@ async function setupStreaming(device, onSample){
   const medium = await ms.getCharacteristic(BLE.mediumChar);
   const unwrap = makeUnwrapper();
   medium.addEventListener("characteristicvaluechanged", e => {
+    bleLastSampleMs = Date.now();
+    if (bleStallRetries){ bleStallRetries = 0; setSensorStatus("ready", "streaming at 60 Hz", battery); }
     try { onSample(parseCustomMode1(e.target.value, unwrap)); } catch (err) {}
   });
   await medium.startNotifications();
-  await (await ms.getCharacteristic(BLE.controlChar)).writeValue(new Uint8Array([1, 1, 22]));
+  const controlChar = await ms.getCharacteristic(BLE.controlChar);
+  await controlChar.writeValue(new Uint8Array([1, 1, 22]));
+  bleRestart = async () => {
+    try { await medium.startNotifications(); } catch (e) {}
+    await controlChar.writeValue(new Uint8Array([1, 1, 22]));
+  };
+  bleLastSampleMs = Date.now();   // grace period before the watchdog may fire
   setSensorStatus("ready", "streaming at 60 Hz", battery);
 }
 
@@ -3363,7 +3380,8 @@ function initBleMode(){
     }
     contLast = t;
     const s = t === raw.t ? raw : Object.assign({}, raw, {t});
-    rawLog.push(s);
+    s.club = clubId;   // tag every sample with the selected club, so range
+    rawLog.push(s);    // CSVs pair themselves in future calibration sessions
     if (rawLog.length === 1) setConnectButton();  // reveal CSV button
     const rec = det.feed(s);
     if (rec){
@@ -3411,7 +3429,7 @@ function initBleMode(){
     for (const s of rawLog)
       lines.push([s.t.toFixed(6), s.roll.toFixed(3), s.pitch.toFixed(3), s.yaw.toFixed(3),
                   s.ax.toFixed(4), s.ay.toFixed(4), s.az.toFixed(4),
-                  s.gx.toFixed(3), s.gy.toFixed(3), s.gz.toFixed(3)].join(","));
+                  s.gx.toFixed(3), s.gy.toFixed(3), s.gz.toFixed(3), s.club || ""].join(","));
     const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
     const name = `swingcoach-session-${stamp}.csv`;
     const blob = new Blob([lines.join("\n")], {type: "text/csv"});
@@ -3430,6 +3448,23 @@ function initBleMode(){
     a.click();
     URL.revokeObjectURL(a.href);
   });
+  // Web-BLE stream watchdog (the native shell has its own in Swift).
+  setInterval(async () => {
+    if (NATIVE_BLE || !bleDevice || userDisconnected) return;
+    if (STATUS.state !== "ready" && STATUS.state !== "connected") return;
+    if (!bleLastSampleMs || Date.now() - bleLastSampleMs < 5000){ return; }
+    if (bleStallRetries < 2 && bleRestart){
+      bleStallRetries++;
+      setSensorStatus("connected", "stream stalled — restarting…");
+      try { await bleRestart(); } catch (e) {}
+      bleLastSampleMs = Date.now();   // give the restart its own window
+    } else {
+      bleStallRetries = 0;
+      bleLastSampleMs = 0;            // paused until streaming resumes
+      setSensorStatus("scanning", "stream dead — reconnecting…");
+      try { bleDevice.gatt.disconnect(); } catch (e) {}  // auto-reconnect handler takes over
+    }
+  }, 5000);
   setConnectButton();
 }
 

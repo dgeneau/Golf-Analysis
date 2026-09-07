@@ -51,6 +51,15 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     private var appActive = true
     private let bufCap = 300_000        // ~80 min at 60 Hz; oldest dropped past this
 
+    // Stream watchdog: the DOT can silently drop out of measurement mode
+    // while the BLE link stays up (seen in the field: LED "connected" but no
+    // data, fixed only by power-cycling). Detect the silence and restart the
+    // stream ourselves — re-arm notifications + rewrite the start command,
+    // and if that fails twice, force a full reconnect cycle.
+    private var lastSampleAt: Date?
+    private var stallRetries = 0
+    private var watchdog: Timer?
+
     override init() {
         super.init()
         let nc = NotificationCenter.default
@@ -85,6 +94,38 @@ final class DotBluetoothManager: NSObject, ObservableObject {
             flushTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
                 self?.flushSamples()
             }
+        }
+        if watchdog == nil {
+            let t = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+                self?.watchdogTick()
+            }
+            t.tolerance = 1.0
+            watchdog = t
+        }
+    }
+
+    /// Runs every 5 s while connecting is wanted. In round mode the GPS trail
+    /// keeps the process alive in the background, so this fires there too.
+    private func watchdogTick() {
+        guard wantConnect, lastState == "ready",
+              let p = peripheral, p.state == .connected,
+              let last = lastSampleAt else { return }
+        let silence = Date().timeIntervalSince(last)
+        guard silence > 5 else { stallRetries = 0; return }
+        if stallRetries < 2 {
+            stallRetries += 1
+            status("connected", "stream stalled — restarting…")
+            if let mediumC { p.setNotifyValue(true, for: mediumC) }
+            if let controlC {
+                p.writeValue(Data([0x01, 0x01, DOT.payloadCustomMode1]),
+                             for: controlC, type: .withResponse)
+            }
+            lastSampleAt = Date()   // give the restart its own 5 s window
+        } else {
+            stallRetries = 0
+            lastSampleAt = nil      // paused until the reconnect streams again
+            status("scanning", "stream dead — reconnecting…")
+            central?.cancelPeripheralConnection(p)  // didDisconnect auto-reconnects
         }
     }
 
@@ -164,6 +205,8 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     }
 
     private func setupComplete() {
+        lastSampleAt = Date()   // grace period before the watchdog may fire
+        stallRetries = 0
         status("ready", "streaming at 60 Hz")
     }
 
@@ -190,6 +233,11 @@ final class DotBluetoothManager: NSObject, ObservableObject {
             Date().timeIntervalSince1970 * 1000)
         sampleBuf.append(json)
         if sampleBuf.count > bufCap { sampleBuf.removeFirst(sampleBuf.count - bufCap) }
+        lastSampleAt = Date()
+        if stallRetries > 0 {
+            stallRetries = 0
+            status("ready", "streaming at 60 Hz")   // recovered without reconnect
+        }
     }
 }
 

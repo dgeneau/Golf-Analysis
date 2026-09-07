@@ -28,6 +28,14 @@ GYRO_CLIP_DPS = 1900.0     # near the DOT's +/-2000 deg/s range
 ACC_CLIP_MS2 = 150.0       # near the +/-16 g (157 m/s^2) range
 DEFAULT_LEVER_M = 1.05     # wrist -> clubhead distance, driver ~1.05-1.15 m
 
+# Effective-lever multiplier, field-calibrated against a Toptracer Range
+# session (2026-09-06, data/range/2026-09-06-toptracer-calibration.md).
+# The wrist gyro cannot see the shaft rotation added by wrist release, so
+# v_hand + omega_wrist * club_length underreads club speed by ~1.3-1.6x;
+# k = 1.40 is the best single-factor fit across 8i / 5w / driver. This is a
+# personal calibration (Dan's release pattern), not a universal constant.
+EFF_LEVER_K = 1.40
+
 
 @dataclass
 class SwingMetrics:
@@ -122,7 +130,7 @@ def compute_metrics(rec: SwingRecord, lever_m: float = DEFAULT_LEVER_M) -> Swing
     omega_impact_rad = float(np.deg2rad(gyro_mag[max(i1, i2 - 1):i2 + 1].max()))
     m.omega_impact_dps = float(np.rad2deg(omega_impact_rad))
     m.peak_gyro_dps = float(gyro_mag[i1:i2 + 1].max())
-    v_club = m.hand_speed_mps + omega_impact_rad * lever_m
+    v_club = m.hand_speed_mps + omega_impact_rad * lever_m * EFF_LEVER_K
     m.club_speed_est_mph = v_club * 2.23694
 
     # --- backswing rotation: integrate gyro magnitude takeaway -> top -------
