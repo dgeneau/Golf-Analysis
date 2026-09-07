@@ -160,6 +160,13 @@
     box-shadow: 0 1px 5px rgba(0,0,0,.2); white-space: nowrap;
   }
   .leaflet-tooltip.distlabel::before { display: none; }
+  /* round replay: numbered shot pins + clickable round rows */
+  .shotpin { background: #3987e5; color: #fff; border: 2px solid #fcfcfb; border-radius: 50%;
+             width: 22px; height: 22px; line-height: 18px; text-align: center;
+             font: 700 11px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+  #raTable tr[data-round] { cursor: pointer; }
+  #raTable tr[data-round]:hover td { background: var(--band); }
+  #raTable tr.sel td { background: var(--band); }
 
   /* ---------- 1c mobile layer ---------- */
   /* Safe-area insets as vars: browsers get env() (with viewport-fit=cover);
@@ -640,6 +647,7 @@
       <div class="card">
         <h2>Sessions</h2>
         <div class="scroll-x"><table class="all" id="progTable"></table></div>
+        <button class="btn secondary" id="progMore" hidden style="margin-top:10px"></button>
       </div>
       <div class="card">
         <h2>Round analytics</h2>
@@ -671,8 +679,16 @@
           </div>
           <div class="card">
             <h2>Rounds</h2>
+            <p class="note">Click a round to replay its shots on the map below.</p>
             <div class="scroll-x"><table class="all" id="raTable"></table></div>
             <p class="note">Honesty notes: putting SG is approximate (we track putt counts, not putt distances — baseline 1.9 expected putts per green); holes with penalty strokes count in scoring but are excluded from SG (the position chain has invisible strokes); holes without GPS positions or OSM geometry are excluded from position-based stats.</p>
+          </div>
+          <div class="card" id="raReplayCard" hidden>
+            <h2 id="raReplayTitle">Round replay</h2>
+            <p class="note">Numbered pins are tracked strokes in order; putts are counted on the scorecard but have no GPS. Pick a hole to zoom.</p>
+            <div class="chips" id="raHoleChips" style="margin:2px 0 10px"></div>
+            <div id="replayMap" style="height:440px;border-radius:12px;overflow:hidden"></div>
+            <p class="note" id="raHoleInfo" style="margin-top:8px"></p>
           </div>
         </div>
       </div>
@@ -2729,6 +2745,7 @@ function initRoundControls(){
     g.hidden = !g.hidden;
     renderHoleGrid();
   });
+  on("progMore", () => { progShowAll = !progShowAll; renderProgressCharts(); });
   on("findCourseBtn", () => searchCourses(document.getElementById("courseSearch").value.trim() || null));
   on("nearbyCourseBtn", () => searchCourses(null));
   document.getElementById("courseSearch").addEventListener("input", courseAutocomplete);
@@ -2779,20 +2796,29 @@ let progressData = null;   // [{sessionId, date, swings:[{club_id, tempo, club_m
 async function loadProgress(){
   progressData = null;
   if (!sb || !sbUser){ renderAll(); return; }
-  const {data, error} = await sb.from("swings")
-    .select("session_id,ts,club_id,club_inches,tempo,club_mph,hand_mph")
-    .order("ts", {ascending: true}).limit(10000);
-  if (error){ progressData = {error: error.message}; renderAll(); return; }
+  const [swingsQ, sessQ] = await Promise.all([
+    sb.from("swings")
+      .select("session_id,ts,club_id,club_inches,tempo,club_mph,hand_mph")
+      .order("ts", {ascending: true}).limit(10000),
+    sb.from("sessions").select("id,type,course_name").limit(1000),
+  ]);
+  if (swingsQ.error){ progressData = {error: swingsQ.error.message}; renderAll(); return; }
+  const meta = new Map((sessQ.data || []).map(s => [s.id, s]));
   const map = new Map();
-  for (const r of data || []){
-    if (!map.has(r.session_id))
-      map.set(r.session_id, {date: r.ts, swings: []});
+  for (const r of swingsQ.data || []){
+    if (!map.has(r.session_id)){
+      const m = meta.get(r.session_id);
+      map.set(r.session_id, {date: r.ts, swings: [],
+        kind: m && m.type === "round" ? ("Round" + (m.course_name ? " · " + m.course_name : ""))
+                                      : "Range"});
+    }
     map.get(r.session_id).swings.push(r);
   }
   progressData = [...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
   loadRoundAnalytics();
   renderAll();
 }
+let progShowAll = false;   // sessions table: latest few by default
 function lineChart(hostId, pts, opts){
   const host = document.getElementById(hostId);
   host.textContent = "";
@@ -2868,21 +2894,26 @@ function renderProgressCharts(){
     {label:"Average club speed per session", series:"avg est. club", unit:" mph"});
   const t = document.getElementById("progTable");
   t.textContent = "";
-  const head = ["Date","Swings","Avg tempo","Avg hand (mph)","Avg est. club (mph)","Best est. club"];
+  const head = ["Date","Type","Swings","Avg tempo","Avg hand (mph)","Avg est. club (mph)","Best est. club"];
   const tr = document.createElement("tr");
   for (const h of head){ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); }
   t.appendChild(tr);
-  for (const s of [...progressData].reverse()){
+  const all = [...progressData].reverse();
+  const shown = progShowAll ? all : all.slice(0, 8);
+  for (const s of shown){
     const row = document.createElement("tr");
     const cl = s.swings.map(w=>+w.club_mph);
-    [new Date(s.date).toLocaleDateString(), String(s.swings.length),
+    [new Date(s.date).toLocaleDateString(), s.kind || "Range", String(s.swings.length),
      avg(s.swings.map(w=>+w.tempo)).toFixed(2),
      avg(s.swings.map(w=>+w.hand_mph)).toFixed(1),
      avg(cl).toFixed(1), Math.max(...cl).toFixed(1)]
       .forEach((c,k)=>{ const td=document.createElement("td"); td.textContent=c;
-                        if(k===0) td.style.textAlign="left"; row.appendChild(td); });
+                        if(k<=1) td.style.textAlign="left"; row.appendChild(td); });
     t.appendChild(row);
   }
+  const more = document.getElementById("progMore");
+  more.hidden = all.length <= 8;
+  more.textContent = progShowAll ? "Show recent only" : `Show all ${all.length} sessions`;
   renderRoundAnalytics();   // uses cached raData; distance chart follows the club selector
 }
 
@@ -2941,7 +2972,8 @@ function analyzeRound(sess, shots, holeRows, geom){
   const r = {id: sess.id, date: sess.started_at, course: sess.course_name || "—",
              holesPlayed: 0, score: 0, toPar: 0, parKnown: 0, putts: 0,
              firHit: 0, firElig: 0, girHit: 0, girElig: 0,
-             sg: {ott: 0, app: 0, short: 0, putt: 0}, sgHoles: 0, dists: []};
+             sg: {ott: 0, app: 0, short: 0, putt: 0}, sgHoles: 0, dists: [],
+             holes: []};   // per-hole detail for the replay map
   const byHole = new Map();
   for (const s of shots){
     if (!byHole.has(s.hole)) byHole.set(s.hole, []);
@@ -2965,6 +2997,11 @@ function analyzeRound(sess, shots, holeRows, geom){
       r.girElig++;
       if (hs.length <= par - 2) r.girHit++;
     }
+    r.holes.push({hole: holeNo, par, putts, pens, strokes: hs.length,
+                  completed,
+                  shots: hs.map(s => ({seq: s.seq, club: s.club_id,
+                                       lat: s.lat, lon: s.lon,
+                                       yd: s.dist_m != null ? s.dist_m * RA_YD : null}))});
     const pos = hs.map(s => (s.lat != null ? [s.lat, s.lon] : null));
     // fairway hit: par 4/5, judged where the SECOND stroke was taken from
     if (par >= 4 && geom && (geom.fairways || []).length && pos[0]){
@@ -2995,6 +3032,8 @@ function analyzeRound(sess, shots, holeRows, geom){
       }
     }
   }
+  r.holes.sort((a, b) => a.hole - b.hole);
+  r.geom = geom;   // for the replay map (greens/fairways/hole lines)
   return r;
 }
 async function loadRoundAnalytics(){
@@ -3179,7 +3218,131 @@ function renderRoundAnalytics(){
      r.sgHoles ? fmtSg(total) : "—"]
       .forEach((c, k) => { const td = document.createElement("td"); td.textContent = c;
                            if (k <= 1) td.style.textAlign = "left"; row.appendChild(td); });
+    row.dataset.round = r.id;
+    row.addEventListener("click", () => openReplay(r, row));
+    if (replayRound && replayRound.id === r.id) row.classList.add("sel");
     t.appendChild(row);
+  }
+  if (replayRound && !rounds.some(r => r.id === replayRound.id)) closeReplay();
+}
+
+/* ---------- Round replay: shots per hole on the course map ---------- */
+let replayRound = null, replayMap = null, replayLayer = null, replayHole = "all";
+async function ensureReplayMap(){
+  if (replayMap) return replayMap;
+  await Promise.all([loadCss(LEAFLET_CSS),
+                     window.L ? Promise.resolve() : loadScript(LEAFLET_JS)]);
+  replayMap = L.map("replayMap", {zoomControl: true});
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {maxZoom: 20, attribution: "Tiles © Esri — Maxar, Earthstar Geographics"}).addTo(replayMap);
+  replayLayer = L.layerGroup().addTo(replayMap);
+  return replayMap;
+}
+function replayClubName(id){
+  const c = id && CLUBS.find(x => x.id === id);
+  return c ? c.name : (id || "");
+}
+async function openReplay(r, rowEl){
+  replayRound = r; replayHole = "all";
+  const card = document.getElementById("raReplayCard");
+  card.hidden = false;
+  document.getElementById("raReplayTitle").textContent =
+    `Round replay — ${r.course}, ${new Date(r.date).toLocaleDateString()}`;
+  for (const tr of document.querySelectorAll("#raTable tr")) tr.classList.remove("sel");
+  if (rowEl) rowEl.classList.add("sel");
+  // hole chips
+  const chips = document.getElementById("raHoleChips");
+  chips.textContent = "";
+  const mkChip = (label, key) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = label;
+    b.setAttribute("aria-pressed", String(replayHole === key));
+    b.addEventListener("click", () => { replayHole = key; drawReplay(); });
+    chips.appendChild(b);
+  };
+  mkChip("All", "all");
+  for (const h of r.holes) mkChip(String(h.hole), h.hole);
+  try { await ensureReplayMap(); } catch (e){
+    document.getElementById("replayMap").textContent = "Map couldn't load (offline?)";
+    return;
+  }
+  card.scrollIntoView({behavior: "smooth", block: "nearest"});
+  setTimeout(() => { replayMap.invalidateSize(); drawReplay(); }, 60);
+}
+function closeReplay(){
+  replayRound = null;
+  document.getElementById("raReplayCard").hidden = true;
+}
+function drawReplay(){
+  const r = replayRound;
+  if (!r || !replayMap) return;
+  // chip pressed states
+  const chips = document.querySelectorAll("#raHoleChips .chip");
+  chips.forEach(c => c.setAttribute("aria-pressed",
+    String(String(replayHole) === c.textContent || (replayHole === "all" && c.textContent === "All"))));
+  replayLayer.clearLayers();
+  const geom = r.geom;
+  const showHoles = replayHole === "all" ? r.holes : r.holes.filter(h => h.hole === replayHole);
+  // course geometry: fairways faint, greens, this hole's line dashed
+  if (geom){
+    for (const f of geom.fairways || [])
+      L.polygon(f.poly, {color: "#9ecf6f", weight: 1, opacity: 0.5,
+                         fillColor: "#9ecf6f", fillOpacity: 0.12}).addTo(replayLayer);
+    for (const g of geom.greens || [])
+      L.polygon(g.poly, {color: "#1baf7a", weight: 2,
+                         fillColor: "#1baf7a", fillOpacity: 0.25}).addTo(replayLayer);
+    for (const h of showHoles){
+      const line = (geom.holes || []).find(x => x.ref === h.hole);
+      if (line && line.line && line.line.length > 1)
+        L.polyline(line.line, {color: "#fcfcfb", weight: 1.5, opacity: 0.7,
+                               dashArray: "6 6"}).addTo(replayLayer);
+    }
+  }
+  // shots: polyline through fixes + numbered pins
+  const bounds = [];
+  for (const h of showHoles){
+    const fixes = h.shots.filter(s => s.lat != null).map(s => [s.lat, s.lon]);
+    if (fixes.length > 1)
+      L.polyline(fixes, {color: "#3987e5", weight: 3, opacity: 0.9}).addTo(replayLayer);
+    h.shots.forEach((s, i) => {
+      if (s.lat == null) return;
+      bounds.push([s.lat, s.lon]);
+      const pin = L.marker([s.lat, s.lon], {icon: L.divIcon({
+        className: "", html: `<div class="shotpin">${i + 1}</div>`,
+        iconSize: [22, 22], iconAnchor: [11, 11]})}).addTo(replayLayer);
+      pin.bindTooltip(`Hole ${h.hole} · shot ${i + 1}` +
+        (s.club ? ` · ${replayClubName(s.club)}` : "") +
+        (s.yd != null ? ` · ${Math.round(s.yd)} yd` : ""),
+        {className: "distlabel", direction: "top", offset: [0, -10]});
+    });
+    // frame the mapped hole too, so tee/green context is visible
+    if (replayHole !== "all" && geom){
+      const line = (geom.holes || []).find(x => x.ref === h.hole);
+      if (line && line.line) bounds.push(...line.line);
+    }
+  }
+  if (bounds.length) replayMap.fitBounds(L.latLngBounds(bounds).pad(0.18));
+  // info line
+  const info = document.getElementById("raHoleInfo");
+  if (replayHole === "all"){
+    const tracked = r.holes.reduce((a, h) => a + h.strokes, 0);
+    const pl = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    info.textContent = `${pl(r.holesPlayed, "hole")} · ${pl(tracked, "tracked stroke")}` +
+      (r.putts ? ` + ${pl(r.putts, "putt")}` : "") +
+      (r.parKnown ? ` · score ${r.score} (${r.toPar >= 0 ? "+" : ""}${r.toPar}) over ${pl(r.parKnown, "hole")} with par` : "");
+  } else {
+    const h = showHoles[0];
+    if (h){
+      const bits = [`Hole ${h.hole}`];
+      if (h.par) bits.push(`par ${h.par}`);
+      bits.push(`${h.strokes} tracked stroke${h.strokes === 1 ? "" : "s"}`);
+      if (h.putts) bits.push(`${h.putts} putt${h.putts === 1 ? "" : "s"}`);
+      if (h.pens) bits.push(`${h.pens} penalt${h.pens === 1 ? "y" : "ies"}`);
+      if (h.par && h.completed)
+        bits.push(`total ${h.strokes + h.putts + h.pens} (${h.strokes + h.putts + h.pens - h.par >= 0 ? "+" : ""}${h.strokes + h.putts + h.pens - h.par})`);
+      if (!h.completed) bits.push("no putts recorded — hole may be incomplete");
+      info.textContent = bits.join(" · ");
+    }
   }
 }
 
