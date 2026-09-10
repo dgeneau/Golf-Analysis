@@ -261,6 +261,9 @@
            border-radius: 12px; padding: 16px 18px; }
   #mRound { background: #e9e4d3; }
   #mMapSlot, #mMapSlot #map { position: absolute; inset: 0; height: 100% !important; border-radius: 0 !important; }
+  /* contain Leaflet's internal pane z-indexes (200-700) inside every map,
+     so no map can paint over the mobile layer (z 10) from underneath it */
+  #map, #replayMap { position: relative; z-index: 0; }
   #mMapSlot .leaflet-control-zoom { display: none; }  /* pinch-zoom; controls collide with cards */
   .mprimary, .mghost, .mblue { white-space: nowrap; }
   .movl { position: absolute; background: #f8f6ee; color: #23221c; border: 1px solid #ddd7c4;
@@ -698,7 +701,10 @@
             <h2 id="raReplayTitle">Round replay</h2>
             <p class="note">Numbered pins are tracked strokes in order; putts are counted on the scorecard but have no GPS. Pick a hole to zoom.</p>
             <div class="chips" id="raHoleChips" style="margin:2px 0 10px"></div>
-            <div id="replayMap" style="height:440px;border-radius:12px;overflow:hidden"></div>
+            <!-- position+z-index make a stacking context: Leaflet panes carry
+                 z-index 200-700 and would otherwise paint OVER the mobile
+                 layer (z 10) when the app returns from the full dashboard -->
+            <div id="replayMap" style="height:440px;border-radius:12px;overflow:hidden;position:relative;z-index:0"></div>
             <p class="note" id="raHoleInfo" style="margin-top:8px"></p>
           </div>
         </div>
@@ -4371,7 +4377,10 @@ function initMobile(){
   el("mSummaryBtn").addEventListener("click", () => { mScreen = "summary"; renderAll(); });
   el("mSummaryBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
   el("mClassicBtn").addEventListener("click", () => { mScreen = "classic"; setMode("range"); });
-  el("classicBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
+  el("classicBack").addEventListener("click", () => {
+    mScreen = "range";
+    setMode("range");   // leave Progress too — its replay map must not live under the app
+  });
   el("mStartBtn").addEventListener("click", () => {
     newRound();
     round.currentHole = parseInt(el("mStartHole").value) || 1;
