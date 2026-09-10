@@ -32,9 +32,9 @@ _Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerD
     }
     [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc"; @line = 13; @symbol_functiondef = [onSelect,13,13,21]; @symbol_return<0> = [Boolean,13,27,34]; ]
     function onSelect() as Boolean {
-_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_25_4_start:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_30_4_start:
 [ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 14 8 ]
-        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_25_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_25_4_stop" ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_30_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_30_4_stop" ]
         %app.1 = local;
         symbol [ app %app.1 14 12 15 ];
         symbol [ Application %tmp.2 14 18 29 ];
@@ -47,7 +47,7 @@ _Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerD
         lputv %app.1 %tmp.5;
         symbol [ app %app.1 14 12 15 ];
 [ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 15 8 ]
-        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_25_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_25_4_stop" ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_30_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_30_4_stop" ]
         %rec.2 = local;
         symbol [ rec %rec.2 15 12 15 ];
         %tmp.6 = lgetv %app.1;
@@ -122,19 +122,67 @@ _Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerD
         %tmp.34 = getv function %tmp.33 :requestUpdate;
         invoke %tmp.33 %tmp.34();
 [ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 23 8 ]
-        symbol [ Uploader %tmp.36 23 8 16 ];
+        try @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_beginTry @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_endTry @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_catch @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_finally;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_beginTry:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_12_25_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 24 12 ]
+        symbol [ Uploader %tmp.36 24 12 20 ];
         %tmp.36 = getv ? :Uploader;
-        symbol [ uploadAll %tmp.37 23 17 26 ];
+        symbol [ uploadAll %tmp.37 24 21 30 ];
         %tmp.37 = getv function %tmp.36 :uploadAll;
         %tmp.38 = lgetv %rec.2;
-        symbol [ rec %tmp.38 23 27 30 ];
-        symbol [ _view %tmp.40 23 32 37 ];
+        symbol [ rec %tmp.38 24 31 34 ];
+        symbol [ _view %tmp.40 24 36 41 ];
         %tmp.40 = getv ? :_view;
         invoke %tmp.36 %tmp.37(%tmp.38, %tmp.40);
-[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 24 8 ]
-        %tmp.41 = true;
-        ret %tmp.41;
-_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_25_4_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_12_25_8_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_endTry:
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_finally;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_catch:
+        %tmp.41 = exception;
+        push %tmp.41;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 25 10 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_catch" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_25_10_28_8_end" ]
+        %ex.3 = local;
+        symbol [ ex %ex.3 25 17 19 ];
+        %tmp.42 = dup %tmp.41;
+        lputv %ex.3 %tmp.42;
+        symbol [ ex %ex.3 25 17 19 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_25_21_28_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 26 12 ]
+        %tmp.43 = lgetv %rec.2;
+        symbol [ rec %tmp.43 26 12 15 ];
+        %tmp.44 = "UPLOAD ";
+        %tmp.45 = lgetv %ex.3;
+        symbol [ ex %tmp.45 26 34 36 ];
+        symbol [ getErrorMessage %tmp.46 26 37 52 ];
+        %tmp.46 = getv function %tmp.45 :getErrorMessage;
+        %tmp.47 = invoke %tmp.45 %tmp.46();
+        %tmp.48 = add %tmp.44 %tmp.47;
+        symbol [ err ? 26 16 19 ];
+        putv %tmp.43 :err %tmp.48;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 27 12 ]
+        symbol [ WatchUi %tmp.49 27 12 19 ];
+        %tmp.49 = getm $.Toybox.WatchUi;
+        symbol [ requestUpdate %tmp.50 27 20 33 ];
+        %tmp.50 = getv function %tmp.49 :requestUpdate;
+        invoke %tmp.49 %tmp.50();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_25_21_28_8_stop:
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_finally;
+        pop;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_25_10_28_8_end:
+        try @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_catch @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_25_10_28_8_end @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_25_10_28_8_end @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_finally;
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_finally;
+        throw %tmp.41;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_finally:
+        jsrret;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_23_8_28_8_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" 29 8 ]
+        %tmp.51 = true;
+        ret %tmp.51;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerDelegate_mc_13_35_30_4_stop:
     }
 }
 [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc"; @line = 2; ]

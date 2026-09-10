@@ -5,9 +5,9 @@
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" id="1" lineNum="8" parent="globals/GLoggerApp" pc="268435457" symbol="&lt;init&gt;"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="2" lineNum="7" parent="globals/GLoggerView" pc="268435476" symbol="&lt;init&gt;"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/gen/006-B3225-00/source/Rez.mcgen" id="3" lineNum="7" parent="globals/Rez" pc="268435495" symbol="&lt;init&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="4" lineNum="25" parent="globals/Recorder" pc="268435519" symbol="&lt;init&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="4" lineNum="29" parent="globals/Recorder" pc="268435533" symbol="&lt;init&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="4" lineNum="30" parent="globals/Recorder" pc="268435547" symbol="&lt;init&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="4" lineNum="26" parent="globals/Recorder" pc="268435519" symbol="&lt;init&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="4" lineNum="30" parent="globals/Recorder" pc="268435533" symbol="&lt;init&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="4" lineNum="31" parent="globals/Recorder" pc="268435547" symbol="&lt;init&gt;"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="5" lineNum="5" parent="globals/GLoggerDelegate" pc="268435562" symbol="&lt;init&gt;"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" id="6" lineNum="15" parent="globals/GLoggerApp" pc="268435581" symbol="onStart"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" id="6" lineNum="16" parent="globals/GLoggerApp" pc="268435583" symbol="onStart"/>
@@ -33,138 +33,167 @@
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="22" parent="globals/GLoggerView" pc="268435919" symbol="onUpdate"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="23" parent="globals/GLoggerView" pc="268435946" symbol="onUpdate"/>
         <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="24" parent="globals/GLoggerView" pc="268435953" symbol="onUpdate"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="25" parent="globals/GLoggerView" pc="268435987" symbol="onUpdate"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="26" parent="globals/GLoggerView" pc="268436014" symbol="onUpdate"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="27" parent="globals/GLoggerView" pc="268436058" symbol="onUpdate"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="28" parent="globals/GLoggerView" pc="268436086" symbol="onUpdate"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="30" parent="globals/GLoggerView" pc="268436113" symbol="onUpdate"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="42" parent="globals/Recorder" pc="268436148" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="45" parent="globals/Recorder" pc="268436152" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="46" parent="globals/Recorder" pc="268436199" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="47" parent="globals/Recorder" pc="268436217" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="48" parent="globals/Recorder" pc="268436227" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="49" parent="globals/Recorder" pc="268436251" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="50" parent="globals/Recorder" pc="268436272" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="51" parent="globals/Recorder" pc="268436285" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="52" parent="globals/Recorder" pc="268436295" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="53" parent="globals/Recorder" pc="268436307" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="54" parent="globals/Recorder" pc="268436360" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="58" parent="globals/Recorder" pc="268436387" symbol="start"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="68" parent="globals/Recorder" pc="268436401" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="69" parent="globals/Recorder" pc="268436405" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="73" parent="globals/Recorder" pc="268436460" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="74" parent="globals/Recorder" pc="268436465" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="77" parent="globals/Recorder" pc="268436499" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="78" parent="globals/Recorder" pc="268436533" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="79" parent="globals/Recorder" pc="268436536" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="80" parent="globals/Recorder" pc="268436540" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="90" parent="globals/Recorder" pc="268436546" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="91" parent="globals/Recorder" pc="268436550" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="92" parent="globals/Recorder" pc="268436560" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="92" parent="globals/Recorder" pc="268436566" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="93" parent="globals/Recorder" pc="268436567" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="94" parent="globals/Recorder" pc="268436577" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="95" parent="globals/Recorder" pc="268436596" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="96" parent="globals/Recorder" pc="268436630" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="97" parent="globals/Recorder" pc="268436634" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="98" parent="globals/Recorder" pc="268436650" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="100" parent="globals/Recorder" pc="268436666" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="101" parent="globals/Recorder" pc="268436681" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="102" parent="globals/Recorder" pc="268436720" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="103" parent="globals/Recorder" pc="268436741" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="103" parent="globals/Recorder" pc="268436749" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="103" parent="globals/Recorder" pc="268436762" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="103" parent="globals/Recorder" pc="268436775" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="104" parent="globals/Recorder" pc="268436788" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="105" parent="globals/Recorder" pc="268436807" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="105" parent="globals/Recorder" pc="268436818" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="107" parent="globals/Recorder" pc="268436822" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="108" parent="globals/Recorder" pc="268436833" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="109" parent="globals/Recorder" pc="268436856" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="109" parent="globals/Recorder" pc="268436876" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="109" parent="globals/Recorder" pc="268436896" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="110" parent="globals/Recorder" pc="268436916" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="110" parent="globals/Recorder" pc="268436936" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="110" parent="globals/Recorder" pc="268436956" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="113" parent="globals/Recorder" pc="268436979" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="113" parent="globals/Recorder" pc="268436999" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="113" parent="globals/Recorder" pc="268437019" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="114" parent="globals/Recorder" pc="268437039" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="114" parent="globals/Recorder" pc="268437059" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="114" parent="globals/Recorder" pc="268437079" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="116" parent="globals/Recorder" pc="268437099" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="117" parent="globals/Recorder" pc="268437131" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="122" parent="globals/Recorder" pc="268437190" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="123" parent="globals/Recorder" pc="268437207" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="124" parent="globals/Recorder" pc="268437217" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="125" parent="globals/Recorder" pc="268437248" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="126" parent="globals/Recorder" pc="268437262" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="127" parent="globals/Recorder" pc="268437275" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="128" parent="globals/Recorder" pc="268437290" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="130" parent="globals/Recorder" pc="268437359" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="131" parent="globals/Recorder" pc="268437370" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="133" parent="globals/Recorder" pc="268437405" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="134" parent="globals/Recorder" pc="268437445" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="135" parent="globals/Recorder" pc="268437455" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="135" parent="globals/Recorder" pc="268437481" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="136" parent="globals/Recorder" pc="268437512" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="137" parent="globals/Recorder" pc="268437538" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="138" parent="globals/Recorder" pc="268437552" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="141" parent="globals/Recorder" pc="268437566" symbol="onData"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="84" parent="globals/Recorder" pc="268437583" symbol="stop"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="86" parent="globals/Recorder" pc="268437587" symbol="stop"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="87" parent="globals/Recorder" pc="268437604" symbol="stop"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="16" lineNum="63" parent="globals/Recorder" pc="268437612" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="16" lineNum="64" parent="globals/Recorder" pc="268437614" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="16" lineNum="65" parent="globals/Recorder" pc="268437636" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="50" parent="globals/Uploader" pc="268437659" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="51" parent="globals/Uploader" pc="268437669" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="52" parent="globals/Uploader" pc="268437688" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="52" parent="globals/Uploader" pc="268437710" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="53" parent="globals/Uploader" pc="268437729" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="54" parent="globals/Uploader" pc="268437742" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="18" lineNum="57" parent="globals/Uploader" pc="268437819" symbol="onResponse"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="21" parent="globals/Uploader" pc="268437836" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="22" parent="globals/Uploader" pc="268437848" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="23" parent="globals/Uploader" pc="268437858" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="24" parent="globals/Uploader" pc="268437883" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="25" parent="globals/Uploader" pc="268437896" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="26" parent="globals/Uploader" pc="268437913" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="27" parent="globals/Uploader" pc="268437943" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="28" parent="globals/Uploader" pc="268437956" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="19" lineNum="37" parent="globals/Uploader" pc="268438073" symbol="uploadAll"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="20" lineNum="8" parent="globals/GLoggerDelegate" pc="268438241" symbol="initialize"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="20" lineNum="9" parent="globals/GLoggerDelegate" pc="268438243" symbol="initialize"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="20" lineNum="10" parent="globals/GLoggerDelegate" pc="268438261" symbol="initialize"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="13" parent="globals/GLoggerDelegate" pc="268438272" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="14" parent="globals/GLoggerDelegate" pc="268438276" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="15" parent="globals/GLoggerDelegate" pc="268438293" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="16" parent="globals/GLoggerDelegate" pc="268438303" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="17" parent="globals/GLoggerDelegate" pc="268438335" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="18" parent="globals/GLoggerDelegate" pc="268438354" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="19" parent="globals/GLoggerDelegate" pc="268438370" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="21" parent="globals/GLoggerDelegate" pc="268438373" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="22" parent="globals/GLoggerDelegate" pc="268438416" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="23" parent="globals/GLoggerDelegate" pc="268438432" symbol="onSelect"/>
-        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="21" lineNum="24" parent="globals/GLoggerDelegate" pc="268438458" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="26" parent="globals/GLoggerView" pc="268435966" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="27" parent="globals/GLoggerView" pc="268435988" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="28" parent="globals/GLoggerView" pc="268436007" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="29" parent="globals/GLoggerView" pc="268436038" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="30" parent="globals/GLoggerView" pc="268436065" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="31" parent="globals/GLoggerView" pc="268436075" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="32" parent="globals/GLoggerView" pc="268436082" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="33" parent="globals/GLoggerView" pc="268436106" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="34" parent="globals/GLoggerView" pc="268436147" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="36" parent="globals/GLoggerView" pc="268436188" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="38" parent="globals/GLoggerView" pc="268436219" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="40" parent="globals/GLoggerView" pc="268436220" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="41" parent="globals/GLoggerView" pc="268436254" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="42" parent="globals/GLoggerView" pc="268436281" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="43" parent="globals/GLoggerView" pc="268436325" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="44" parent="globals/GLoggerView" pc="268436353" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" id="11" lineNum="46" parent="globals/GLoggerView" pc="268436380" symbol="onUpdate"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="43" parent="globals/Recorder" pc="268436415" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="46" parent="globals/Recorder" pc="268436419" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="47" parent="globals/Recorder" pc="268436466" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="48" parent="globals/Recorder" pc="268436484" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="49" parent="globals/Recorder" pc="268436494" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="50" parent="globals/Recorder" pc="268436518" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="51" parent="globals/Recorder" pc="268436539" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="52" parent="globals/Recorder" pc="268436552" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="53" parent="globals/Recorder" pc="268436562" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="54" parent="globals/Recorder" pc="268436574" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="55" parent="globals/Recorder" pc="268436627" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="12" lineNum="59" parent="globals/Recorder" pc="268436654" symbol="start"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="63" parent="globals/Recorder" pc="268436668" symbol="&lt;globals/Recorder/&lt;&gt;_num&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="13" lineNum="64" parent="globals/Recorder" pc="268436670" symbol="&lt;globals/Recorder/&lt;&gt;_num&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="74" parent="globals/Recorder" pc="268436687" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="75" parent="globals/Recorder" pc="268436691" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="79" parent="globals/Recorder" pc="268436746" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="80" parent="globals/Recorder" pc="268436751" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="83" parent="globals/Recorder" pc="268436785" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="84" parent="globals/Recorder" pc="268436819" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="85" parent="globals/Recorder" pc="268436822" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="14" lineNum="86" parent="globals/Recorder" pc="268436826" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="96" parent="globals/Recorder" pc="268436832" symbol="onData"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="101" parent="globals/Recorder" pc="268436836" symbol="onData"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="102" parent="globals/Recorder" pc="268436851" symbol="onData"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="103" parent="globals/Recorder" pc="268436855" symbol="onData"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="104" parent="globals/Recorder" pc="268436880" symbol="onData"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="15" lineNum="105" parent="globals/Recorder" pc="268436892" symbol="onData"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="16" lineNum="90" parent="globals/Recorder" pc="268436912" symbol="stop"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="16" lineNum="92" parent="globals/Recorder" pc="268436916" symbol="stop"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="16" lineNum="93" parent="globals/Recorder" pc="268436933" symbol="stop"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="17" lineNum="69" parent="globals/Recorder" pc="268436941" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="17" lineNum="70" parent="globals/Recorder" pc="268436943" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="17" lineNum="71" parent="globals/Recorder" pc="268436965" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="109" parent="globals/Recorder" pc="268436988" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="110" parent="globals/Recorder" pc="268436992" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="111" parent="globals/Recorder" pc="268437002" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="111" parent="globals/Recorder" pc="268437008" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="114" parent="globals/Recorder" pc="268437009" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="115" parent="globals/Recorder" pc="268437039" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="115" parent="globals/Recorder" pc="268437057" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="116" parent="globals/Recorder" pc="268437058" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="117" parent="globals/Recorder" pc="268437068" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="118" parent="globals/Recorder" pc="268437089" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="119" parent="globals/Recorder" pc="268437110" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="120" parent="globals/Recorder" pc="268437131" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="121" parent="globals/Recorder" pc="268437144" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="122" parent="globals/Recorder" pc="268437172" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="123" parent="globals/Recorder" pc="268437176" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="124" parent="globals/Recorder" pc="268437192" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="126" parent="globals/Recorder" pc="268437208" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="127" parent="globals/Recorder" pc="268437223" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="128" parent="globals/Recorder" pc="268437277" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="129" parent="globals/Recorder" pc="268437298" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="129" parent="globals/Recorder" pc="268437306" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="129" parent="globals/Recorder" pc="268437324" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="129" parent="globals/Recorder" pc="268437342" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="130" parent="globals/Recorder" pc="268437360" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="131" parent="globals/Recorder" pc="268437379" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="131" parent="globals/Recorder" pc="268437390" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="133" parent="globals/Recorder" pc="268437394" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="134" parent="globals/Recorder" pc="268437405" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="135" parent="globals/Recorder" pc="268437428" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="135" parent="globals/Recorder" pc="268437448" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="135" parent="globals/Recorder" pc="268437468" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="136" parent="globals/Recorder" pc="268437488" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="136" parent="globals/Recorder" pc="268437508" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="136" parent="globals/Recorder" pc="268437528" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="139" parent="globals/Recorder" pc="268437551" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="139" parent="globals/Recorder" pc="268437571" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="139" parent="globals/Recorder" pc="268437591" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="140" parent="globals/Recorder" pc="268437611" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="140" parent="globals/Recorder" pc="268437631" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="140" parent="globals/Recorder" pc="268437651" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="142" parent="globals/Recorder" pc="268437671" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="143" parent="globals/Recorder" pc="268437703" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="148" parent="globals/Recorder" pc="268437762" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="149" parent="globals/Recorder" pc="268437779" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="150" parent="globals/Recorder" pc="268437789" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="151" parent="globals/Recorder" pc="268437820" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="152" parent="globals/Recorder" pc="268437834" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="153" parent="globals/Recorder" pc="268437847" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="154" parent="globals/Recorder" pc="268437862" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="156" parent="globals/Recorder" pc="268437931" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="157" parent="globals/Recorder" pc="268437942" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="159" parent="globals/Recorder" pc="268437977" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="160" parent="globals/Recorder" pc="268438017" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="161" parent="globals/Recorder" pc="268438027" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="161" parent="globals/Recorder" pc="268438053" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="162" parent="globals/Recorder" pc="268438084" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="163" parent="globals/Recorder" pc="268438110" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="164" parent="globals/Recorder" pc="268438124" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" id="18" lineNum="167" parent="globals/Recorder" pc="268438138" symbol="_onDataInner"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="50" parent="globals/Uploader" pc="268438155" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="51" parent="globals/Uploader" pc="268438165" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="52" parent="globals/Uploader" pc="268438184" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="52" parent="globals/Uploader" pc="268438206" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="53" parent="globals/Uploader" pc="268438225" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="54" parent="globals/Uploader" pc="268438238" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="20" lineNum="57" parent="globals/Uploader" pc="268438315" symbol="onResponse"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="21" parent="globals/Uploader" pc="268438332" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="22" parent="globals/Uploader" pc="268438344" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="23" parent="globals/Uploader" pc="268438354" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="24" parent="globals/Uploader" pc="268438379" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="25" parent="globals/Uploader" pc="268438392" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="26" parent="globals/Uploader" pc="268438409" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="27" parent="globals/Uploader" pc="268438439" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="28" parent="globals/Uploader" pc="268438452" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Uploader.mc" id="21" lineNum="37" parent="globals/Uploader" pc="268438569" symbol="uploadAll"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="22" lineNum="8" parent="globals/GLoggerDelegate" pc="268438737" symbol="initialize"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="22" lineNum="9" parent="globals/GLoggerDelegate" pc="268438739" symbol="initialize"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="22" lineNum="10" parent="globals/GLoggerDelegate" pc="268438757" symbol="initialize"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="13" parent="globals/GLoggerDelegate" pc="268438768" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="14" parent="globals/GLoggerDelegate" pc="268438772" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="15" parent="globals/GLoggerDelegate" pc="268438789" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="16" parent="globals/GLoggerDelegate" pc="268438799" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="17" parent="globals/GLoggerDelegate" pc="268438831" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="18" parent="globals/GLoggerDelegate" pc="268438850" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="19" parent="globals/GLoggerDelegate" pc="268438866" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="21" parent="globals/GLoggerDelegate" pc="268438869" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="22" parent="globals/GLoggerDelegate" pc="268438912" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="24" parent="globals/GLoggerDelegate" pc="268438928" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="25" parent="globals/GLoggerDelegate" pc="268438957" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="26" parent="globals/GLoggerDelegate" pc="268438961" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="27" parent="globals/GLoggerDelegate" pc="268438986" symbol="onSelect"/>
+        <entry filename="/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerDelegate.mc" id="23" lineNum="29" parent="globals/GLoggerDelegate" pc="268439007" symbol="onSelect"/>
     </pcToLineNum>
     <symbolTable>
         <entry id="8388639" module="true" symbol="Graphics"/>
         <entry field="true" id="14" symbol="&lt;globals/Recorder/&lt;&gt;_maxCapSamples&gt;"/>
         <entry id="8388632" method="true" symbol="&lt;init&gt;"/>
-        <entry field="true" id="24" symbol="status"/>
+        <entry field="true" id="27" symbol="status"/>
         <entry field="true" id="13" symbol="&lt;globals/Recorder/&lt;&gt;_cap&gt;"/>
-        <entry id="18" method="true" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
-        <entry field="true" id="17" symbol="&lt;globals/Recorder/&lt;&gt;_quietBatches&gt;"/>
-        <entry id="29" method="true" symbol="uploadAll"/>
-        <entry field="true" id="20" symbol="capturing"/>
+        <entry id="20" method="true" symbol="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;"/>
+        <entry field="true" id="19" symbol="&lt;globals/Recorder/&lt;&gt;_quietBatches&gt;"/>
+        <entry id="32" method="true" symbol="uploadAll"/>
+        <entry field="true" id="22" symbol="capturing"/>
         <entry field="true" id="8388611" module="true" symbol="Toybox"/>
         <entry id="8389108" method="true" symbol="onResponse"/>
-        <entry field="true" id="27" symbol="_pending"/>
-        <entry field="true" id="32" symbol="AppName"/>
+        <entry field="true" id="30" symbol="_pending"/>
+        <entry field="true" id="35" symbol="AppName"/>
         <entry id="4" module="true" symbol="globals/Rez/Strings"/>
         <entry id="8389594" symbol="headers"/>
-        <entry field="true" id="25" symbol="swings"/>
+        <entry field="true" id="28" symbol="swings"/>
         <entry field="true" id="12" symbol="uploadStatus"/>
         <entry id="8" object="true" symbol="GLoggerView"/>
         <entry id="8388648" module="true" symbol="WatchUi"/>
@@ -172,89 +201,104 @@
         <entry id="7" object="true" symbol="GLoggerDelegate"/>
         <entry id="9" object="true" symbol="Recorder"/>
         <entry id="8389124" method="true" symbol="onUpdate"/>
-        <entry field="true" id="23" symbol="rateHz"/>
+        <entry field="true" id="26" symbol="rateHz"/>
         <entry id="8388771" module="true" object="true" symbol="Drawables"/>
+        <entry id="16" method="true" symbol="_onDataInner"/>
         <entry id="10" module="true" symbol="Uploader"/>
-        <entry field="true" id="15" symbol="&lt;globals/Recorder/&lt;&gt;_pre&gt;"/>
+        <entry field="true" id="17" symbol="&lt;globals/Recorder/&lt;&gt;_pre&gt;"/>
         <entry field="true" id="8390134" symbol="sampleRate"/>
         <entry id="6" object="true" symbol="GLoggerApp"/>
         <entry id="8388987" method="true" symbol="vibrate"/>
         <entry id="8391852" symbol="gyroscope"/>
         <entry id="8390648" symbol="accelerometer"/>
         <entry id="5" module="true" symbol="globals/Uploader"/>
-        <entry field="true" id="21" symbol="hasGyro"/>
-        <entry id="22" method="true" symbol="onData"/>
+        <entry field="true" id="24" symbol="hasGyro"/>
+        <entry id="25" method="true" symbol="onData"/>
         <entry id="8388637" module="true" symbol="Communications"/>
         <entry id="3" module="true" symbol="globals/Rez/Drawables"/>
-        <entry field="true" id="26" symbol="_ok"/>
+        <entry field="true" id="29" symbol="_ok"/>
         <entry id="8389844" symbol="responseType"/>
         <entry id="8388699" method="true" symbol="stop"/>
         <entry field="true" id="11" symbol="recorder"/>
+        <entry field="true" id="23" symbol="err"/>
         <entry field="true" id="8390438" symbol="enabled"/>
         <entry id="8388786" method="true" symbol="method"/>
         <entry id="8388644" module="true" symbol="System"/>
         <entry id="8389619" method="true" symbol="onSelect"/>
+        <entry id="15" method="true" symbol="&lt;globals/Recorder/&lt;&gt;_num&gt;"/>
         <entry id="8388769" module="true" object="true" symbol="Rez"/>
         <entry id="8388640" module="true" symbol="Lang"/>
-        <entry field="true" id="31" symbol="LauncherIcon"/>
+        <entry field="true" id="34" symbol="LauncherIcon"/>
         <entry id="8388610" symbol="statics"/>
         <entry id="8388643" module="true" symbol="Sensor"/>
-        <entry field="true" id="16" symbol="&lt;globals/Recorder/&lt;&gt;_preSamples&gt;"/>
+        <entry field="true" id="18" symbol="&lt;globals/Recorder/&lt;&gt;_preSamples&gt;"/>
         <entry id="8389350" module="true" symbol="globals"/>
         <entry id="8388770" module="true" object="true" symbol="Strings"/>
-        <entry field="true" id="28" symbol="_view"/>
+        <entry field="true" id="31" symbol="_view"/>
         <entry id="8388702" method="true" symbol="initialize"/>
         <entry id="8389279" method="true" symbol="onStart"/>
         <entry id="8389808" symbol="period"/>
         <entry id="8389280" method="true" symbol="getInitialView"/>
         <entry id="8389281" method="true" symbol="onStop"/>
-        <entry field="true" id="30" symbol="&lt;globals/GLoggerDelegate/&lt;&gt;_view&gt;"/>
+        <entry field="true" id="33" symbol="&lt;globals/GLoggerDelegate/&lt;&gt;_view&gt;"/>
         <entry id="8388698" method="true" symbol="start"/>
-        <entry id="19" method="true" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
+        <entry id="21" method="true" symbol="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;"/>
         <entry id="8388635" module="true" symbol="Application"/>
     </symbolTable>
     <localVars>
         <entry arg="true" endPc="268435631" name="state" stackId="1" startPc="268435581"/>
         <entry arg="true" endPc="268435763" name="state" stackId="1" startPc="268435730"/>
-        <entry arg="true" endPc="268436147" name="dc" stackId="1" startPc="268435785"/>
-        <entry endPc="268436146" name="app" stackId="2" startPc="268435789"/>
-        <entry endPc="268436146" name="rec" stackId="3" startPc="268435789"/>
-        <entry endPc="268436146" name="cx" stackId="4" startPc="268435789"/>
-        <entry endPc="268436146" name="y" stackId="5" startPc="268435789"/>
-        <entry endPc="268436112" name="line" stackId="6" startPc="268435953"/>
-        <entry endPc="268436399" name="rates" stackId="1" startPc="268436152"/>
-        <entry endPc="268436386" name="g" stackId="2" startPc="268436217"/>
-        <entry endPc="268436373" name="wantGyro" stackId="3" startPc="268436217"/>
-        <entry endPc="268436373" name="i" stackId="4" startPc="268436251"/>
-        <entry arg="true" endPc="268436545" name="rate" stackId="1" startPc="268436401"/>
-        <entry arg="true" endPc="268436545" name="wantGyro" stackId="2" startPc="268436401"/>
-        <entry endPc="268436543" name="e" stackId="4" startPc="268436536"/>
-        <entry arg="true" endPc="268437582" name="data" stackId="1" startPc="268436546"/>
-        <entry endPc="268437581" name="acc" stackId="2" startPc="268436550"/>
-        <entry endPc="268437581" name="gyr" stackId="3" startPc="268436550"/>
-        <entry endPc="268437581" name="n" stackId="4" startPc="268436550"/>
-        <entry endPc="268437581" name="gN" stackId="5" startPc="268436550"/>
-        <entry endPc="268437581" name="burst" stackId="6" startPc="268436550"/>
-        <entry endPc="268437581" name="preCap" stackId="7" startPc="268436550"/>
-        <entry endPc="268437581" name="maxCap" stackId="8" startPc="268436550"/>
-        <entry endPc="268437189" name="i" stackId="9" startPc="268436681"/>
-        <entry endPc="268437176" name="ax" stackId="10" startPc="268436681"/>
-        <entry endPc="268437176" name="ay" stackId="11" startPc="268436681"/>
-        <entry endPc="268437176" name="az" stackId="12" startPc="268436681"/>
-        <entry endPc="268437176" name="gx" stackId="13" startPc="268436681"/>
-        <entry endPc="268437176" name="gy" stackId="14" startPc="268436681"/>
-        <entry endPc="268437176" name="gz" stackId="15" startPc="268436681"/>
-        <entry endPc="268437176" name="mag2" stackId="16" startPc="268436681"/>
-        <entry endPc="268437609" name="e" stackId="1" startPc="268437604"/>
-        <entry arg="true" endPc="268437835" name="code" stackId="1" startPc="268437659"/>
-        <entry arg="true" endPc="268437835" name="data" stackId="2" startPc="268437659"/>
-        <entry arg="true" endPc="268438240" name="rec" stackId="1" startPc="268437836"/>
-        <entry arg="true" endPc="268438240" name="view" stackId="2" startPc="268437836"/>
-        <entry endPc="268438239" name="dev" stackId="3" startPc="268437848"/>
-        <entry endPc="268438239" name="i" stackId="4" startPc="268437943"/>
-        <entry endPc="268438226" name="flat" stackId="5" startPc="268437943"/>
-        <entry endPc="268438226" name="body" stackId="6" startPc="268437943"/>
-        <entry arg="true" endPc="268438271" name="view" stackId="1" startPc="268438241"/>
+        <entry arg="true" endPc="268436414" name="dc" stackId="1" startPc="268435785"/>
+        <entry endPc="268436413" name="app" stackId="2" startPc="268435789"/>
+        <entry endPc="268436413" name="rec" stackId="3" startPc="268435789"/>
+        <entry endPc="268436413" name="cx" stackId="4" startPc="268435789"/>
+        <entry endPc="268436413" name="y" stackId="5" startPc="268435789"/>
+        <entry endPc="268436218" name="p" stackId="9" startPc="268436106"/>
+        <entry endPc="268436208" name="end" stackId="10" startPc="268436106"/>
+        <entry endPc="268436379" name="line" stackId="11" startPc="268435953"/>
+        <entry endPc="268436666" name="rates" stackId="1" startPc="268436419"/>
+        <entry endPc="268436653" name="g" stackId="2" startPc="268436484"/>
+        <entry endPc="268436640" name="wantGyro" stackId="3" startPc="268436484"/>
+        <entry endPc="268436640" name="i" stackId="4" startPc="268436518"/>
+        <entry arg="true" endPc="268436686" name="v" stackId="1" startPc="268436668"/>
+        <entry arg="true" endPc="268436831" name="rate" stackId="1" startPc="268436687"/>
+        <entry arg="true" endPc="268436831" name="wantGyro" stackId="2" startPc="268436687"/>
+        <entry endPc="268436829" name="e" stackId="4" startPc="268436822"/>
+        <entry arg="true" endPc="268436911" name="data" stackId="1" startPc="268436832"/>
+        <entry endPc="268436909" name="ex" stackId="2" startPc="268436851"/>
+        <entry endPc="268436938" name="e" stackId="1" startPc="268436933"/>
+        <entry arg="true" endPc="268438154" name="data" stackId="1" startPc="268436988"/>
+        <entry endPc="268438153" name="acc" stackId="2" startPc="268436992"/>
+        <entry endPc="268438153" name="axs" stackId="3" startPc="268436992"/>
+        <entry endPc="268438153" name="ays" stackId="4" startPc="268436992"/>
+        <entry endPc="268438153" name="azs" stackId="5" startPc="268436992"/>
+        <entry endPc="268438153" name="gyr" stackId="6" startPc="268436992"/>
+        <entry endPc="268438153" name="gxs" stackId="7" startPc="268436992"/>
+        <entry endPc="268438153" name="gys" stackId="8" startPc="268436992"/>
+        <entry endPc="268438153" name="gzs" stackId="9" startPc="268436992"/>
+        <entry endPc="268438153" name="n" stackId="10" startPc="268436992"/>
+        <entry endPc="268438153" name="gN" stackId="11" startPc="268436992"/>
+        <entry endPc="268438153" name="burst" stackId="12" startPc="268436992"/>
+        <entry endPc="268438153" name="preCap" stackId="13" startPc="268436992"/>
+        <entry endPc="268438153" name="maxCap" stackId="14" startPc="268436992"/>
+        <entry endPc="268437761" name="i" stackId="15" startPc="268437223"/>
+        <entry endPc="268437748" name="ax" stackId="16" startPc="268437223"/>
+        <entry endPc="268437748" name="ay" stackId="17" startPc="268437223"/>
+        <entry endPc="268437748" name="az" stackId="18" startPc="268437223"/>
+        <entry endPc="268437748" name="gx" stackId="19" startPc="268437223"/>
+        <entry endPc="268437748" name="gy" stackId="20" startPc="268437223"/>
+        <entry endPc="268437748" name="gz" stackId="21" startPc="268437223"/>
+        <entry endPc="268437748" name="mag2" stackId="22" startPc="268437223"/>
+        <entry arg="true" endPc="268438331" name="code" stackId="1" startPc="268438155"/>
+        <entry arg="true" endPc="268438331" name="data" stackId="2" startPc="268438155"/>
+        <entry arg="true" endPc="268438736" name="rec" stackId="1" startPc="268438332"/>
+        <entry arg="true" endPc="268438736" name="view" stackId="2" startPc="268438332"/>
+        <entry endPc="268438735" name="dev" stackId="3" startPc="268438344"/>
+        <entry endPc="268438735" name="i" stackId="4" startPc="268438439"/>
+        <entry endPc="268438722" name="flat" stackId="5" startPc="268438439"/>
+        <entry endPc="268438722" name="body" stackId="6" startPc="268438439"/>
+        <entry arg="true" endPc="268438767" name="view" stackId="1" startPc="268438737"/>
+        <entry endPc="268439005" name="ex" stackId="3" startPc="268438957"/>
     </localVars>
     <deviceInfo deviceVersion="a331630064dc3043c2508661e93a67218e43d8d4" partNumber="006-B3225-00"/>
     <annotations>
@@ -267,10 +311,10 @@
         <dataEntry label="globals/GLoggerView" offset="229" parentId="globals" symbolId="GLoggerView" type="class"/>
         <dataEntry label="globals/Rez" offset="292" parentId="globals" symbolId="Rez" type="module"/>
         <dataEntry label="globals/Recorder" offset="339" parentId="globals" symbolId="Recorder" type="class"/>
-        <dataEntry label="globals/Uploader" offset="506" parentId="globals" symbolId="Uploader" type="module"/>
-        <dataEntry label="globals/GLoggerDelegate" offset="577" parentId="globals" symbolId="GLoggerDelegate" type="class"/>
-        <dataEntry label="globals/Rez/Drawables" offset="640" parentId="Rez" symbolId="Drawables" type="module"/>
-        <dataEntry label="globals/Rez/Strings" offset="679" parentId="Rez" symbolId="Strings" type="module"/>
+        <dataEntry label="globals/Uploader" offset="530" parentId="globals" symbolId="Uploader" type="module"/>
+        <dataEntry label="globals/GLoggerDelegate" offset="601" parentId="globals" symbolId="GLoggerDelegate" type="class"/>
+        <dataEntry label="globals/Rez/Drawables" offset="664" parentId="Rez" symbolId="Drawables" type="module"/>
+        <dataEntry label="globals/Rez/Strings" offset="703" parentId="Rez" symbolId="Strings" type="module"/>
     </dataEntryOffsetMappings>
     <functions>
         <functionEntry accessMode="public" endPc="268435475" name="&lt;init&gt;" parent="GLoggerApp" startPc="268435457">
@@ -308,7 +352,7 @@
         <functionEntry accessMode="public" endPc="268435784" name="initialize" parent="GLoggerView" startPc="268435764">
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268436147" name="onUpdate" parent="GLoggerView" startPc="268435785">
+        <functionEntry accessMode="public" endPc="268436414" name="onUpdate" parent="GLoggerView" startPc="268435785">
             <param id="dc"/>
             <documentation/>
         </functionEntry>
@@ -318,42 +362,50 @@
         <functionEntry accessMode="public" name="&lt;init&gt;" parent="Strings">
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268436400" name="start" parent="Recorder" startPc="268436148">
+        <functionEntry accessMode="public" endPc="268436667" name="start" parent="Recorder" startPc="268436415">
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="private" endPc="268436545" name="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;" parent="Recorder" startPc="268436401">
+        <functionEntry accessMode="private" endPc="268436686" name="&lt;globals/Recorder/&lt;&gt;_num&gt;" parent="Recorder" startPc="268436668">
+            <param id="v"/>
+            <documentation/>
+        </functionEntry>
+        <functionEntry accessMode="private" endPc="268436831" name="&lt;globals/Recorder/&lt;&gt;_tryStart&gt;" parent="Recorder" startPc="268436687">
             <param id="rate"/>
             <param id="wantGyro"/>
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268437582" name="onData" parent="Recorder" startPc="268436546">
+        <functionEntry accessMode="public" endPc="268436911" name="onData" parent="Recorder" startPc="268436832">
             <param id="data"/>
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268437611" name="stop" parent="Recorder" startPc="268437583">
+        <functionEntry accessMode="public" endPc="268436940" name="stop" parent="Recorder" startPc="268436912">
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="private" endPc="268437658" name="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;" parent="Recorder" startPc="268437612">
+        <functionEntry accessMode="private" endPc="268436987" name="&lt;globals/Recorder/&lt;&gt;_sizeBuffers&gt;" parent="Recorder" startPc="268436941">
+            <documentation/>
+        </functionEntry>
+        <functionEntry accessMode="public" endPc="268438154" name="_onDataInner" parent="Recorder" startPc="268436988">
+            <param id="data"/>
             <documentation/>
         </functionEntry>
         <functionEntry accessMode="public" name="initialize" parent="Recorder">
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268437835" name="onResponse" parent="Uploader" startPc="268437659">
+        <functionEntry accessMode="public" endPc="268438331" name="onResponse" parent="Uploader" startPc="268438155">
             <param id="code"/>
             <param id="data"/>
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268438240" name="uploadAll" parent="Uploader" startPc="268437836">
+        <functionEntry accessMode="public" endPc="268438736" name="uploadAll" parent="Uploader" startPc="268438332">
             <param id="rec"/>
             <param id="view"/>
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268438271" name="initialize" parent="GLoggerDelegate" startPc="268438241">
+        <functionEntry accessMode="public" endPc="268438767" name="initialize" parent="GLoggerDelegate" startPc="268438737">
             <param id="view"/>
             <documentation/>
         </functionEntry>
-        <functionEntry accessMode="public" endPc="268438460" name="onSelect" parent="GLoggerDelegate" startPc="268438272">
+        <functionEntry accessMode="public" endPc="268439009" name="onSelect" parent="GLoggerDelegate" startPc="268438768">
             <documentation/>
         </functionEntry>
     </functions>
