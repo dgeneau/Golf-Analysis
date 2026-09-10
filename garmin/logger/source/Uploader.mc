@@ -41,7 +41,7 @@ module Uploader {
                     "Prefer" => "return=minimal"
                 },
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_TEXT_PLAIN
-            }, method(:onResponse));
+            }, new Lang.Method(Uploader, :onResponse));   // module callback: method() needs an instance, modules have none
         }
     }
 
