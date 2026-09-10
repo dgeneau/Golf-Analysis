@@ -1,0 +1,13 @@
+{
+  // Press F5 in VS Code (with the garmin/logger folder open as the
+  // workspace root) to build and launch in the Connect IQ simulator.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "omonkeyc",
+      "request": "launch",
+      "name": "Run DR Logger in simulator",
+      "device": "vivoactive4"
+    }
+  ]
+}

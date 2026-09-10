@@ -1,0 +1,1030 @@
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 13; @symbol_importdef<0> = [Toybox,13,7,13]; @symbol_importdef<1> = [Lang,13,14,18]; ]
+import Toybox.Lang;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 14; @symbol_importdef<0> = [Toybox,14,7,13]; @symbol_importdef<1> = [Sensor,14,14,20]; ]
+import Toybox.Sensor;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 15; @symbol_importdef<0> = [Toybox,15,7,13]; @symbol_importdef<1> = [System,15,14,20]; ]
+import Toybox.System;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 16; @symbol_importdef<0> = [Toybox,16,7,13]; @symbol_importdef<1> = [WatchUi,16,14,21]; ]
+import Toybox.WatchUi;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 18; @symbol_classdef = [Recorder,18,6,14]; ]
+class Recorder {
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 18; ]
+    <init> {
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 25 15 ]
+        %tmp.1 = newa 0;
+        putv self :swings %tmp.1;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 29 16 ]
+        %tmp.2 = newa 0;
+        putv self :_pre %tmp.2;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 30 16 ]
+        %tmp.3 = newa 0;
+        putv self :_cap %tmp.3;
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 18; ]
+    static
+    <init> {
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 20; @position = 15; @symbol_vardef = [rateHz,20,15,21]; @symbol_type<0> = [Number,20,25,31]; ]
+    public
+    var rateHz as Number = 0;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 21; @position = 15; @symbol_vardef = [hasGyro,21,15,22]; @symbol_type<0> = [Boolean,21,26,33]; ]
+    public
+    var hasGyro as Boolean = false;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 22; @position = 15; @symbol_vardef = [status,22,15,21]; @symbol_type<0> = [String,22,25,31]; ]
+    public
+    var status as String = "probing sensors...";
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 25; @position = 15; @symbol_vardef = [swings,25,15,21]; @symbol_type<0> = [Array,25,25,30]; ]
+    public
+    var swings as Array;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 26; @position = 15; @symbol_vardef = [capturing,26,15,24]; @symbol_type<0> = [Boolean,26,28,35]; ]
+    public
+    var capturing as Boolean = false;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 29; @position = 16; @symbol_vardef = [_pre,29,16,20]; @symbol_type<0> = [Array,29,24,29]; @symbol_type<1> = [Number,29,30,36]; ]
+    private
+    var _pre as Array<Number>;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 30; @position = 16; @symbol_vardef = [_cap,30,16,20]; @symbol_type<0> = [Array,30,24,29]; @symbol_type<1> = [Number,30,30,36]; ]
+    private
+    var _cap as Array<Number>;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 31; @position = 16; @symbol_vardef = [_quietBatches,31,16,29]; @symbol_type<0> = [Number,31,33,39]; ]
+    private
+    var _quietBatches as Number = 0;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 34; @position = 16; @symbol_vardef = [_preSamples,34,16,27]; @symbol_type<0> = [Number,34,31,37]; ]
+    private
+    var _preSamples as Number = 40;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 35; @position = 16; @symbol_vardef = [_maxCapSamples,35,16,30]; @symbol_type<0> = [Number,35,34,40]; ]
+    private
+    var _maxCapSamples as Number = 125;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 36; @position = 18; @symbol_constdef = [MAX_SWINGS,36,18,28]; ]
+    private
+    const MAX_SWINGS = 5;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 37; @position = 18; @symbol_constdef = [COLS,37,18,22]; ]
+    private
+    const COLS = 6;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 39; @position = 18; @symbol_constdef = [BURST_MG,39,18,26]; ]
+    private
+    const BURST_MG = 2500;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 40; @position = 18; @symbol_constdef = [QUIET_MG,40,18,26]; ]
+    private
+    const QUIET_MG = 1600;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 42; @symbol_functiondef = [start,42,13,18]; ]
+    function start() as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_42_29_59_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 45 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_42_29_59_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_42_29_59_4_stop" ]
+        %rates.1 = local;
+        symbol [ rates %rates.1 45 12 17 ];
+        %tmp.1 = newa 3 Array<Number>;
+        symbol [ Array %tmp.1 45 37 42 ];
+        symbol [ Number %tmp.1 45 43 49 ];
+        %tmp.2 = 100;
+        %tmp.3 = dup %tmp.1;
+        %tmp.4 = aputv %tmp.3 0 %tmp.2;
+        %tmp.5 = 50;
+        %tmp.6 = dup %tmp.4;
+        %tmp.7 = aputv %tmp.6 1 %tmp.5;
+        %tmp.8 = 25;
+        %tmp.9 = dup %tmp.7;
+        %tmp.10 = aputv %tmp.9 2 %tmp.8;
+        lputv %rates.1 %tmp.10;
+        symbol [ rates %rates.1 45 12 17 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 46 8 ]
+        for @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_test @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_incr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_init:
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_begin" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_end" ]
+        %g.2 = local;
+        symbol [ g %g.2 46 17 18 ];
+        %tmp.11 = 0;
+        lputv %g.2 %tmp.11;
+        symbol [ g %g.2 46 17 18 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_test:
+        %tmp.12 = lgetv %g.2;
+        symbol [ g %tmp.12 46 24 25 ];
+        %tmp.13 = 2;
+        %tmp.14 = lt %tmp.12 %tmp.13;
+        bf %tmp.14 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_begin:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_36_57_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 47 12 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_36_57_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_36_57_8_stop" ]
+        %wantGyro.3 = local;
+        symbol [ wantGyro %wantGyro.3 47 16 24 ];
+        %tmp.15 = lgetv %g.2;
+        symbol [ g %tmp.15 47 28 29 ];
+        %tmp.16 = 0;
+        %tmp.17 = eq %tmp.15 %tmp.16;
+        lputv %wantGyro.3 %tmp.17;
+        symbol [ wantGyro %wantGyro.3 47 16 24 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 48 12 ]
+        for @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_test @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_incr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_init:
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_begin" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_end" ]
+        %i.4 = local;
+        symbol [ i %i.4 48 21 22 ];
+        %tmp.18 = 0;
+        lputv %i.4 %tmp.18;
+        symbol [ i %i.4 48 21 22 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_test:
+        %tmp.19 = lgetv %i.4;
+        symbol [ i %tmp.19 48 28 29 ];
+        %tmp.20 = lgetv %rates.1;
+        symbol [ rates %tmp.20 48 32 37 ];
+        symbol [ size %tmp.21 48 38 42 ];
+        %tmp.21 = getv function %tmp.20 :size;
+        %tmp.22 = invoke %tmp.20 %tmp.21();
+        %tmp.23 = lt %tmp.19 %tmp.22;
+        bf %tmp.23 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_begin:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_51_56_12_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 49 16 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_16_55_16_if_stmt:
+        %tmp.24 = self;
+        symbol [ _tryStart %tmp.25 49 20 29 ];
+        %tmp.25 = getv function %tmp.24 :_tryStart;
+        %tmp.26 = lgetv %rates.1;
+        symbol [ rates %tmp.26 49 30 35 ];
+        %tmp.27 = lgetv %i.4;
+        symbol [ i %tmp.27 49 36 37 ];
+        %tmp.28 = agetv %tmp.26 %tmp.27;
+        %tmp.29 = lgetv %wantGyro.3;
+        symbol [ wantGyro %tmp.29 49 40 48 ];
+        %tmp.30 = invoke %tmp.24 %tmp.25(%tmp.28, %tmp.29);
+        bf %tmp.30 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_16_55_16_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_16_55_16_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_51_55_16_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 50 20 ]
+        %tmp.31 = lgetv %rates.1;
+        symbol [ rates %tmp.31 50 29 34 ];
+        %tmp.32 = lgetv %i.4;
+        symbol [ i %tmp.32 50 35 36 ];
+        %tmp.33 = agetv %tmp.31 %tmp.32;
+        symbol [ rateHz ? 50 20 26 ];
+        putv self :rateHz %tmp.33;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 51 20 ]
+        %tmp.34 = lgetv %wantGyro.3;
+        symbol [ wantGyro %tmp.34 51 30 38 ];
+        symbol [ hasGyro ? 51 20 27 ];
+        putv self :hasGyro %tmp.34;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 52 20 ]
+        %tmp.35 = self;
+        symbol [ _sizeBuffers %tmp.36 52 20 32 ];
+        %tmp.36 = getv function %tmp.35 :_sizeBuffers;
+        invoke %tmp.35 %tmp.36();
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 53 20 ]
+        %tmp.37 = "";
+        symbol [ rateHz %tmp.39 53 34 40 ];
+        %tmp.39 = getv ? :rateHz;
+        %tmp.40 = add %tmp.37 %tmp.39;
+        %tmp.41 = " Hz";
+        %tmp.42 = add %tmp.40 %tmp.41;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_begin:
+        symbol [ hasGyro %tmp.44 53 52 59 ];
+        %tmp.44 = getv ? :hasGyro;
+        bf %tmp.44 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_else_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_true:
+        %tmp.45 = " + gyro";
+        push %tmp.45;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_else_false:
+        %tmp.46 = ", accel only";
+        push %tmp.46;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_end:
+        %tmp.47 = phi [%tmp.44 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_begin] [%tmp.45 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_true] [%tmp.46 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_else_false] [%tmp.47 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_53_52_53_74_end];
+        %tmp.48 = add %tmp.42 %tmp.47;
+        symbol [ status ? 53 20 26 ];
+        putv self :status %tmp.48;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 54 20 ]
+        ret ?;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_51_55_16_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_16_55_16_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_49_16_55_16_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_51_56_12_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_incr:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 48 ]
+        %tmp.51 = lgetv %i.4;
+        symbol [ i %tmp.51 48 46 47 ];
+        %tmp.52 = add %tmp.51 1;
+        lputv %i.4 %tmp.52;
+        symbol [ i %i.4 48 46 47 ];
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_test;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_48_12_56_12_for_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_36_57_8_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_incr:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 46 ]
+        %tmp.55 = lgetv %g.2;
+        symbol [ g %tmp.55 46 31 32 ];
+        %tmp.56 = add %tmp.55 1;
+        lputv %g.2 %tmp.56;
+        symbol [ g %g.2 46 31 32 ];
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_test;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_46_8_57_8_for_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 58 8 ]
+        %tmp.57 = "sensor listener refused";
+        symbol [ status ? 58 8 14 ];
+        putv self :status %tmp.57;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_42_29_59_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 63; @symbol_functiondef = [_sizeBuffers,63,21,33]; ]
+    private
+    function _sizeBuffers() as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_63_44_66_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 64 8 ]
+        symbol [ rateHz %tmp.2 64 22 28 ];
+        %tmp.2 = getv ? :rateHz;
+        %tmp.3 = 2;
+        %tmp.4 = mul %tmp.2 %tmp.3;
+        symbol [ _preSamples ? 64 8 19 ];
+        putv self :_preSamples %tmp.4;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 65 8 ]
+        symbol [ rateHz %tmp.6 65 25 31 ];
+        %tmp.6 = getv ? :rateHz;
+        %tmp.7 = 5;
+        %tmp.8 = mul %tmp.6 %tmp.7;
+        symbol [ _maxCapSamples ? 65 8 22 ];
+        putv self :_maxCapSamples %tmp.8;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_63_44_66_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 68; @symbol_functiondef = [_tryStart,68,21,30]; @symbol_param<0> = [rate,68,31,35]; @symbol_param<0>_type<0> = [Number,68,39,45]; @symbol_param<1> = [wantGyro,68,47,55]; @symbol_param<1>_type<0> = [Boolean,68,59,66]; @symbol_return<0> = [Boolean,68,71,78]; ]
+    private
+    function _tryStart(rate as Number, wantGyro as Boolean) as Boolean {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_68_79_82_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 69 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_68_79_82_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_68_79_82_4_stop" ]
+        %opts.1 = local;
+        symbol [ opts %opts.1 69 12 16 ];
+        %tmp.1 = newd 2;
+        %tmp.3 = const :period;
+        symbol [ period %tmp.3 70 13 19 const ];
+        %tmp.4 = 1;
+        %tmp.5 = dup %tmp.1;
+        %tmp.6 = aputv %tmp.5 %tmp.3 %tmp.4;
+        %tmp.8 = const :accelerometer;
+        symbol [ accelerometer %tmp.8 71 13 26 const ];
+        %tmp.9 = newd 2;
+        %tmp.11 = const :enabled;
+        symbol [ enabled %tmp.11 71 32 39 const ];
+        %tmp.12 = true;
+        %tmp.13 = dup %tmp.9;
+        %tmp.14 = aputv %tmp.13 %tmp.11 %tmp.12;
+        %tmp.16 = const :sampleRate;
+        symbol [ sampleRate %tmp.16 71 50 60 const ];
+        %tmp.17 = lgetv %rate;
+        symbol [ rate %tmp.17 71 64 68 ];
+        %tmp.18 = dup %tmp.14;
+        %tmp.19 = aputv %tmp.18 %tmp.16 %tmp.17;
+        %tmp.20 = dup %tmp.6;
+        %tmp.21 = aputv %tmp.20 %tmp.8 %tmp.19;
+        lputv %opts.1 %tmp.21;
+        symbol [ opts %opts.1 69 12 16 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 73 8 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_8_75_8_if_stmt:
+        %tmp.22 = lgetv %wantGyro;
+        symbol [ wantGyro %tmp.22 73 12 20 ];
+        bf %tmp.22 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_8_75_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_8_75_8_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_22_75_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 74 12 ]
+        %tmp.23 = lgetv %opts.1;
+        symbol [ opts %tmp.23 74 12 16 ];
+        %tmp.24 = newd 2;
+        %tmp.26 = const :enabled;
+        symbol [ enabled %tmp.26 74 33 40 const ];
+        %tmp.27 = true;
+        %tmp.28 = dup %tmp.24;
+        %tmp.29 = aputv %tmp.28 %tmp.26 %tmp.27;
+        %tmp.31 = const :sampleRate;
+        symbol [ sampleRate %tmp.31 74 51 61 const ];
+        %tmp.32 = lgetv %rate;
+        symbol [ rate %tmp.32 74 65 69 ];
+        %tmp.33 = dup %tmp.29;
+        %tmp.34 = aputv %tmp.33 %tmp.31 %tmp.32;
+        %tmp.36 = const :gyroscope;
+        symbol [ gyroscope %tmp.36 74 18 27 const ];
+        aputv %tmp.23 %tmp.36 %tmp.34;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_22_75_8_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_8_75_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_73_8_75_8_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 76 8 ]
+        try @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_beginTry @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_endTry @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_catch @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_beginTry:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_12_79_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 77 12 ]
+        symbol [ Sensor %tmp.37 77 12 18 ];
+        %tmp.37 = getm $.Toybox.Sensor;
+        symbol [ registerSensorDataListener %tmp.38 77 19 45 ];
+        %tmp.38 = getv function %tmp.37 :registerSensorDataListener;
+        %tmp.39 = self;
+        symbol [ method %tmp.40 77 46 52 ];
+        %tmp.40 = getv function %tmp.39 :method;
+        %tmp.42 = const :onData;
+        symbol [ onData %tmp.42 77 54 60 const ];
+        %tmp.43 = invoke %tmp.39 %tmp.40(%tmp.42);
+        %tmp.44 = lgetv %opts.1;
+        symbol [ opts %tmp.44 77 63 67 ];
+        invoke %tmp.37 %tmp.38(%tmp.43, %tmp.44);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 78 12 ]
+        %tmp.45 = true;
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+        ret %tmp.45;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_12_79_8_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_endTry:
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_catch:
+        %tmp.46 = exception;
+        push %tmp.46;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 79 10 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_catch" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_79_10_81_8_end" ]
+        %e.2 = local;
+        symbol [ e %e.2 79 17 18 ];
+        %tmp.47 = dup %tmp.46;
+        lputv %e.2 %tmp.47;
+        symbol [ e %e.2 79 17 18 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_79_20_81_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 80 12 ]
+        pop;
+        %tmp.48 = false;
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+        ret %tmp.48;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_79_20_81_8_stop:
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+        pop;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_79_10_81_8_end:
+        try @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_catch @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_79_10_81_8_end @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_79_10_81_8_end @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally;
+        throw %tmp.46;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_finally:
+        jsrret;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_76_8_81_8_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_68_79_82_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 84; @symbol_functiondef = [stop,84,13,17]; ]
+    function stop() as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_84_28_88_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 85 8 ]
+        try @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_beginTry @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_endTry @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_catch @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_finally;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_beginTry:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_12_87_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 86 12 ]
+        symbol [ Sensor %tmp.1 86 12 18 ];
+        %tmp.1 = getm $.Toybox.Sensor;
+        symbol [ unregisterSensorDataListener %tmp.2 86 19 47 ];
+        %tmp.2 = getv function %tmp.1 :unregisterSensorDataListener;
+        invoke %tmp.1 %tmp.2();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_12_87_8_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_endTry:
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_finally;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_catch:
+        %tmp.3 = exception;
+        push %tmp.3;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 87 10 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_catch" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_87_10_87_21_end" ]
+        %e.1 = local;
+        symbol [ e %e.1 87 17 18 ];
+        %tmp.4 = dup %tmp.3;
+        lputv %e.1 %tmp.4;
+        symbol [ e %e.1 87 17 18 ];
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_finally;
+        pop;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_87_10_87_21_end:
+        try @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_catch @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_87_10_87_21_end @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_87_10_87_21_end @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_finally;
+        jsr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_finally;
+        throw %tmp.3;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_finally:
+        jsrret;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_85_8_87_21_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_84_28_88_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 90; @symbol_functiondef = [onData,90,13,19]; @symbol_param<0> = [data,90,20,24]; @symbol_param<0>_type<0> = [Sensor,90,28,34]; @symbol_param<0>_type<1> = [SensorData,90,35,45]; ]
+    function onData(data as Sensor.SensorData) as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 91 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %acc.1 = local;
+        symbol [ acc %acc.1 91 12 15 ];
+        %tmp.1 = lgetv %data;
+        symbol [ data %tmp.1 91 18 22 ];
+        symbol [ accelerometerData %tmp.2 91 23 40 ];
+        %tmp.2 = getv %tmp.1 :accelerometerData;
+        lputv %acc.1 %tmp.2;
+        symbol [ acc %acc.1 91 12 15 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 92 8 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_8_92_35_if_stmt:
+        %tmp.3 = lgetv %acc.1;
+        symbol [ acc %tmp.3 92 12 15 ];
+        %tmp.4 = null;
+        %tmp.5 = eq %tmp.3 %tmp.4;
+        bf %tmp.5 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_8_92_35_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_8_92_35_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_25_92_35_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 92 27 ]
+        ret ?;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_25_92_35_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_8_92_35_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_92_8_92_35_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 93 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %gyr.2 = local;
+        symbol [ gyr %gyr.2 93 12 15 ];
+        %tmp.6 = lgetv %data;
+        symbol [ data %tmp.6 93 18 22 ];
+        symbol [ gyroscopeData %tmp.7 93 23 36 ];
+        %tmp.7 = getv %tmp.6 :gyroscopeData;
+        lputv %gyr.2 %tmp.7;
+        symbol [ gyr %gyr.2 93 12 15 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 94 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %n.3 = local;
+        symbol [ n %n.3 94 12 13 ];
+        %tmp.8 = lgetv %acc.1;
+        symbol [ acc %tmp.8 94 16 19 ];
+        symbol [ x %tmp.9 94 20 21 ];
+        %tmp.9 = getv %tmp.8 :x;
+        symbol [ size %tmp.10 94 22 26 ];
+        %tmp.10 = getv function %tmp.9 :size;
+        %tmp.11 = invoke %tmp.9 %tmp.10();
+        lputv %n.3 %tmp.11;
+        symbol [ n %n.3 94 12 13 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 95 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %gN.4 = local;
+        symbol [ gN %gN.4 95 12 14 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_begin:
+        %tmp.12 = lgetv %gyr.2;
+        symbol [ gyr %tmp.12 95 18 21 ];
+        %tmp.13 = null;
+        %tmp.14 = ne %tmp.12 %tmp.13;
+        bf %tmp.14 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_else_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_true:
+        %tmp.15 = lgetv %gyr.2;
+        symbol [ gyr %tmp.15 95 33 36 ];
+        %tmp.16 = as %tmp.15 { (!Null) };
+        symbol [ x %tmp.17 95 37 38 ];
+        %tmp.17 = getv %tmp.16 :x;
+        symbol [ size %tmp.18 95 39 43 ];
+        %tmp.18 = getv function %tmp.17 :size;
+        %tmp.19 = invoke %tmp.17 %tmp.18();
+        push %tmp.19;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_else_false:
+        %tmp.20 = 0;
+        push %tmp.20;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_end:
+        %tmp.21 = phi [%tmp.14 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_begin] [%tmp.19 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_true] [%tmp.20 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_else_false] [%tmp.21 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_95_17_95_48_end];
+        lputv %gN.4 %tmp.21;
+        symbol [ gN %gN.4 95 12 14 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 96 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %burst.5 = local;
+        symbol [ burst %burst.5 96 12 17 ];
+        %tmp.22 = false;
+        lputv %burst.5 %tmp.22;
+        symbol [ burst %burst.5 96 12 17 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 97 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %preCap.6 = local;
+        symbol [ preCap %preCap.6 97 12 18 ];
+        symbol [ _preSamples %tmp.24 97 21 32 ];
+        %tmp.24 = getv ? :_preSamples;
+        symbol [ COLS %tmp.26 97 35 39 ];
+        %tmp.26 = getv ? :COLS;
+        %tmp.27 = mul %tmp.24 %tmp.26;
+        lputv %preCap.6 %tmp.27;
+        symbol [ preCap %preCap.6 97 12 18 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 98 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop" ]
+        %maxCap.7 = local;
+        symbol [ maxCap %maxCap.7 98 12 18 ];
+        symbol [ _maxCapSamples %tmp.29 98 21 35 ];
+        %tmp.29 = getv ? :_maxCapSamples;
+        symbol [ COLS %tmp.31 98 38 42 ];
+        %tmp.31 = getv ? :COLS;
+        %tmp.32 = mul %tmp.29 %tmp.31;
+        lputv %maxCap.7 %tmp.32;
+        symbol [ maxCap %maxCap.7 98 12 18 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 100 8 ]
+        for @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_test @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_incr @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_init:
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_begin" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_end" ]
+        %i.8 = local;
+        symbol [ i %i.8 100 17 18 ];
+        %tmp.33 = 0;
+        lputv %i.8 %tmp.33;
+        symbol [ i %i.8 100 17 18 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_test:
+        %tmp.34 = lgetv %i.8;
+        symbol [ i %tmp.34 100 24 25 ];
+        %tmp.35 = lgetv %n.3;
+        symbol [ n %tmp.35 100 28 29 ];
+        %tmp.36 = lt %tmp.34 %tmp.35;
+        bf %tmp.36 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_begin:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 101 12 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %ax.9 = local;
+        symbol [ ax %ax.9 101 16 18 ];
+        %tmp.37 = lgetv %acc.1;
+        symbol [ acc %tmp.37 101 21 24 ];
+        symbol [ x %tmp.38 101 25 26 ];
+        %tmp.38 = getv %tmp.37 :x;
+        %tmp.39 = lgetv %i.8;
+        symbol [ i %tmp.39 101 27 28 ];
+        %tmp.40 = agetv %tmp.38 %tmp.39;
+        lputv %ax.9 %tmp.40;
+        symbol [ ax %ax.9 101 16 18 ];
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %ay.10 = local;
+        symbol [ ay %ay.10 101 31 33 ];
+        %tmp.41 = lgetv %acc.1;
+        symbol [ acc %tmp.41 101 36 39 ];
+        symbol [ y %tmp.42 101 40 41 ];
+        %tmp.42 = getv %tmp.41 :y;
+        %tmp.43 = lgetv %i.8;
+        symbol [ i %tmp.43 101 42 43 ];
+        %tmp.44 = agetv %tmp.42 %tmp.43;
+        lputv %ay.10 %tmp.44;
+        symbol [ ay %ay.10 101 31 33 ];
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %az.11 = local;
+        symbol [ az %az.11 101 46 48 ];
+        %tmp.45 = lgetv %acc.1;
+        symbol [ acc %tmp.45 101 51 54 ];
+        symbol [ z %tmp.46 101 55 56 ];
+        %tmp.46 = getv %tmp.45 :z;
+        %tmp.47 = lgetv %i.8;
+        symbol [ i %tmp.47 101 57 58 ];
+        %tmp.48 = agetv %tmp.46 %tmp.47;
+        lputv %az.11 %tmp.48;
+        symbol [ az %az.11 101 46 48 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 102 12 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %gx.12 = local;
+        symbol [ gx %gx.12 102 16 18 ];
+        %tmp.49 = 0;
+        lputv %gx.12 %tmp.49;
+        symbol [ gx %gx.12 102 16 18 ];
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %gy.13 = local;
+        symbol [ gy %gy.13 102 24 26 ];
+        %tmp.50 = 0;
+        lputv %gy.13 %tmp.50;
+        symbol [ gy %gy.13 102 24 26 ];
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %gz.14 = local;
+        symbol [ gz %gz.14 102 32 34 ];
+        %tmp.51 = 0;
+        lputv %gz.14 %tmp.51;
+        symbol [ gz %gz.14 102 32 34 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 103 12 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_12_103_71_if_stmt:
+        %tmp.52 = lgetv %i.8;
+        symbol [ i %tmp.52 103 16 17 ];
+        %tmp.53 = lgetv %gN.4;
+        symbol [ gN %tmp.53 103 20 22 ];
+        %tmp.54 = lt %tmp.52 %tmp.53;
+        bf %tmp.54 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_12_103_71_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_12_103_71_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_24_103_71_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 103 26 ]
+        %tmp.55 = lgetv %gyr.2;
+        symbol [ gyr %tmp.55 103 31 34 ];
+        symbol [ x %tmp.56 103 35 36 ];
+        %tmp.56 = getv %tmp.55 :x;
+        %tmp.57 = lgetv %i.8;
+        symbol [ i %tmp.57 103 37 38 ];
+        %tmp.58 = agetv %tmp.56 %tmp.57;
+        lputv %gx.12 %tmp.58;
+        symbol [ gx %gx.12 103 26 28 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 103 41 ]
+        %tmp.59 = lgetv %gyr.2;
+        symbol [ gyr %tmp.59 103 46 49 ];
+        symbol [ y %tmp.60 103 50 51 ];
+        %tmp.60 = getv %tmp.59 :y;
+        %tmp.61 = lgetv %i.8;
+        symbol [ i %tmp.61 103 52 53 ];
+        %tmp.62 = agetv %tmp.60 %tmp.61;
+        lputv %gy.13 %tmp.62;
+        symbol [ gy %gy.13 103 41 43 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 103 56 ]
+        %tmp.63 = lgetv %gyr.2;
+        symbol [ gyr %tmp.63 103 61 64 ];
+        symbol [ z %tmp.64 103 65 66 ];
+        %tmp.64 = getv %tmp.63 :z;
+        %tmp.65 = lgetv %i.8;
+        symbol [ i %tmp.65 103 67 68 ];
+        %tmp.66 = agetv %tmp.64 %tmp.65;
+        lputv %gz.14 %tmp.66;
+        symbol [ gz %gz.14 103 56 58 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_24_103_71_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_12_103_71_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_103_12_103_71_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 104 12 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop" ]
+        %mag2.15 = local;
+        symbol [ mag2 %mag2.15 104 16 20 ];
+        %tmp.67 = lgetv %ax.9;
+        symbol [ ax %tmp.67 104 23 25 ];
+        %tmp.68 = lgetv %ax.9;
+        symbol [ ax %tmp.68 104 26 28 ];
+        %tmp.69 = mul %tmp.67 %tmp.68;
+        %tmp.70 = lgetv %ay.10;
+        symbol [ ay %tmp.70 104 31 33 ];
+        %tmp.71 = lgetv %ay.10;
+        symbol [ ay %tmp.71 104 34 36 ];
+        %tmp.72 = mul %tmp.70 %tmp.71;
+        %tmp.73 = add %tmp.69 %tmp.72;
+        %tmp.74 = lgetv %az.11;
+        symbol [ az %tmp.74 104 39 41 ];
+        %tmp.75 = lgetv %az.11;
+        symbol [ az %tmp.75 104 42 44 ];
+        %tmp.76 = mul %tmp.74 %tmp.75;
+        %tmp.77 = add %tmp.73 %tmp.76;
+        lputv %mag2.15 %tmp.77;
+        symbol [ mag2 %mag2.15 104 16 20 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 105 12 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_12_105_60_if_stmt:
+        %tmp.78 = lgetv %mag2.15;
+        symbol [ mag2 %tmp.78 105 16 20 ];
+        symbol [ BURST_MG %tmp.80 105 23 31 ];
+        %tmp.80 = getv ? :BURST_MG;
+        symbol [ BURST_MG %tmp.82 105 34 42 ];
+        %tmp.82 = getv ? :BURST_MG;
+        %tmp.83 = mul %tmp.80 %tmp.82;
+        %tmp.84 = gt %tmp.78 %tmp.83;
+        bf %tmp.84 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_12_105_60_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_12_105_60_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_44_105_60_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 105 46 ]
+        %tmp.85 = true;
+        lputv %burst.5 %tmp.85;
+        symbol [ burst %burst.5 105 46 51 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_44_105_60_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_12_105_60_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_105_12_105_60_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 107 12 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_12_119_12_if_stmt:
+        symbol [ capturing %tmp.87 107 16 25 ];
+        %tmp.87 = getv ? :capturing;
+        bf %tmp.87 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_12_119_12_if_else_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_12_119_12_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_27_112_12_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 108 16 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_16_111_16_if_stmt:
+        symbol [ _cap %tmp.89 108 20 24 ];
+        %tmp.89 = getv ? :_cap;
+        symbol [ size %tmp.90 108 25 29 ];
+        %tmp.90 = getv function %tmp.89 :size;
+        %tmp.91 = invoke %tmp.89 %tmp.90();
+        %tmp.92 = lgetv %maxCap.7;
+        symbol [ maxCap %tmp.92 108 34 40 ];
+        %tmp.93 = lt %tmp.91 %tmp.92;
+        bf %tmp.93 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_16_111_16_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_16_111_16_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_42_111_16_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 109 20 ]
+        symbol [ _cap %tmp.95 109 20 24 ];
+        %tmp.95 = getv ? :_cap;
+        symbol [ add %tmp.96 109 25 28 ];
+        %tmp.96 = getv function %tmp.95 :add;
+        %tmp.97 = lgetv %ax.9;
+        symbol [ ax %tmp.97 109 29 31 ];
+        invoke %tmp.95 %tmp.96(%tmp.97);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 109 34 ]
+        symbol [ _cap %tmp.99 109 34 38 ];
+        %tmp.99 = getv ? :_cap;
+        symbol [ add %tmp.100 109 39 42 ];
+        %tmp.100 = getv function %tmp.99 :add;
+        %tmp.101 = lgetv %ay.10;
+        symbol [ ay %tmp.101 109 43 45 ];
+        invoke %tmp.99 %tmp.100(%tmp.101);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 109 48 ]
+        symbol [ _cap %tmp.103 109 48 52 ];
+        %tmp.103 = getv ? :_cap;
+        symbol [ add %tmp.104 109 53 56 ];
+        %tmp.104 = getv function %tmp.103 :add;
+        %tmp.105 = lgetv %az.11;
+        symbol [ az %tmp.105 109 57 59 ];
+        invoke %tmp.103 %tmp.104(%tmp.105);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 110 20 ]
+        symbol [ _cap %tmp.107 110 20 24 ];
+        %tmp.107 = getv ? :_cap;
+        symbol [ add %tmp.108 110 25 28 ];
+        %tmp.108 = getv function %tmp.107 :add;
+        %tmp.109 = lgetv %gx.12;
+        symbol [ gx %tmp.109 110 29 31 ];
+        invoke %tmp.107 %tmp.108(%tmp.109);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 110 34 ]
+        symbol [ _cap %tmp.111 110 34 38 ];
+        %tmp.111 = getv ? :_cap;
+        symbol [ add %tmp.112 110 39 42 ];
+        %tmp.112 = getv function %tmp.111 :add;
+        %tmp.113 = lgetv %gy.13;
+        symbol [ gy %tmp.113 110 43 45 ];
+        invoke %tmp.111 %tmp.112(%tmp.113);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 110 48 ]
+        symbol [ _cap %tmp.115 110 48 52 ];
+        %tmp.115 = getv ? :_cap;
+        symbol [ add %tmp.116 110 53 56 ];
+        %tmp.116 = getv function %tmp.115 :add;
+        %tmp.117 = lgetv %gz.14;
+        symbol [ gz %tmp.117 110 57 59 ];
+        invoke %tmp.115 %tmp.116(%tmp.117);
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_42_111_16_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_16_111_16_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_108_16_111_16_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_27_112_12_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_12_119_12_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_12_119_12_if_else_false:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_112_19_119_12_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 113 16 ]
+        symbol [ _pre %tmp.119 113 16 20 ];
+        %tmp.119 = getv ? :_pre;
+        symbol [ add %tmp.120 113 21 24 ];
+        %tmp.120 = getv function %tmp.119 :add;
+        %tmp.121 = lgetv %ax.9;
+        symbol [ ax %tmp.121 113 25 27 ];
+        invoke %tmp.119 %tmp.120(%tmp.121);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 113 30 ]
+        symbol [ _pre %tmp.123 113 30 34 ];
+        %tmp.123 = getv ? :_pre;
+        symbol [ add %tmp.124 113 35 38 ];
+        %tmp.124 = getv function %tmp.123 :add;
+        %tmp.125 = lgetv %ay.10;
+        symbol [ ay %tmp.125 113 39 41 ];
+        invoke %tmp.123 %tmp.124(%tmp.125);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 113 44 ]
+        symbol [ _pre %tmp.127 113 44 48 ];
+        %tmp.127 = getv ? :_pre;
+        symbol [ add %tmp.128 113 49 52 ];
+        %tmp.128 = getv function %tmp.127 :add;
+        %tmp.129 = lgetv %az.11;
+        symbol [ az %tmp.129 113 53 55 ];
+        invoke %tmp.127 %tmp.128(%tmp.129);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 114 16 ]
+        symbol [ _pre %tmp.131 114 16 20 ];
+        %tmp.131 = getv ? :_pre;
+        symbol [ add %tmp.132 114 21 24 ];
+        %tmp.132 = getv function %tmp.131 :add;
+        %tmp.133 = lgetv %gx.12;
+        symbol [ gx %tmp.133 114 25 27 ];
+        invoke %tmp.131 %tmp.132(%tmp.133);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 114 30 ]
+        symbol [ _pre %tmp.135 114 30 34 ];
+        %tmp.135 = getv ? :_pre;
+        symbol [ add %tmp.136 114 35 38 ];
+        %tmp.136 = getv function %tmp.135 :add;
+        %tmp.137 = lgetv %gy.13;
+        symbol [ gy %tmp.137 114 39 41 ];
+        invoke %tmp.135 %tmp.136(%tmp.137);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 114 44 ]
+        symbol [ _pre %tmp.139 114 44 48 ];
+        %tmp.139 = getv ? :_pre;
+        symbol [ add %tmp.140 114 49 52 ];
+        %tmp.140 = getv function %tmp.139 :add;
+        %tmp.141 = lgetv %gz.14;
+        symbol [ gz %tmp.141 114 53 55 ];
+        invoke %tmp.139 %tmp.140(%tmp.141);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 116 16 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_16_118_16_if_stmt:
+        symbol [ _pre %tmp.143 116 20 24 ];
+        %tmp.143 = getv ? :_pre;
+        symbol [ size %tmp.144 116 25 29 ];
+        %tmp.144 = getv function %tmp.143 :size;
+        %tmp.145 = invoke %tmp.143 %tmp.144();
+        %tmp.146 = lgetv %preCap.6;
+        symbol [ preCap %tmp.146 116 34 40 ];
+        %tmp.147 = lgetv %n.3;
+        symbol [ n %tmp.147 116 43 44 ];
+        symbol [ COLS %tmp.149 116 47 51 ];
+        %tmp.149 = getv ? :COLS;
+        %tmp.150 = mul %tmp.147 %tmp.149;
+        %tmp.151 = add %tmp.146 %tmp.150;
+        %tmp.152 = gt %tmp.145 %tmp.151;
+        bf %tmp.152 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_16_118_16_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_16_118_16_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_53_118_16_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 117 20 ]
+        symbol [ _pre %tmp.154 117 27 31 ];
+        %tmp.154 = getv ? :_pre;
+        symbol [ slice %tmp.155 117 32 37 ];
+        %tmp.155 = getv function %tmp.154 :slice;
+        symbol [ _pre %tmp.157 117 38 42 ];
+        %tmp.157 = getv ? :_pre;
+        symbol [ size %tmp.158 117 43 47 ];
+        %tmp.158 = getv function %tmp.157 :size;
+        %tmp.159 = invoke %tmp.157 %tmp.158();
+        %tmp.160 = lgetv %preCap.6;
+        symbol [ preCap %tmp.160 117 52 58 ];
+        %tmp.161 = sub %tmp.159 %tmp.160;
+        %tmp.162 = null;
+        %tmp.163 = invoke %tmp.154 %tmp.155(%tmp.161, %tmp.162);
+        symbol [ _pre ? 117 20 24 ];
+        putv self :_pre %tmp.163;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_53_118_16_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_16_118_16_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_116_16_118_16_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_112_19_119_12_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_107_12_119_12_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_36_120_8_stop:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_incr:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 100 ]
+        %tmp.166 = lgetv %i.8;
+        symbol [ i %tmp.166 100 31 32 ];
+        %tmp.167 = add %tmp.166 1;
+        lputv %i.8 %tmp.167;
+        symbol [ i %i.8 100 31 32 ];
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_test;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_100_8_120_8_for_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 122 8 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_stmt:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_12_122_26_begin:
+        symbol [ capturing %tmp.169 122 13 22 ];
+        %tmp.169 = getv ? :capturing;
+        %tmp.170 = not %tmp.169;
+        bf %tmp.170 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_26_122_26_true:
+        %tmp.171 = lgetv %burst.5;
+        symbol [ burst %tmp.171 122 26 31 ];
+        push %tmp.171;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_26_122_26_end:
+        %tmp.172 = phi [%tmp.170 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_12_122_26_begin] [%tmp.171 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_26_122_26_true] [%tmp.172 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_26_122_26_end];
+        bf %tmp.172 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_33_130_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 123 12 ]
+        %tmp.173 = true;
+        symbol [ capturing ? 123 12 21 ];
+        putv self :capturing %tmp.173;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 124 12 ]
+        symbol [ _pre %tmp.175 124 19 23 ];
+        %tmp.175 = getv ? :_pre;
+        symbol [ slice %tmp.176 124 24 29 ];
+        %tmp.176 = getv function %tmp.175 :slice;
+        %tmp.177 = 0;
+        %tmp.178 = null;
+        %tmp.179 = invoke %tmp.175 %tmp.176(%tmp.177, %tmp.178);
+        symbol [ _cap ? 124 12 16 ];
+        putv self :_cap %tmp.179;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 125 12 ]
+        %tmp.180 = newa 0;
+        symbol [ _pre ? 125 12 16 ];
+        putv self :_pre %tmp.180;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 126 12 ]
+        %tmp.181 = 0;
+        symbol [ _quietBatches ? 126 12 25 ];
+        putv self :_quietBatches %tmp.181;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 127 12 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_12_129_12_if_stmt:
+        symbol [ Toybox %tmp.183 127 16 22 ];
+        %tmp.183 = getv ? :Toybox;
+        symbol [ Attention %tmp.184 127 23 32 ];
+        %tmp.184 = getv %tmp.183 :Attention;
+        %tmp.186 = const :vibrate;
+        symbol [ vibrate %tmp.186 127 38 45 const ];
+        %tmp.187 = canhazplz %tmp.184 %tmp.186;
+        bf %tmp.187 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_12_129_12_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_12_129_12_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_47_129_12_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 128 16 ]
+        symbol [ Toybox %tmp.189 128 16 22 ];
+        %tmp.189 = getv ? :Toybox;
+        symbol [ Attention %tmp.190 128 23 32 ];
+        %tmp.190 = getv %tmp.189 :Attention;
+        symbol [ vibrate %tmp.191 128 33 40 ];
+        %tmp.191 = getv function %tmp.190 :vibrate;
+        %tmp.192 = newa 1;
+        symbol [ Toybox %tmp.196 128 46 52 ];
+        %tmp.196 = getv ? :Toybox;
+        symbol [ Attention %tmp.197 128 53 62 ];
+        %tmp.197 = getv %tmp.196 :Attention;
+        symbol [ VibeProfile %tmp.198 128 63 74 ];
+        %tmp.198 = getv %tmp.197 :VibeProfile;
+        %tmp.199 = 60;
+        %tmp.200 = 120;
+        %tmp.193 = newc %tmp.198 (%tmp.199, %tmp.200);
+        %tmp.201 = dup %tmp.192;
+        %tmp.202 = aputv %tmp.201 0 %tmp.193;
+        invoke %tmp.190 %tmp.191(%tmp.202);
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_47_129_12_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_12_129_12_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_127_12_129_12_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_33_130_8_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_false:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 130 15 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_15_140_8_if_stmt:
+        symbol [ capturing %tmp.204 130 19 28 ];
+        %tmp.204 = getv ? :capturing;
+        bf %tmp.204 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_15_140_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_15_140_8_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_30_140_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 131 12 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_begin:
+        %tmp.205 = lgetv %burst.5;
+        symbol [ burst %tmp.205 131 28 33 ];
+        bf %tmp.205 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_else_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_true:
+        %tmp.206 = 0;
+        push %tmp.206;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_else_false:
+        symbol [ _quietBatches %tmp.208 131 41 54 ];
+        %tmp.208 = getv ? :_quietBatches;
+        %tmp.209 = 1;
+        %tmp.210 = add %tmp.208 %tmp.209;
+        push %tmp.210;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_end:
+        %tmp.211 = phi [%tmp.205 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_begin] [%tmp.206 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_true] [%tmp.210 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_else_false] [%tmp.211 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_131_28_131_58_end];
+        symbol [ _quietBatches ? 131 12 25 ];
+        putv self :_quietBatches %tmp.211;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 133 12 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_12_139_12_if_stmt:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_16_133_53_begin:
+        symbol [ _quietBatches %tmp.213 133 16 29 ];
+        %tmp.213 = getv ? :_quietBatches;
+        %tmp.214 = 2;
+        %tmp.215 = gte %tmp.213 %tmp.214;
+        bt %tmp.215 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_12_139_12_if_true;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_38_133_53_false:
+        symbol [ _cap %tmp.217 133 38 42 ];
+        %tmp.217 = getv ? :_cap;
+        symbol [ size %tmp.218 133 43 47 ];
+        %tmp.218 = getv function %tmp.217 :size;
+        %tmp.219 = invoke %tmp.217 %tmp.218();
+        %tmp.220 = lgetv %maxCap.7;
+        symbol [ maxCap %tmp.220 133 53 59 ];
+        %tmp.221 = gte %tmp.219 %tmp.220;
+        push %tmp.221;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_38_133_53_end:
+        %tmp.222 = phi [%tmp.215 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_16_133_53_begin] [%tmp.221 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_38_133_53_false] [%tmp.222 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_38_133_53_end];
+        bf %tmp.222 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_12_139_12_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_12_139_12_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_61_139_12_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 134 16 ]
+        %tmp.223 = false;
+        symbol [ capturing ? 134 16 25 ];
+        putv self :capturing %tmp.223;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 135 16 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_16_135_83_if_stmt:
+        symbol [ swings %tmp.225 135 20 26 ];
+        %tmp.225 = getv ? :swings;
+        symbol [ size %tmp.226 135 27 31 ];
+        %tmp.226 = getv function %tmp.225 :size;
+        %tmp.227 = invoke %tmp.225 %tmp.226();
+        symbol [ MAX_SWINGS %tmp.229 135 37 47 ];
+        %tmp.229 = getv ? :MAX_SWINGS;
+        %tmp.230 = gte %tmp.227 %tmp.229;
+        bf %tmp.230 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_16_135_83_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_16_135_83_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_49_135_83_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 135 51 ]
+        symbol [ swings %tmp.232 135 60 66 ];
+        %tmp.232 = getv ? :swings;
+        symbol [ slice %tmp.233 135 67 72 ];
+        %tmp.233 = getv function %tmp.232 :slice;
+        %tmp.234 = 1;
+        %tmp.235 = null;
+        %tmp.236 = invoke %tmp.232 %tmp.233(%tmp.234, %tmp.235);
+        symbol [ swings ? 135 51 57 ];
+        putv self :swings %tmp.236;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_49_135_83_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_16_135_83_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_135_16_135_83_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 136 16 ]
+        symbol [ swings %tmp.238 136 16 22 ];
+        %tmp.238 = getv ? :swings;
+        symbol [ add %tmp.239 136 23 26 ];
+        %tmp.239 = getv function %tmp.238 :add;
+        symbol [ _cap %tmp.241 136 27 31 ];
+        %tmp.241 = getv ? :_cap;
+        invoke %tmp.238 %tmp.239(%tmp.241);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 137 16 ]
+        %tmp.242 = newa 0;
+        symbol [ _cap ? 137 16 20 ];
+        putv self :_cap %tmp.242;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 138 16 ]
+        %tmp.243 = newa 0;
+        symbol [ _pre ? 138 16 20 ];
+        putv self :_pre %tmp.243;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_61_139_12_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_12_139_12_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_133_12_139_12_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_30_140_8_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_15_140_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_130_15_140_8_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_122_8_140_8_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc" 141 8 ]
+        symbol [ WatchUi %tmp.244 141 8 15 ];
+        %tmp.244 = getm $.Toybox.WatchUi;
+        symbol [ requestUpdate %tmp.245 141 16 29 ];
+        %tmp.245 = getv function %tmp.244 :requestUpdate;
+        invoke %tmp.244 %tmp.245();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Recorder_mc_90_55_142_4_stop:
+    }
+}
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/Recorder.mc"; @line = 13; ]
+<init> {
+}

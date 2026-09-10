@@ -1,0 +1,283 @@
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 3; @symbol_importdef<0> = [Toybox,3,7,13]; @symbol_importdef<1> = [Graphics,3,14,22]; ]
+import Toybox.Graphics;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 4; @symbol_importdef<0> = [Toybox,4,7,13]; @symbol_importdef<1> = [Lang,4,14,18]; ]
+import Toybox.Lang;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 5; @symbol_importdef<0> = [Toybox,5,7,13]; @symbol_importdef<1> = [WatchUi,5,14,21]; ]
+import Toybox.WatchUi;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 7; @symbol_classdef = [GLoggerView,7,6,17]; @symbol_extends<0> = [WatchUi,7,26,33]; @symbol_extends<1> = [View,7,34,38]; ]
+class GLoggerView extends WatchUi.View {
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 7; ]
+    <init> {
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 7; ]
+    static
+    <init> {
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 8; @position = 15; @symbol_vardef = [uploadStatus,8,15,27]; @symbol_type<0> = [String,8,31,37]; ]
+    public
+    var uploadStatus as String = "SELECT to upload";
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 10; @symbol_functiondef = [initialize,10,13,23]; ]
+    function initialize() as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_10_26_12_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 11 8 ]
+        symbol [ View %tmp.2 11 8 12 ];
+        %tmp.2 = getv ? :View;
+        symbol [ initialize %tmp.3 11 13 23 ];
+        %tmp.3 = getv function %tmp.2 :initialize;
+        invoke %tmp.2 %tmp.3();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_10_26_12_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 14; @symbol_functiondef = [onUpdate,14,13,21]; @symbol_param<0> = [dc,14,22,24]; @symbol_param<0>_type<0> = [Dc,14,28,30]; ]
+    function onUpdate(dc as Dc) as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 15 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_stop" ]
+        %app.1 = local;
+        symbol [ app %app.1 15 12 15 ];
+        symbol [ Application %tmp.2 15 18 29 ];
+        %tmp.2 = getv ? :Application;
+        symbol [ getApp %tmp.3 15 30 36 ];
+        %tmp.3 = getv function %tmp.2 :getApp;
+        %tmp.4 = invoke %tmp.2 %tmp.3();
+        %tmp.5 = as %tmp.4 GLoggerApp;
+        symbol [ GLoggerApp %tmp.5 15 42 52 ];
+        lputv %app.1 %tmp.5;
+        symbol [ app %app.1 15 12 15 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 16 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_stop" ]
+        %rec.2 = local;
+        symbol [ rec %rec.2 16 12 15 ];
+        %tmp.6 = lgetv %app.1;
+        symbol [ app %tmp.6 16 18 21 ];
+        symbol [ recorder %tmp.7 16 22 30 ];
+        %tmp.7 = getv %tmp.6 :recorder;
+        lputv %rec.2 %tmp.7;
+        symbol [ rec %rec.2 16 12 15 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 17 8 ]
+        %tmp.8 = lgetv %dc;
+        symbol [ dc %tmp.8 17 8 10 ];
+        symbol [ setColor %tmp.9 17 11 19 ];
+        %tmp.9 = getv function %tmp.8 :setColor;
+        symbol [ Graphics %tmp.10 17 20 28 ];
+        %tmp.10 = getm $.Toybox.Graphics;
+        symbol [ COLOR_BLACK %tmp.11 17 29 40 ];
+        %tmp.11 = getv %tmp.10 :COLOR_BLACK;
+        symbol [ Graphics %tmp.12 17 42 50 ];
+        %tmp.12 = getm $.Toybox.Graphics;
+        symbol [ COLOR_WHITE %tmp.13 17 51 62 ];
+        %tmp.13 = getv %tmp.12 :COLOR_WHITE;
+        invoke %tmp.8 %tmp.9(%tmp.11, %tmp.13);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 18 8 ]
+        %tmp.14 = lgetv %dc;
+        symbol [ dc %tmp.14 18 8 10 ];
+        symbol [ clear %tmp.15 18 11 16 ];
+        %tmp.15 = getv function %tmp.14 :clear;
+        invoke %tmp.14 %tmp.15();
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 19 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_stop" ]
+        %cx.3 = local;
+        symbol [ cx %cx.3 19 12 14 ];
+        %tmp.16 = lgetv %dc;
+        symbol [ dc %tmp.16 19 17 19 ];
+        symbol [ getWidth %tmp.17 19 20 28 ];
+        %tmp.17 = getv function %tmp.16 :getWidth;
+        %tmp.18 = invoke %tmp.16 %tmp.17();
+        %tmp.19 = 2;
+        %tmp.20 = div %tmp.18 %tmp.19;
+        lputv %cx.3 %tmp.20;
+        symbol [ cx %cx.3 19 12 14 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 20 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_stop" ]
+        %y.4 = local;
+        symbol [ y %y.4 20 12 13 ];
+        %tmp.21 = lgetv %dc;
+        symbol [ dc %tmp.21 20 16 18 ];
+        symbol [ getHeight %tmp.22 20 19 28 ];
+        %tmp.22 = getv function %tmp.21 :getHeight;
+        %tmp.23 = invoke %tmp.21 %tmp.22();
+        %tmp.24 = 6;
+        %tmp.25 = div %tmp.23 %tmp.24;
+        lputv %y.4 %tmp.25;
+        symbol [ y %y.4 20 12 13 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 21 8 ]
+        %tmp.26 = lgetv %dc;
+        symbol [ dc %tmp.26 21 8 10 ];
+        symbol [ drawText %tmp.27 21 11 19 ];
+        %tmp.27 = getv function %tmp.26 :drawText;
+        %tmp.28 = lgetv %cx.3;
+        symbol [ cx %tmp.28 21 20 22 ];
+        %tmp.29 = lgetv %y.4;
+        symbol [ y %tmp.29 21 24 25 ];
+        symbol [ Graphics %tmp.30 21 27 35 ];
+        %tmp.30 = getm $.Toybox.Graphics;
+        symbol [ FONT_SMALL %tmp.31 21 36 46 ];
+        %tmp.31 = getv %tmp.30 :FONT_SMALL;
+        %tmp.32 = "DR Logger";
+        symbol [ Graphics %tmp.33 21 61 69 ];
+        %tmp.33 = getm $.Toybox.Graphics;
+        symbol [ TEXT_JUSTIFY_CENTER %tmp.34 21 70 89 ];
+        %tmp.34 = getv %tmp.33 :TEXT_JUSTIFY_CENTER;
+        invoke %tmp.26 %tmp.27(%tmp.28, %tmp.29, %tmp.31, %tmp.32, %tmp.34);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 22 8 ]
+        %tmp.35 = lgetv %y.4;
+        symbol [ y %tmp.35 22 8 9 ];
+        %tmp.36 = lgetv %dc;
+        symbol [ dc %tmp.36 22 13 15 ];
+        symbol [ getFontHeight %tmp.37 22 16 29 ];
+        %tmp.37 = getv function %tmp.36 :getFontHeight;
+        symbol [ Graphics %tmp.38 22 30 38 ];
+        %tmp.38 = getm $.Toybox.Graphics;
+        symbol [ FONT_SMALL %tmp.39 22 39 49 ];
+        %tmp.39 = getv %tmp.38 :FONT_SMALL;
+        %tmp.40 = invoke %tmp.36 %tmp.37(%tmp.39);
+        %tmp.41 = 6;
+        %tmp.42 = add %tmp.40 %tmp.41;
+        %tmp.43 = add %tmp.35 %tmp.42;
+        lputv %y.4 %tmp.43;
+        symbol [ y %y.4 22 8 9 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 23 8 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_8_29_8_if_stmt:
+        %tmp.44 = lgetv %rec.2;
+        symbol [ rec %tmp.44 23 12 15 ];
+        %tmp.45 = null;
+        %tmp.46 = ne %tmp.44 %tmp.45;
+        bf %tmp.46 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_8_29_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_8_29_8_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_25_29_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 24 12 ]
+        %tmp.47 = lgetv %dc;
+        symbol [ dc %tmp.47 24 12 14 ];
+        symbol [ drawText %tmp.48 24 15 23 ];
+        %tmp.48 = getv function %tmp.47 :drawText;
+        %tmp.49 = lgetv %cx.3;
+        symbol [ cx %tmp.49 24 24 26 ];
+        %tmp.50 = lgetv %y.4;
+        symbol [ y %tmp.50 24 28 29 ];
+        symbol [ Graphics %tmp.51 24 31 39 ];
+        %tmp.51 = getm $.Toybox.Graphics;
+        symbol [ FONT_MEDIUM %tmp.52 24 40 51 ];
+        %tmp.52 = getv %tmp.51 :FONT_MEDIUM;
+        %tmp.53 = lgetv %rec.2;
+        symbol [ rec %tmp.53 24 53 56 ];
+        %tmp.54 = as %tmp.53 { (!Null) };
+        symbol [ status %tmp.55 24 57 63 ];
+        %tmp.55 = getv %tmp.54 :status;
+        symbol [ Graphics %tmp.56 24 65 73 ];
+        %tmp.56 = getm $.Toybox.Graphics;
+        symbol [ TEXT_JUSTIFY_CENTER %tmp.57 24 74 93 ];
+        %tmp.57 = getv %tmp.56 :TEXT_JUSTIFY_CENTER;
+        invoke %tmp.47 %tmp.48(%tmp.49, %tmp.50, %tmp.52, %tmp.55, %tmp.57);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 25 12 ]
+        %tmp.58 = lgetv %y.4;
+        symbol [ y %tmp.58 25 12 13 ];
+        %tmp.59 = lgetv %dc;
+        symbol [ dc %tmp.59 25 17 19 ];
+        symbol [ getFontHeight %tmp.60 25 20 33 ];
+        %tmp.60 = getv function %tmp.59 :getFontHeight;
+        symbol [ Graphics %tmp.61 25 34 42 ];
+        %tmp.61 = getm $.Toybox.Graphics;
+        symbol [ FONT_MEDIUM %tmp.62 25 43 54 ];
+        %tmp.62 = getv %tmp.61 :FONT_MEDIUM;
+        %tmp.63 = invoke %tmp.59 %tmp.60(%tmp.62);
+        %tmp.64 = 6;
+        %tmp.65 = add %tmp.63 %tmp.64;
+        %tmp.66 = add %tmp.58 %tmp.65;
+        lputv %y.4 %tmp.66;
+        symbol [ y %y.4 25 12 13 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 26 12 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_25_29_8_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_25_29_8_stop" ]
+        %line.5 = local;
+        symbol [ line %line.5 26 16 20 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_begin:
+        %tmp.67 = lgetv %rec.2;
+        symbol [ rec %tmp.67 26 23 26 ];
+        %tmp.68 = as %tmp.67 { (!Null) };
+        symbol [ capturing %tmp.69 26 27 36 ];
+        %tmp.69 = getv %tmp.68 :capturing;
+        bf %tmp.69 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_else_false;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_true:
+        %tmp.70 = "CAPTURING";
+        push %tmp.70;
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_else_false:
+        %tmp.71 = "swings: ";
+        %tmp.72 = lgetv %rec.2;
+        symbol [ rec %tmp.72 26 67 70 ];
+        %tmp.73 = as %tmp.72 { (!Null) };
+        symbol [ swings %tmp.74 26 71 77 ];
+        %tmp.74 = getv %tmp.73 :swings;
+        symbol [ size %tmp.75 26 78 82 ];
+        %tmp.75 = getv function %tmp.74 :size;
+        %tmp.76 = invoke %tmp.74 %tmp.75();
+        %tmp.77 = add %tmp.71 %tmp.76;
+        push %tmp.77;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_end:
+        %tmp.78 = phi [%tmp.69 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_begin] [%tmp.70 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_true] [%tmp.77 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_else_false] [%tmp.78 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_26_23_26_84_end];
+        lputv %line.5 %tmp.78;
+        symbol [ line %line.5 26 16 20 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 27 12 ]
+        %tmp.79 = lgetv %dc;
+        symbol [ dc %tmp.79 27 12 14 ];
+        symbol [ drawText %tmp.80 27 15 23 ];
+        %tmp.80 = getv function %tmp.79 :drawText;
+        %tmp.81 = lgetv %cx.3;
+        symbol [ cx %tmp.81 27 24 26 ];
+        %tmp.82 = lgetv %y.4;
+        symbol [ y %tmp.82 27 28 29 ];
+        symbol [ Graphics %tmp.83 27 31 39 ];
+        %tmp.83 = getm $.Toybox.Graphics;
+        symbol [ FONT_MEDIUM %tmp.84 27 40 51 ];
+        %tmp.84 = getv %tmp.83 :FONT_MEDIUM;
+        %tmp.85 = lgetv %line.5;
+        symbol [ line %tmp.85 27 53 57 ];
+        symbol [ Graphics %tmp.86 27 59 67 ];
+        %tmp.86 = getm $.Toybox.Graphics;
+        symbol [ TEXT_JUSTIFY_CENTER %tmp.87 27 68 87 ];
+        %tmp.87 = getv %tmp.86 :TEXT_JUSTIFY_CENTER;
+        invoke %tmp.79 %tmp.80(%tmp.81, %tmp.82, %tmp.84, %tmp.85, %tmp.87);
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 28 12 ]
+        %tmp.88 = lgetv %y.4;
+        symbol [ y %tmp.88 28 12 13 ];
+        %tmp.89 = lgetv %dc;
+        symbol [ dc %tmp.89 28 17 19 ];
+        symbol [ getFontHeight %tmp.90 28 20 33 ];
+        %tmp.90 = getv function %tmp.89 :getFontHeight;
+        symbol [ Graphics %tmp.91 28 34 42 ];
+        %tmp.91 = getm $.Toybox.Graphics;
+        symbol [ FONT_MEDIUM %tmp.92 28 43 54 ];
+        %tmp.92 = getv %tmp.91 :FONT_MEDIUM;
+        %tmp.93 = invoke %tmp.89 %tmp.90(%tmp.92);
+        %tmp.94 = 6;
+        %tmp.95 = add %tmp.93 %tmp.94;
+        %tmp.96 = add %tmp.88 %tmp.95;
+        lputv %y.4 %tmp.96;
+        symbol [ y %y.4 28 12 13 ];
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_25_29_8_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_8_29_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_23_8_29_8_if_end:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc" 30 8 ]
+        %tmp.97 = lgetv %dc;
+        symbol [ dc %tmp.97 30 8 10 ];
+        symbol [ drawText %tmp.98 30 11 19 ];
+        %tmp.98 = getv function %tmp.97 :drawText;
+        %tmp.99 = lgetv %cx.3;
+        symbol [ cx %tmp.99 30 20 22 ];
+        %tmp.100 = lgetv %y.4;
+        symbol [ y %tmp.100 30 24 25 ];
+        symbol [ Graphics %tmp.101 30 27 35 ];
+        %tmp.101 = getm $.Toybox.Graphics;
+        symbol [ FONT_XTINY %tmp.102 30 36 46 ];
+        %tmp.102 = getv %tmp.101 :FONT_XTINY;
+        symbol [ uploadStatus %tmp.104 30 48 60 ];
+        %tmp.104 = getv ? :uploadStatus;
+        symbol [ Graphics %tmp.105 30 62 70 ];
+        %tmp.105 = getm $.Toybox.Graphics;
+        symbol [ TEXT_JUSTIFY_CENTER %tmp.106 30 71 90 ];
+        %tmp.106 = getv %tmp.105 :TEXT_JUSTIFY_CENTER;
+        invoke %tmp.97 %tmp.98(%tmp.99, %tmp.100, %tmp.102, %tmp.104, %tmp.106);
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerView_mc_14_40_31_4_stop:
+    }
+}
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerView.mc"; @line = 3; ]
+<init> {
+}

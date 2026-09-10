@@ -1,0 +1,101 @@
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 4; @symbol_importdef<0> = [Toybox,4,7,13]; @symbol_importdef<1> = [Application,4,14,25]; ]
+import Toybox.Application;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 5; @symbol_importdef<0> = [Toybox,5,7,13]; @symbol_importdef<1> = [Lang,5,14,18]; ]
+import Toybox.Lang;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 6; @symbol_importdef<0> = [Toybox,6,7,13]; @symbol_importdef<1> = [WatchUi,6,14,21]; ]
+import Toybox.WatchUi;
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 8; @symbol_classdef = [GLoggerApp,8,6,16]; @symbol_extends<0> = [Application,8,25,36]; @symbol_extends<1> = [AppBase,8,37,44]; ]
+class GLoggerApp extends Application.AppBase {
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 8; ]
+    <init> {
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 8; ]
+    static
+    <init> {
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 9; @position = 8; @symbol_vardef = [recorder,9,8,16]; @symbol_type<0> = [Recorder,9,20,28]; ]
+    var recorder as Recorder or Null;
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 11; @symbol_functiondef = [initialize,11,13,23]; ]
+    function initialize() as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_11_26_13_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 12 8 ]
+        symbol [ AppBase %tmp.2 12 8 15 ];
+        %tmp.2 = getv ? :AppBase;
+        symbol [ initialize %tmp.3 12 16 26 ];
+        %tmp.3 = getv function %tmp.2 :initialize;
+        invoke %tmp.2 %tmp.3();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_11_26_13_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 15; @symbol_functiondef = [onStart,15,13,20]; @symbol_param<0> = [state,15,21,26]; @symbol_param<0>_type<0> = [Dictionary,15,30,40]; ]
+    function onStart(state as Dictionary or Null) as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_15_51_18_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 16 8 ]
+        symbol [ Recorder %tmp.4 16 23 31 ];
+        %tmp.4 = getv ? :Recorder;
+        %tmp.1 = newc %tmp.4 ();
+        symbol [ recorder ? 16 8 16 ];
+        putv self :recorder %tmp.1;
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 17 8 ]
+        symbol [ recorder %tmp.6 17 8 16 ];
+        %tmp.6 = getv ? :recorder;
+        symbol [ start %tmp.7 17 17 22 ];
+        %tmp.7 = getv function %tmp.6 :start;
+        invoke %tmp.6 %tmp.7();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_15_51_18_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 20; @symbol_functiondef = [onStop,20,13,19]; @symbol_param<0> = [state,20,20,25]; @symbol_param<0>_type<0> = [Dictionary,20,29,39]; ]
+    function onStop(state as Dictionary or Null) as Void {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_20_50_24_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 21 8 ]
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_8_23_8_if_stmt:
+        symbol [ recorder %tmp.2 21 12 20 ];
+        %tmp.2 = getv ? :recorder;
+        %tmp.3 = null;
+        %tmp.4 = ne %tmp.2 %tmp.3;
+        bf %tmp.4 @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_8_23_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_8_23_8_if_true:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_30_23_8_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 22 12 ]
+        symbol [ recorder %tmp.6 22 12 20 ];
+        %tmp.6 = getv ? :recorder;
+        %tmp.7 = as %tmp.6 { (!Null) };
+        symbol [ stop %tmp.8 22 21 25 ];
+        %tmp.8 = getv function %tmp.7 :stop;
+        invoke %tmp.7 %tmp.8();
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_30_23_8_stop:
+        goto @_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_8_23_8_if_end;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_21_8_23_8_if_end:
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_20_50_24_4_stop:
+    }
+    [ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 26; @symbol_functiondef = [getInitialView,26,13,27]; @symbol_return<0> = [Views,26,34,39]; @symbol_return<1> = [Views,26,45,50]; @symbol_return<2> = [InputDelegates,26,52,66]; ]
+    function getInitialView() as [Views] or [Views, InputDelegates] {
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_26_68_29_4_start:
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 27 8 ]
+        [ "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_26_68_29_4_start" "_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_26_68_29_4_stop" ]
+        %view.1 = local;
+        symbol [ view %view.1 27 12 16 ];
+        symbol [ GLoggerView %tmp.4 27 23 34 ];
+        %tmp.4 = getv ? :GLoggerView;
+        %tmp.1 = newc %tmp.4 ();
+        lputv %view.1 %tmp.1;
+        symbol [ view %view.1 27 12 16 ];
+[ "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc" 28 8 ]
+        %tmp.5 = newa 2;
+        %tmp.6 = lgetv %view.1;
+        symbol [ view %tmp.6 28 16 20 ];
+        %tmp.7 = dup %tmp.5;
+        %tmp.8 = aputv %tmp.7 0 %tmp.6;
+        symbol [ GLoggerDelegate %tmp.12 28 26 41 ];
+        %tmp.12 = getv ? :GLoggerDelegate;
+        %tmp.13 = lgetv %view.1;
+        symbol [ view %tmp.13 28 42 46 ];
+        %tmp.9 = newc %tmp.12 (%tmp.13);
+        %tmp.14 = dup %tmp.8;
+        %tmp.15 = aputv %tmp.14 1 %tmp.9;
+        ret %tmp.15;
+_Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_GLoggerApp_mc_26_68_29_4_stop:
+    }
+}
+[ @file = "/Users/danielgeneau/Documents/GitHub/Golf Analysis/garmin/logger/source/GLoggerApp.mc"; @line = 4; ]
+<init> {
+}
