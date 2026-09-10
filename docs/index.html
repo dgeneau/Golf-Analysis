@@ -245,7 +245,7 @@
             min-height: 61px; }            /* three lines reserved — cue swaps don't shift layout */
   .mbottom { padding-bottom: max(var(--sab), 16px); }
   .mrail { display: flex; gap: 10px; padding: 0 20px 12px; overflow-x: auto; }
-  .mrailcard { flex: none; width: 78px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
+  .mrailcard { flex: none; width: 78px; border: 1px solid #ddd7c4; border-radius: 10px;
                padding: 9px 10px; background: transparent; color: #23221c; text-align: left; }
   .mrailcard.sel { background: rgba(60,74,48,.18); border-color: rgba(60,74,48,.5); }
   .mrailcard .n { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 11px;
@@ -781,14 +781,14 @@
         </div>
         <div class="mpage" id="mPagePath" hidden>
           <div class="mlabel">Hand path · target line up</div>
-          <svg id="mPathSvg" width="100%" viewBox="0 0 340 170" style="margin-top:8px"></svg>
+          <svg id="mPathSvg" width="100%" viewBox="0 0 340 148" style="margin-top:4px"></svg>
           <svg id="mPathBand" width="100%" viewBox="0 0 340 40" style="margin-top:2px"></svg>
           <div class="mgcap" id="mPathCap"></div>
-          <div style="display:flex;gap:8px;margin-top:10px">
+          <div style="display:flex;gap:8px;margin-top:6px">
             <button class="mghost" id="mSquareBtn"
-                    style="flex:1;padding:10px 12px;font-size:13px">Set square from last swings</button>
+                    style="flex:1;padding:9px 12px;font-size:13px">Set square from last swings</button>
             <button class="mghost" id="mSquareClr" hidden
-                    style="padding:10px 12px;font-size:13px">Clear</button>
+                    style="padding:9px 12px;font-size:13px">Clear</button>
           </div>
         </div>
       </div>
@@ -4675,10 +4675,10 @@ function renderMTrace(sw){
   const line = (arr, vmax, color, w) =>
     mkSvg(svg, "polyline", {fill: "none", stroke: color, "stroke-width": w,
       points: arr.map((v, i) => `${xs(T.t[i]).toFixed(1)},${y(v, vmax).toFixed(1)}`).join(" ")});
-  line(T.acc, amax, "rgba(252,252,251,0.4)", 1.5);
+  line(T.acc, amax, "rgba(180,99,47,0.65)", 1.5);
   line(T.gyro, gmax, "#3c4a30", 2);
   document.getElementById("mTraceCap").textContent =
-    `wrist speed (blue) peak ${Math.round(gmax)}°/s · accel (white) peak ${(amax / 9.81).toFixed(1)} g` +
+    `wrist speed (green) peak ${Math.round(gmax)}°/s · accel (clay) peak ${(amax / 9.81).toFixed(1)} g` +
     (sw.metrics.acc_clipped ? " · clipped at impact" : "");
 }
 /* hand path from above, rotated into the address frame so the target line is
@@ -4697,7 +4697,7 @@ function renderMPath(sw){
     xr.push(P.x[i]*cp + P.y[i]*sp);      // + = toward the address direction
     yr.push(-P.x[i]*sp + P.y[i]*cp);     // + = left of it
   }
-  const W = 340, H = 170, pad = 18;
+  const W = 340, H = 148, pad = 16;
   const minx = Math.min(...xr), maxx = Math.max(...xr);
   const miny = Math.min(...yr), maxy = Math.max(...yr);
   const s = Math.min((H - 2*pad) / Math.max(1e-3, maxx - minx),
@@ -4719,7 +4719,7 @@ function renderMPath(sw){
     mkSvg(svg, "polyline", {points: pts.join(" "), fill: "none", stroke: color,
                             "stroke-width": w, "stroke-linecap": "round"});
   };
-  seg(iI, xr.length - 1, "rgba(252,252,251,0.22)", 2);   // follow-through
+  seg(iI, xr.length - 1, "rgba(138,146,112,0.45)", 2);   // follow-through
   seg(0, iT, "#8a8577", 2);                               // backswing
   seg(iT, iI, "#3c4a30", 3);                              // downswing
   mkSvg(svg, "circle", {cx: SX(0), cy: SY(0), r: 3.5, fill: "#f0ede2",
@@ -4732,12 +4732,12 @@ function renderMPath(sw){
     const bx = ex - Math.sin(a)*9, by = ey + Math.cos(a)*9;   // arrowhead base
     const px = Math.cos(a)*4.5, py = Math.sin(a)*4.5;
     mkSvg(svg, "line", {x1: ix, y1: iy, x2: bx, y2: by,
-                        stroke: "#f8f6ee", "stroke-width": 2.5});
+                        stroke: "#b4632f", "stroke-width": 2.5});
     mkSvg(svg, "polygon", {points: `${ex},${ey} ${bx+px},${by+py} ${bx-px},${by-py}`,
-                           fill: "#f8f6ee"});
+                           fill: "#b4632f"});
     mkSvg(svg, "text", {x: ex + (m.path_angle_deg >= 0 ? 6 : -6), y: ey - 2,
                         "text-anchor": m.path_angle_deg >= 0 ? "start" : "end",
-                        fill: "#f8f6ee", style: "font:600 12px system-ui"})
+                        fill: "#b4632f", style: "font:600 12px system-ui"})
       .textContent = `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}°`;
   }
   renderPathBand(m);
