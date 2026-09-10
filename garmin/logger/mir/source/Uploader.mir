@@ -123,7 +123,7 @@ _Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Uploader
         %tmp.40 = dup %tmp.36;
         %tmp.41 = aputv %tmp.40 %tmp.37 %tmp.39;
         %tmp.42 = "cols";
-        %tmp.43 = 6;
+        %tmp.43 = 5;
         %tmp.44 = dup %tmp.41;
         %tmp.45 = aputv %tmp.44 %tmp.42 %tmp.43;
         %tmp.46 = "n";
@@ -132,7 +132,7 @@ _Users_danielgeneau_Documents_GitHub_Golf_Analysis_garmin_logger_source_Uploader
         symbol [ size %tmp.48 34 28 32 ];
         %tmp.48 = getv function %tmp.47 :size;
         %tmp.49 = invoke %tmp.47 %tmp.48();
-        %tmp.50 = 6;
+        %tmp.50 = 5;
         %tmp.51 = div %tmp.49 %tmp.50;
         %tmp.52 = dup %tmp.45;
         %tmp.53 = aputv %tmp.52 %tmp.46 %tmp.51;
