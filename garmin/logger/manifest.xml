@@ -4,7 +4,7 @@
      upload them for offline analysis through the SwingCoach pipeline. -->
 <iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
   <iq:application entry="GLoggerApp" id="a480887c750c476cb44a515462a5aaa0" launcherIcon="@Drawables.LauncherIcon"
-      name="@Strings.AppName" type="watch-app" minSdkVersion="3.1.0" version="0.1.0">
+      name="@Strings.AppName" type="watch-app" minApiLevel="3.1.0" version="0.1.0">
     <iq:products>
       <iq:product id="vivoactive4"/>
       <iq:product id="vivoactive4s"/>

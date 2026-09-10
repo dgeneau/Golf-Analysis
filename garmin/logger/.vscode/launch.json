@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "omonkeyc",
+      "request": "launch",
+      "name": "Run DR Logger in simulator",
+      "device": "vivoactive4"
+    }
+  ]
+}
