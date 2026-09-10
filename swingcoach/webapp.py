@@ -30,6 +30,15 @@ def _render_page() -> bytes:
     page = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, "
             "maximum-scale=1, user-scalable=no, viewport-fit=cover\">"
+            # Downrange flagstick favicon (inline SVG, no extra request)
+            "<link rel=\"icon\" href=\"data:image/svg+xml,"
+            "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E"
+            "%3Crect width='64' height='64' rx='14' fill='%23f0ede2'/%3E"
+            "%3Cpath d='M12 48 Q 27 18 43 48' stroke='%238a9270' stroke-width='4.5' "
+            "stroke-dasharray='1 8' stroke-linecap='round' fill='none'/%3E"
+            "%3Cline x1='43' y1='12' x2='43' y2='50' stroke='%2323221c' "
+            "stroke-width='5' stroke-linecap='round'/%3E"
+            "%3Cpath d='M43 14 L43 29 L59 21.5 Z' fill='%233c4a30'/%3E%3C/svg%3E\">"
             "</head><body>" + body + "</body></html>")
     return page.encode()
 

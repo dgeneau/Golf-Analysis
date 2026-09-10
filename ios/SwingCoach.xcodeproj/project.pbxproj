@@ -336,7 +336,7 @@
 				DEVELOPMENT_TEAM = SM6N8HAYK9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = SwingCoach;
+				INFOPLIST_KEY_CFBundleDisplayName = Downrange;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "A golf workout session keeps swing capture running while your wrist is down.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "SwingCoach runs a golf workout session while capturing swings.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "SwingCoach reads wrist motion to analyze your golf swing.";
@@ -368,7 +368,7 @@
 				DEVELOPMENT_TEAM = SM6N8HAYK9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = SwingCoach;
+				INFOPLIST_KEY_CFBundleDisplayName = Downrange;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "A golf workout session keeps swing capture running while your wrist is down.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "SwingCoach runs a golf workout session while capturing swings.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "SwingCoach reads wrist motion to analyze your golf swing.";

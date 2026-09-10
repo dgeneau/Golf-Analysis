@@ -1,80 +1,91 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"></head><body><title>SwingCoach Range Board</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f0ede2'/%3E%3Cpath d='M12 48 Q 27 18 43 48' stroke='%238a9270' stroke-width='4.5' stroke-dasharray='1 8' stroke-linecap='round' fill='none'/%3E%3Cline x1='43' y1='12' x2='43' y2='50' stroke='%2323221c' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M43 14 L43 29 L59 21.5 Z' fill='%233c4a30'/%3E%3C/svg%3E"></head><body><title>Downrange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
+  /* Downrange "Field" palette (claude/brand-identity-decision.md):
+     warm paper + ink + loden green. Loden is the single accent; moss and
+     sage extend it for series; clay is the one warm counter-color. */
   :root {
-    --plane: #f4f7f2;
-    --surface: #fcfcfb;
-    --ink: #0b0b0b;
-    --ink-2: #52514e;
-    --muted: #898781;
-    --grid: #e1e0d9;
-    --baseline: #c3c2b7;
-    --border: rgba(11,11,11,0.10);
-    --s1: #2a78d6;          /* gyro / primary series */
-    --s1-soft: #9ec5f4;     /* backswing segment (seq step 200) */
-    --s2: #eb6834;          /* acceleration / club-speed series */
-    --s3: #1baf7a;          /* forearm rotation series */
-    --band: rgba(42,120,214,0.08);
-    --good: #0ca30c;
-    --warn: #fab219;
-    --serious: #ec835a;
-    --chip-on: #0b0b0b;
-    --chip-on-ink: #fcfcfb;
-    --good-text: #006300;
+    --plane: #f0ede2;        /* paper */
+    --surface: #f8f6ee;      /* card */
+    --ink: #23221c;
+    --ink-2: #6b6558;
+    --muted: #8a8577;
+    --grid: #e4decb;
+    --baseline: #ddd7c4;     /* line */
+    --border: #ddd7c4;
+    --s1: #3c4a30;           /* loden — gyro / primary series */
+    --s1-soft: #c9d0ae;      /* sage — backswing segment */
+    --s2: #b4632f;           /* clay — acceleration / club-speed series */
+    --s3: #8a9270;           /* moss — forearm rotation series */
+    --band: rgba(60,74,48,0.10);
+    --good: #3c4a30;
+    --warn: #b08a3e;
+    --serious: #a8442e;
+    --chip-on: #3c4a30;
+    --chip-on-ink: #f0ede2;
+    --good-text: #2b3522;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --plane: #0f110e;
-      --surface: #1a1a19;
-      --ink: #ffffff;
-      --ink-2: #c3c2b7;
-      --muted: #898781;
-      --grid: #2c2c2a;
-      --baseline: #383835;
-      --border: rgba(255,255,255,0.10);
-      --s1: #3987e5;
-      --s1-soft: #1c5cab;
-      --s2: #d95926;
-      --s3: #199e70;
-      --band: rgba(57,135,229,0.12);
-      --chip-on: #fcfcfb;
-      --chip-on-ink: #0b0b0b;
-      --good-text: #0ca30c;
+      --plane: #242c1e;      /* deep loden field */
+      --surface: #2b3522;
+      --ink: #f0ede2;
+      --ink-2: #c9c4b0;
+      --muted: #a09b89;
+      --grid: #3a4430;
+      --baseline: #4a553c;
+      --border: rgba(240,237,226,0.16);
+      --s1: #a7b58a;
+      --s1-soft: #5c6b46;
+      --s2: #d08a55;
+      --s3: #8a9270;
+      --band: rgba(201,208,174,0.12);
+      --good: #9db07f;
+      --warn: #d4b45e;
+      --serious: #d0765a;
+      --chip-on: #f0ede2;
+      --chip-on-ink: #2b3522;
+      --good-text: #c9d0ae;
     }
   }
   :root[data-theme="dark"] {
-    --plane: #0f110e;
-    --surface: #1a1a19;
-    --ink: #ffffff;
-    --ink-2: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
-    --baseline: #383835;
-    --border: rgba(255,255,255,0.10);
-    --s1: #3987e5;
-    --s1-soft: #1c5cab;
-    --s2: #d95926;
-    --s3: #199e70;
-    --band: rgba(57,135,229,0.12);
-    --chip-on: #fcfcfb;
-    --chip-on-ink: #0b0b0b;
-    --good-text: #0ca30c;
+    --plane: #242c1e;
+    --surface: #2b3522;
+    --ink: #f0ede2;
+    --ink-2: #c9c4b0;
+    --muted: #a09b89;
+    --grid: #3a4430;
+    --baseline: #4a553c;
+    --border: rgba(240,237,226,0.16);
+    --s1: #a7b58a;
+    --s1-soft: #5c6b46;
+    --s2: #d08a55;
+    --s3: #8a9270;
+    --band: rgba(201,208,174,0.12);
+    --good: #9db07f;
+    --warn: #d4b45e;
+    --serious: #d0765a;
+    --chip-on: #f0ede2;
+    --chip-on-ink: #2b3522;
+    --good-text: #c9d0ae;
   }
 
   * { box-sizing: border-box; }
   body {
     background: var(--plane);
     color: var(--ink);
-    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 14px/1.5 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
     margin: 0;
   }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 56px; }
 
-  .disp { font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; }
+  .disp { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .serif { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
 
   header.top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-  .wordmark { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 34px; letter-spacing: .02em; text-transform: uppercase; }
-  .wordmark small { color: var(--s1); }
+  .wordmark { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 32px;
+              display: inline-flex; align-items: center; gap: 9px; }
+  .wordmark svg { flex: none; }
   .session-meta { color: var(--ink-2); font-size: 13px; }
   .badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -92,13 +103,13 @@
     background: var(--surface); border: 1px dashed var(--baseline); border-radius: 10px;
     padding: 48px 20px; text-align: center; color: var(--ink-2);
   }
-  .empty .big { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 22px;
+  .empty .big { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 22px;
     letter-spacing: .04em; text-transform: uppercase; color: var(--ink); margin-bottom: 6px; }
   [hidden] { display: none !important; }
   .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; max-width: 65ch; }
 
   .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; }
-  .flabel { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px;
+  .flabel { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 13px;
     letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .filters select, .filters input {
     font: 600 13px system-ui, sans-serif; color: var(--ink);
@@ -125,7 +136,7 @@
   .seg button:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
 
   .round-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-  .hole-num { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 54px; line-height: 1; }
+  .hole-num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 42px; line-height: 1; }
   .hole-num small { font-size: 15px; font-weight: 600; color: var(--muted); display: block; letter-spacing: .06em; text-transform: uppercase; }
   .round-stats { display: flex; gap: 18px; }
   .round-stats div b { font-size: 22px; font-weight: 600; display: block; }
@@ -161,7 +172,7 @@
   }
   .leaflet-tooltip.distlabel::before { display: none; }
   /* round replay: numbered shot pins + clickable round rows */
-  .shotpin { background: #3987e5; color: #fff; border: 2px solid #fcfcfb; border-radius: 50%;
+  .shotpin { background: #3c4a30; color: #23221c; border: 2px solid #f8f6ee; border-radius: 50%;
              width: 22px; height: 22px; line-height: 18px; text-align: center;
              font: 700 11px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
   #raTable tr[data-round] { cursor: pointer; }
@@ -179,30 +190,30 @@
      itself on the map element. */
   html, body { touch-action: manipulation; }
   #mobileWrap, .mscreen { position: fixed; inset: 0; }
-  #mobileWrap { z-index: 10; background: #0f110e; }
+  #mobileWrap { z-index: 10; background: #f0ede2; }
   .mscreen { display: flex; flex-direction: column; }
-  #mRange { background: #0f110e; color: #fff; }
+  #mRange { background: #f0ede2; color: #23221c; }
   .mtop { display: flex; align-items: center; gap: 10px; padding: max(var(--sat), 20px) 20px 0; }
-  .mstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c3c2b7; }
-  .mdot { width: 8px; height: 8px; border-radius: 50%; background: #fab219; flex: none; }
-  .mdot.ok { background: #0ca30c; }
-  .mdot.err { background: #ec835a; }
+  .mstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #6b6558; }
+  .mdot { width: 8px; height: 8px; border-radius: 50%; background: #b08a3e; flex: none; }
+  .mdot.ok { background: #3c4a30; }
+  .mdot.err { background: #a8442e; }
   .mchip {
-    font: 600 12px system-ui; color: #c3c2b7; background: transparent;
-    border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 6px 12px;
+    font: 600 12px system-ui; color: #6b6558; background: transparent;
+    border: 1px solid #d5cfba; border-radius: 999px; padding: 6px 12px;
     -webkit-appearance: none; appearance: none;
   }
-  #mRound .mchip, .msummary .mchip { color: #0b0b0b; background: #fcfcfb; border-color: rgba(11,11,11,.15); }
+  #mRound .mchip, .msummary .mchip { color: #23221c; background: #f8f6ee; border-color: #ddd7c4; }
   .mhero { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; min-height: 0; }
   /* pre-first-swing empty state: replaces the graph carousel entirely */
   .mempty p, .mempty h2 { margin: 0; }
-  .mempty h2 { margin: 18px 0 10px; font-family: "Barlow Condensed", sans-serif; font-weight: 700;
-               font-size: 44px; line-height: .95; letter-spacing: .01em; text-transform: uppercase; }
-  .mempty p { font-size: 14.5px; line-height: 1.55; color: #898781; max-width: 300px; }
+  .mempty h2 { margin: 18px 0 10px; font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
+               font-size: 36px; line-height: 1.02; }
+  .mempty p { font-size: 14.5px; line-height: 1.55; color: #8a8577; max-width: 300px; }
   .mempty .mprimary { width: 100%; margin-top: 28px; }
   @keyframes mpulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
-  .mempty.live circle { fill: #0ca30c; }
-  .mempty.live path { stroke: #0ca30c; animation: mpulse 2.2s ease-in-out infinite; }
+  .mempty.live circle { fill: #3c4a30; }
+  .mempty.live path { stroke: #3c4a30; animation: mpulse 2.2s ease-in-out infinite; }
   .mempty.live path + path { animation-delay: .35s; }
   /* swipeable graph pages on the range screen */
   .mswipe { display: flex; width: 100%; overflow-x: auto; overflow-y: hidden;
@@ -212,112 +223,112 @@
             overscroll-behavior: contain; }
   .mswipe::-webkit-scrollbar { display: none; }
   .mswipe .mpage { flex: none; width: 100%; min-width: 0; scroll-snap-align: center; scroll-snap-stop: always; }
-  .mgcap { font-size: 11.5px; color: #898781; margin-top: 6px;
+  .mgcap { font-size: 11.5px; color: #8a8577; margin-top: 6px;
            min-height: 33px; }             /* reserve two lines so pages don't change height */
   .mdots { display: flex; gap: 7px; justify-content: center; margin: 12px 0 2px; }
-  .mdots span { width: 6px; height: 6px; border-radius: 50%; background: #3a3a37; }
-  .mdots span.on { background: #fcfcfb; }
-  .mlabel { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 14px;
-            letter-spacing: .09em; text-transform: uppercase; color: #898781; }
-  .mbig { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: min(160px, 38vw);
-          line-height: .85; letter-spacing: -.01em; }
-  .msub { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 20px;
-          letter-spacing: .08em; text-transform: uppercase; color: #c3c2b7; margin-top: 4px; }
+  .mdots span { width: 6px; height: 6px; border-radius: 50%; background: #cfc8b2; }
+  .mdots span.on { background: #f8f6ee; }
+  .mlabel { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 14px;
+            letter-spacing: .09em; text-transform: uppercase; color: #8a8577; }
+  .mbig { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: min(104px, 26vw);
+          line-height: .95; font-variant-numeric: tabular-nums; }
+  .msub { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 20px;
+          letter-spacing: .08em; text-transform: uppercase; color: #6b6558; margin-top: 4px; }
   .mstats { display: flex; gap: 28px; margin-top: 4px; }
-  .mmid { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 46px; line-height: 1; }
-  .mmid small { font-size: 17px; color: #c3c2b7; margin-left: 3px; font-weight: 600; }
-  .mcue { margin-top: 22px; border-top: 1px solid #2c2c2a; padding-top: 14px; }
+  .mmid { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .mmid small { font-size: 17px; color: #6b6558; margin-left: 3px; font-weight: 600; }
+  .mcue { margin-top: 22px; border-top: 1px solid #ddd7c4; padding-top: 14px; }
   .mcue-h { display: flex; align-items: center; gap: 8px; }
-  .mcue h3 { margin: 0; font-family: "Barlow Condensed", sans-serif; font-weight: 600;
+  .mcue h3 { margin: 0; font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600;
              font-size: 18px; letter-spacing: .04em; text-transform: uppercase; }
-  .mcue p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: #c3c2b7;
+  .mcue p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: #6b6558;
             min-height: 61px; }            /* three lines reserved — cue swaps don't shift layout */
   .mbottom { padding-bottom: max(var(--sab), 16px); }
   .mrail { display: flex; gap: 10px; padding: 0 20px 12px; overflow-x: auto; }
   .mrailcard { flex: none; width: 78px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
-               padding: 9px 10px; background: transparent; color: #fff; text-align: left; }
-  .mrailcard.sel { background: rgba(57,135,229,.18); border-color: rgba(57,135,229,.5); }
-  .mrailcard .n { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 11px;
-                  letter-spacing: .07em; text-transform: uppercase; color: #898781; }
-  .mrailcard .t { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 24px; line-height: 1.05; }
-  .mrailcard .c { font-size: 11px; color: #c3c2b7; font-variant-numeric: tabular-nums; }
+               padding: 9px 10px; background: transparent; color: #23221c; text-align: left; }
+  .mrailcard.sel { background: rgba(60,74,48,.18); border-color: rgba(60,74,48,.5); }
+  .mrailcard .n { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 11px;
+                  letter-spacing: .07em; text-transform: uppercase; color: #8a8577; }
+  .mrailcard .t { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 19px; line-height: 1.1; }
+  .mrailcard .c { font-size: 11px; color: #6b6558; font-variant-numeric: tabular-nums; }
   .mactions { display: flex; gap: 10px; padding: 4px 20px 0; }
-  .mprimary { font: 600 15px system-ui; color: #0b0b0b; background: #fcfcfb; border: 0;
+  .mprimary { font: 600 15px "IBM Plex Sans", system-ui, sans-serif; color: #f0ede2; background: #3c4a30; border: 0;
               border-radius: 12px; padding: 16px 18px; }
-  .mghost { font: 600 15px system-ui; color: #fcfcfb; background: transparent;
-            border: 1px solid rgba(255,255,255,.25); border-radius: 12px; padding: 16px 18px; }
-  .mblue { font: 600 15px system-ui; color: #fcfcfb; background: #2a78d6; border: 0;
+  .mghost { font: 600 15px "IBM Plex Sans", system-ui, sans-serif; color: #23221c; background: transparent;
+            border: 1px solid #cfc8b2; border-radius: 12px; padding: 16px 18px; }
+  .mblue { font: 600 15px "IBM Plex Sans", system-ui, sans-serif; color: #f0ede2; background: #5c6b46; border: 0;
            border-radius: 12px; padding: 16px 18px; }
-  #mRound { background: #e1e0d9; }
+  #mRound { background: #e9e4d3; }
   #mMapSlot, #mMapSlot #map { position: absolute; inset: 0; height: 100% !important; border-radius: 0 !important; }
   #mMapSlot .leaflet-control-zoom { display: none; }  /* pinch-zoom; controls collide with cards */
   .mprimary, .mghost, .mblue { white-space: nowrap; }
-  .movl { position: absolute; background: #fcfcfb; color: #0b0b0b; border: 1px solid rgba(11,11,11,.10);
+  .movl { position: absolute; background: #f8f6ee; color: #23221c; border: 1px solid #ddd7c4;
           border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15); z-index: 500; }
   .mtl { top: calc(max(var(--sat), 16px) + 8px); left: 14px; padding: 10px 14px;
          display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
-  .mholeN { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 34px; line-height: 1; }
-  .mmeta { font-size: 12.5px; color: #52514e; }
+  .mholeN { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 28px; line-height: 1; }
+  .mmeta { font-size: 12.5px; color: #6b6558; }
   .mtr { top: calc(max(var(--sat), 16px) + 8px); right: 14px; padding: 8px 14px;
          text-align: center; max-width: 42%; box-sizing: border-box; }
   .mtr b { display: block; font-size: 26px; font-weight: 650; line-height: 1.1; }
-  .mtr span { font-size: 11px; color: #52514e; }
+  .mtr span { font-size: 11px; color: #6b6558; }
   .mtr2 { top: calc(max(var(--sat), 16px) + 96px); right: 14px; padding: 8px 12px;
-          font-size: 11.5px; color: #52514e; text-align: right; max-width: 46%; box-sizing: border-box; }
-  .mtr2 b { color: #0b0b0b; }
+          font-size: 11.5px; color: #6b6558; text-align: right; max-width: 46%; box-sizing: border-box; }
+  .mtr2 b { color: #23221c; }
   .mroundbottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 500;
     padding: 14px 14px max(var(--sab), 20px);
     background: linear-gradient(to top, rgba(11,11,11,.55), rgba(11,11,11,0)); }
-  .mlastshot { background: #fcfcfb; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; color: #0b0b0b; }
-  .mstart { background: #fcfcfb; border-radius: 14px; padding: 14px; margin-bottom: 10px; color: #0b0b0b; }
+  .mlastshot { background: #f8f6ee; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; color: #23221c; }
+  .mstart { background: #f8f6ee; border-radius: 14px; padding: 14px; margin-bottom: 10px; color: #23221c; }
   .msheet { position: absolute; left: 14px; right: 14px; bottom: max(var(--sab), 20px);
-            z-index: 600; background: #fcfcfb; color: #0b0b0b; border-radius: 16px; padding: 14px;
+            z-index: 600; background: #f8f6ee; color: #23221c; border-radius: 16px; padding: 14px;
             box-shadow: 0 8px 30px rgba(0,0,0,.35); }
   .msheet-item { display: block; width: 100%; text-align: left; font: 600 15px system-ui;
-                 background: transparent; border: 0; border-top: 1px solid #e1e0d9; padding: 14px 6px; color: #0b0b0b; }
+                 background: transparent; border: 0; border-top: 1px solid #e9e4d3; padding: 14px 6px; color: #23221c; }
   .msheet-item:first-of-type { border-top: 0; }
   /* sensor picker (native iOS shell) */
   #mPickWrap { position: fixed; inset: 0; z-index: 700; background: rgba(11,11,11,.45);
                display: flex; align-items: flex-end; }
   #mPickSheet { flex: 1; margin: 0 14px max(var(--sab), 20px);
-                background: #fcfcfb; color: #0b0b0b; border-radius: 16px; padding: 16px 14px;
+                background: #f8f6ee; color: #23221c; border-radius: 16px; padding: 16px 14px;
                 box-shadow: 0 8px 30px rgba(0,0,0,.35); }
   #mPickSheet h3 { margin: 0 0 4px; font: 700 17px system-ui; }
   #mPickNote { display: flex; align-items: center; gap: 8px;
-               font-size: 12.5px; color: #52514e; margin: 0 0 6px; }
+               font-size: 12.5px; color: #6b6558; margin: 0 0 6px; }
   .mpick-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
                 font: 600 15px system-ui; background: transparent; border: 0;
-                border-top: 1px solid #e1e0d9; padding: 14px 6px; color: #0b0b0b; }
-  .mpick-item small { margin-left: auto; font-weight: 500; color: #52514e; }
-  .mspin { width: 13px; height: 13px; border: 2px solid #d5d4cc; border-top-color: #2a78d6;
+                border-top: 1px solid #e9e4d3; padding: 14px 6px; color: #23221c; }
+  .mpick-item small { margin-left: auto; font-weight: 500; color: #6b6558; }
+  .mspin { width: 13px; height: 13px; border: 2px solid #ddd7c4; border-top-color: #5c6b46;
            border-radius: 50%; animation: mspin .9s linear infinite; flex: none; }
   @keyframes mspin { to { transform: rotate(360deg); } }
   /* small light-card inputs (round start, account) */
-  .minput { font: 500 15px system-ui; color: #0b0b0b; background: #fff;
-            border: 1px solid rgba(11,11,11,.18); border-radius: 10px;
+  .minput { font: 500 15px "IBM Plex Sans", system-ui, sans-serif; color: #23221c; background: #f8f6ee;
+            border: 1px solid #ddd7c4; border-radius: 10px;
             padding: 11px 12px; width: 100%; box-sizing: border-box;
             -webkit-appearance: none; appearance: none; }
   .msmallbtn { padding: 11px 14px !important; flex: none; }
-  .msummary { background: #f4f7f2; color: #0b0b0b; overflow-y: auto; }
-  .mtitle { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
-            letter-spacing: .03em; text-transform: uppercase; }
-  .msummary .mghost { color: #0b0b0b; border-color: rgba(11,11,11,.2); }
+  .msummary { background: #f0ede2; color: #23221c; overflow-y: auto; }
+  .mtitle { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 24px; }
+  .msummary .mghost { color: #23221c; border-color: #cfc8b2; }
   .mcardwrap { padding: 12px 16px max(var(--sab), 24px); display: flex; flex-direction: column; gap: 12px; }
-  .mdark { background: #0b0b0b; color: #fcfcfb; border-radius: 12px; padding: 20px 20px 18px; }
-  .mwordmark { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px;
-               letter-spacing: .02em; text-transform: uppercase; }
-  .mwordmark span { color: #3987e5; }
+  .mdark { background: #2b3522; color: #f0ede2; border-radius: 12px; padding: 20px 20px 18px; }
+  .mwordmark { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 22px;
+               display: inline-flex; align-items: center; gap: 7px; }
+  .mwordmark svg { flex: none; }
+
   .msumgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; margin-top: 18px; }
-  .msumgrid .v { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 42px; line-height: 1; }
-  .msumgrid .v small { font-size: 15px; color: #c3c2b7; font-weight: 600; }
-  .mfine { margin: 14px 0 0; font-size: 12px; color: #898781; line-height: 1.5; }
-  .mlight { background: #fcfcfb; border: 1px solid rgba(11,11,11,.10); border-radius: 10px; padding: 14px 16px; }
-  .mlight h2 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 15px;
+  .msumgrid .v { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .msumgrid .v small { font-size: 15px; color: #6b6558; font-weight: 600; }
+  .mfine { margin: 14px 0 0; font-size: 12px; color: #8a8577; line-height: 1.5; }
+  .mlight { background: #f8f6ee; border: 1px solid #ddd7c4; border-radius: 10px; padding: 14px 16px; }
+  .mlight h2 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 15px;
                letter-spacing: .04em; text-transform: uppercase; margin: 0 0 8px; }
 
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
-  .tile .lbl { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .tile .lbl { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .tile .val { font-size: 30px; font-weight: 600; line-height: 1.15; margin-top: 2px; }
   .tile .val .unit { font-size: 14px; font-weight: 500; color: var(--ink-2); margin-left: 3px; }
   .tile .sec { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
@@ -327,7 +338,7 @@
   @media (max-width: 780px) { .grid2 { grid-template-columns: 1fr; } }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 12px; position: relative; }
-  .card h2 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 17px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 2px; }
+  .card h2 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 17px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 2px; }
   .card .note { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
   .legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-2); margin: 0 0 8px; flex-wrap: wrap; }
   .legend .key { display: inline-flex; align-items: center; gap: 6px; }
@@ -351,7 +362,7 @@
 
   svg text { font: 11px system-ui, sans-serif; fill: var(--muted); }
   svg .tickv { font-variant-numeric: tabular-nums; }
-  svg .evt { font: 600 11px "Barlow Condensed", sans-serif; letter-spacing: .05em; text-transform: uppercase; fill: var(--ink-2); }
+  svg .evt { font: 600 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .05em; text-transform: uppercase; fill: var(--ink-2); }
 
   .tooltip {
     position: absolute; pointer-events: none; display: none; z-index: 5;
@@ -374,7 +385,7 @@
   .cue { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
   .pill {
     display: inline-flex; align-items: center; gap: 5px;
-    font: 600 11px/1 "Barlow Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    font: 600 11px/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
     border-radius: 999px; padding: 5px 9px; margin-top: 1px; white-space: nowrap;
     color: var(--ink); border: 1px solid var(--border);
   }
@@ -383,7 +394,7 @@
   .cue p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); max-width: 62ch; }
 
   table.all { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  table.all th { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--baseline); }
+  table.all th { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--baseline); }
   table.all th:first-child, table.all td:first-child { text-align: left; }
   table.all td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
   table.all tr.sel td { background: var(--band); }
@@ -401,7 +412,7 @@
 
 <div class="wrap">
   <header class="top">
-    <div class="wordmark">Swing<small>Coach</small></div>
+    <div class="wordmark"><svg viewBox="0 0 64 64" width="22" height="22" fill="none" aria-hidden="true"><path d="M8 50 Q 26 14 46 50" stroke="#8a9270" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"></path><line x1="46" y1="8" x2="46" y2="52" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></line><path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"></path></svg>Downrange</div>
     <div class="session-meta" id="sessionMeta"></div>
     <span class="badge" id="sourceBadge">Simulated session</span>
   </header>
@@ -696,7 +707,7 @@
   </div>
 
   <footer>
-    <span id="simNote">Data shown is a <b>synthetic session</b> generated by the SwingCoach simulator
+    <span id="simNote">Data shown is a <b>synthetic session</b> generated by the Downrange simulator
     (including sensor-range clipping and ball-strike shock) and run through the identical detection
     and metrics pipeline that live Bluetooth data uses. </span>⚠ marks swings where the ±16&nbsp;g
     accelerometer saturated — hand speed is a floor and path/attack are suppressed from coaching
@@ -709,22 +720,22 @@
 
 <div id="mobileWrap" hidden>
   <!-- sign-in gate: fronts the app until signed in or skipped -->
-  <div class="mscreen" id="mGate" hidden style="background:#0f110e;color:#fff;z-index:5">
+  <div class="mscreen" id="mGate" hidden style="background:#f0ede2;color:#23221c;z-index:5">
     <div class="mtop">
-      <div class="mwordmark" style="font-size:24px">Swing<span>Coach</span></div>
+      <div class="mwordmark" style="font-size:24px"><svg viewBox="0 0 64 64" width="20" height="20" fill="none" aria-hidden="true"><path d="M8 50 Q 26 14 46 50" stroke="#8a9270" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"></path><line x1="46" y1="8" x2="46" y2="52" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></line><path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"></path></svg>Downrange</div>
     </div>
     <div class="mhero" style="justify-content:center">
       <div class="mlabel" style="margin-bottom:6px">Sign in</div>
-      <p style="margin:0 0 14px;font-size:14px;color:#c3c2b7;line-height:1.5">
+      <p style="margin:0 0 14px;font-size:14px;color:#6b6558;line-height:1.5">
         Save every session and track your progress over time.
         We'll email you a 6-digit code — no password.</p>
       <input id="gAuthEmail" class="minput" type="email" placeholder="you@example.com"
-             autocomplete="email" style="background:#1a1c19;color:#fff;border-color:rgba(255,255,255,.2)">
+             autocomplete="email" style="background:#f8f6ee;color:#23221c;border-color:#ddd7c4">
       <button class="mblue" id="gSendCodeBtn" style="width:100%;margin-top:10px">Email me a code</button>
       <div id="gCodeRow" hidden>
         <div style="display:flex;gap:8px;margin-top:10px">
           <input id="gAuthCode" class="minput" inputmode="numeric" autocomplete="one-time-code"
-                 placeholder="6-digit code" style="flex:1;background:#1a1c19;color:#fff;border-color:rgba(255,255,255,.2)">
+                 placeholder="6-digit code" style="flex:1;background:#f8f6ee;color:#23221c;border-color:#ddd7c4">
           <button class="mprimary msmallbtn" id="gVerifyBtn">Verify</button>
         </div>
       </div>
@@ -737,7 +748,7 @@
   <!-- 1c · heads-up range -->
   <div class="mscreen" id="mRange">
     <div class="mtop">
-      <div class="mwordmark" style="font-size:21px">Swing<span>Coach</span></div>
+      <div class="mwordmark" style="font-size:21px"><svg viewBox="0 0 64 64" width="18" height="18" fill="none" aria-hidden="true"><path d="M8 50 Q 26 14 46 50" stroke="#8a9270" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"></path><line x1="46" y1="8" x2="46" y2="52" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></line><path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"></path></svg>Downrange</div>
       <span style="flex:1"></span>
       <select id="mClubSel" class="mchip" aria-label="Club"></select>
     </div>
@@ -748,9 +759,9 @@
       <!-- empty state: shown until the first swing of the session lands -->
       <div class="mempty" id="mEmpty" hidden>
         <svg id="mEmptyGlyph" width="46" height="46" viewBox="0 0 46 46" fill="none" aria-hidden="true">
-          <circle cx="23" cy="27" r="6" fill="#3987e5"/>
-          <path d="M13 17a14 14 0 0 1 20 0"  stroke="#3987e5" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
-          <path d="M8 11.5a21 21 0 0 1 30 0" stroke="#3987e5" stroke-width="2.5" stroke-linecap="round" opacity=".3"/>
+          <circle cx="23" cy="27" r="6" fill="#3c4a30"/>
+          <path d="M13 17a14 14 0 0 1 20 0"  stroke="#3c4a30" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+          <path d="M8 11.5a21 21 0 0 1 30 0" stroke="#3c4a30" stroke-width="2.5" stroke-linecap="round" opacity=".3"/>
         </svg>
         <h2 id="mEmptyTitle">Connect your sensor</h2>
         <p id="mEmptySub"></p>
@@ -859,7 +870,7 @@
     <div class="mcardwrap">
       <div class="mdark">
         <div style="display:flex;align-items:baseline;gap:8px">
-          <div class="mwordmark">Swing<span>Coach</span></div>
+          <div class="mwordmark"><svg viewBox="0 0 64 64" width="17" height="17" fill="none" aria-hidden="true"><path d="M8 50 Q 26 14 46 50" stroke="#8a9270" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"></path><line x1="46" y1="8" x2="46" y2="52" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></line><path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"></path></svg>Downrange</div>
           <span style="flex:1"></span>
           <span class="mlabel" id="mSumMeta"></span>
         </div>
@@ -899,7 +910,7 @@
           <button class="mghost" id="mSignOutBtn" style="width:100%">Sign out</button>
         </div>
       </div>
-      <button class="mprimary" id="mHomeBtn" style="width:100%;margin-top:10px;background:#0b0b0b;color:#fcfcfb">◂ Back to range</button>
+      <button class="mprimary" id="mHomeBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
       <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:8px">Open full dashboard</button>
     </div>
   </div>
@@ -911,7 +922,7 @@
     <h3>Choose your sensor</h3>
     <p id="mPickNote"><span class="mspin"></span><span id="mPickNoteTxt">Scanning for Movella DOTs…</span></p>
     <div id="mPickList"></div>
-    <button class="msheet-item" id="mPickCancel" style="border-top:1px solid #e1e0d9">Cancel</button>
+    <button class="msheet-item" id="mPickCancel" style="border-top:1px solid #e9e4d3">Cancel</button>
   </div>
 </div>
 
@@ -2019,7 +2030,7 @@ function updateYouMarker(recenter){
   const ll = [lastFix.lat, lastFix.lon];
   if (!youMarker){
     youMarker = L.circleMarker(ll, {radius: 8, color: "#fff", weight: 2,
-                                    fillColor: "#2a78d6", fillOpacity: 1}).addTo(lmap);
+                                    fillColor: "#5c6b46", fillOpacity: 1}).addTo(lmap);
   } else youMarker.setLatLng(ll);
   if (recenter || !mapCentered){ lmap.setView(ll, 17); mapCentered = true; }
   refreshTargetInfo();
@@ -2031,7 +2042,7 @@ function updateShotMarkers(){
   const pts = round.shots.filter(s => s.hole === round.currentHole && s.lat != null);
   pts.forEach(s => {
     const m = L.circleMarker([s.lat, s.lon], {radius: 6, color: "#fff", weight: 2,
-      fillColor: "#eb6834", fillOpacity: 1}).addTo(shotLayer);
+      fillColor: "#b4632f", fillOpacity: 1}).addTo(shotLayer);
     m.bindTooltip(s.dist_m != null
         ? `${swingClub(s).label} · ${distDisp(s.dist_m)}`
         : `#${s.n} ${swingClub(s).label}`,
@@ -2040,7 +2051,7 @@ function updateShotMarkers(){
   });
   if (pts.length > 1)
     L.polyline(pts.map(s => [s.lat, s.lon]),
-      {color: "#eb6834", weight: 2}).addTo(shotLayer);
+      {color: "#b4632f", weight: 2}).addTo(shotLayer);
   updateToHole();
 }
 
@@ -2298,11 +2309,11 @@ function renderCourseLayer(){
   if (!lmap || !course) return;
   courseLayer.clearLayers();
   for (const g of course.greens)
-    L.polygon(g.poly, {color: "#1baf7a", weight: 2, fillColor: "#1baf7a",
+    L.polygon(g.poly, {color: "#6f8a4f", weight: 2, fillColor: "#6f8a4f",
                        fillOpacity: 0.25}).addTo(courseLayer);
   for (const h of course.holes)
     if (h.line && h.line.length > 1)
-      L.polyline(h.line, {color: "#fcfcfb", weight: 1.5, opacity: 0.7,
+      L.polyline(h.line, {color: "#f8f6ee", weight: 1.5, opacity: 0.7,
                           dashArray: "6 6"}).addTo(courseLayer);
 }
 /* -- map orientation: hole-up (tee→green points up the screen) or north-up -- */
@@ -2451,7 +2462,7 @@ function refreshTargetInfo(){
     dYou = haversineM({lat: here[0], lon: here[1]}, {lat: target[0], lon: target[1]});
     parts.push(`You → target: ${distDisp(dYou)}`);
     if (targetLayer)
-      L.polyline([here, target], {color: "#fcfcfb", weight: 2, opacity: 0.95})
+      L.polyline([here, target], {color: "#f8f6ee", weight: 2, opacity: 0.95})
         .addTo(targetLayer)
         .bindTooltip(distDisp(dYou), {permanent: true, direction: "center",
                                       className: "distlabel"}).openTooltip();
@@ -2464,7 +2475,7 @@ function refreshTargetInfo(){
     if (on > 15){
       parts.push(`target → green: ${distDisp(on)}`);
       if (targetLayer)
-        L.polyline([target, g.centroid], {color: "#fcfcfb", weight: 2, opacity: 0.85,
+        L.polyline([target, g.centroid], {color: "#f8f6ee", weight: 2, opacity: 0.85,
                                           dashArray: "5 7"})
           .addTo(targetLayer)
           .bindTooltip(distDisp(on), {permanent: true, direction: "center",
@@ -2476,7 +2487,7 @@ function refreshTargetInfo(){
   }
   if (targetLayer)
     L.circleMarker(target, {radius: 7, color: "#fff", weight: 2,
-                            fillColor: "#e34948", fillOpacity: 1}).addTo(targetLayer);
+                            fillColor: "#a8442e", fillOpacity: 1}).addTo(targetLayer);
   if (dYou != null){
     const sugg = suggestClubs(dYou);
     if (sugg.length)
@@ -2490,26 +2501,27 @@ function refreshTargetInfo(){
 /* ---------- shareable summary card (Strava-style PNG) ---------- */
 const CARD = {
   W: 1080, H: 1350,
-  disp: '"Barlow Condensed", "Arial Narrow", sans-serif',
+  disp: '"IBM Plex Mono", ui-monospace, monospace',
+  serif: '"Instrument Serif", Georgia, serif',
 };
 function cardStyle(transparent){
   return transparent ? {
     // sticker overlay: white ink + drop shadow so it reads on any photo
     transparent: true, bg: null,
     ink: "#ffffff", muted: "rgba(255,255,255,0.85)",
-    blue: "#6fb0ff", orange: "#ff8a50", aqua: "#48dfa5",
+    blue: "#d8e2c0", orange: "#e8b48a", aqua: "#c9d0ae",
     line: "rgba(255,255,255,0.45)",
     traceFill: "rgba(255,255,255,0.10)",
     routeStroke: "rgba(255,255,255,0.95)",
     dotRing: "#ffffff",
   } : {
-    transparent: false, bg: "#101312",
-    ink: "#f5f4ef", muted: "#97968c",
-    blue: "#3987e5", orange: "#d95926", aqua: "#199e70",
-    line: "rgba(245,244,239,0.12)",
-    traceFill: "rgba(57,135,229,0.14)",
-    routeStroke: "rgba(245,244,239,0.75)",
-    dotRing: "#101312",
+    transparent: false, bg: "#2b3522",
+    ink: "#f0ede2", muted: "#c9d0aecc",
+    blue: "#c9d0ae", orange: "#e0a878", aqua: "#8fae6a",
+    line: "rgba(240,237,226,0.16)",
+    traceFill: "rgba(201,208,174,0.14)",
+    routeStroke: "rgba(240,237,226,0.8)",
+    dotRing: "#2b3522",
   };
 }
 let CS = cardStyle(false);
@@ -2523,8 +2535,9 @@ function cardText(ctx, txt, x, y, px, weight, color, align = "left", ls = "0px")
 }
 async function ensureCardFonts(){
   try {
-    await document.fonts.load(`700 260px "Barlow Condensed"`);
-    await document.fonts.load(`600 40px "Barlow Condensed"`);
+    await document.fonts.load(`500 260px "IBM Plex Mono"`);
+    await document.fonts.load(`500 40px "IBM Plex Mono"`);
+    await document.fonts.load(`400 72px "Instrument Serif"`);
   } catch (e) {}
 }
 function cardBase(subtitle){
@@ -2542,10 +2555,9 @@ function cardBase(subtitle){
   }
   // wordmark
   ctx.textBaseline = "alphabetic";
-  ctx.font = `700 64px ${CARD.disp}`;
-  const w1 = ctx.measureText("SWING").width;
-  cardText(ctx, "SWING", 72, 122, 64, 700, CS.ink, "left", "2px");
-  cardText(ctx, "COACH", 72 + w1 + 6, 122, 64, 700, CS.blue, "left", "2px");
+  ctx.font = `400 68px ${CARD.serif}`;
+  ctx.fillStyle = CS.ink; ctx.textAlign = "left";
+  ctx.fillText("Downrange", 72, 122);
   cardText(ctx, subtitle, CARD.W - 72, 118, 34, 600, CS.muted, "right", "1px");
   ctx.strokeStyle = CS.line; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 160); ctx.lineTo(CARD.W - 72, 160); ctx.stroke();
@@ -2581,7 +2593,7 @@ function cardStatRow(ctx, y, stats){
 function cardFooter(ctx, note){
   ctx.strokeStyle = CS.line; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 1236); ctx.lineTo(CARD.W - 72, 1236); ctx.stroke();
-  cardText(ctx, "SWINGCOACH · WRIST-IMU GOLF ANALYTICS", 72, 1284, 28, 600, CS.muted, "left", "3px");
+  cardText(ctx, "DOWNRANGE · WRIST-IMU GOLF ANALYTICS", 72, 1284, 28, 600, CS.muted, "left", "3px");
   if (note) cardText(ctx, note.toUpperCase(), 72, 1322, 22, 500, CS.muted, "left", "2px");
 }
 function buildRangeCard(){
@@ -3286,15 +3298,15 @@ function drawReplay(){
   // course geometry: fairways faint, greens, this hole's line dashed
   if (geom){
     for (const f of geom.fairways || [])
-      L.polygon(f.poly, {color: "#9ecf6f", weight: 1, opacity: 0.5,
-                         fillColor: "#9ecf6f", fillOpacity: 0.12}).addTo(replayLayer);
+      L.polygon(f.poly, {color: "#c9d0ae", weight: 1, opacity: 0.5,
+                         fillColor: "#c9d0ae", fillOpacity: 0.12}).addTo(replayLayer);
     for (const g of geom.greens || [])
-      L.polygon(g.poly, {color: "#1baf7a", weight: 2,
-                         fillColor: "#1baf7a", fillOpacity: 0.25}).addTo(replayLayer);
+      L.polygon(g.poly, {color: "#6f8a4f", weight: 2,
+                         fillColor: "#6f8a4f", fillOpacity: 0.25}).addTo(replayLayer);
     for (const h of showHoles){
       const line = (geom.holes || []).find(x => x.ref === h.hole);
       if (line && line.line && line.line.length > 1)
-        L.polyline(line.line, {color: "#fcfcfb", weight: 1.5, opacity: 0.7,
+        L.polyline(line.line, {color: "#f8f6ee", weight: 1.5, opacity: 0.7,
                                dashArray: "6 6"}).addTo(replayLayer);
     }
   }
@@ -3303,7 +3315,7 @@ function drawReplay(){
   for (const h of showHoles){
     const fixes = h.shots.filter(s => s.lat != null).map(s => [s.lat, s.lon]);
     if (fixes.length > 1)
-      L.polyline(fixes, {color: "#3987e5", weight: 3, opacity: 0.9}).addTo(replayLayer);
+      L.polyline(fixes, {color: "#3c4a30", weight: 3, opacity: 0.9}).addTo(replayLayer);
     h.shots.forEach((s, i) => {
       if (s.lat == null) return;
       bounds.push([s.lat, s.lon]);
@@ -4595,11 +4607,11 @@ function renderMRange(){
   const max = 5, x = v => 340 * Math.min(v, max) / max;
   const mk = (n, at) => { const e = document.createElementNS("http://www.w3.org/2000/svg", n);
     for (const k in at) e.setAttribute(k, at[k]); svg.appendChild(e); return e; };
-  mk("rect", {x: 0, y: 12, width: 340, height: 10, rx: 5, fill: "#2c2c2a"});
-  mk("rect", {x: x(2.5), y: 12, width: x(3.5) - x(2.5), height: 10, rx: 5, fill: "rgba(57,135,229,0.28)"});
-  mk("rect", {x: Math.max(0, Math.min(335, x(m.tempo_ratio) - 2.5)), y: 4, width: 5, height: 26, rx: 2.5, fill: "#3987e5"});
-  mk("text", {x: x(2.5), y: 34, fill: "#898781", style: "font:10px system-ui"}).textContent = "2.5";
-  mk("text", {x: x(3.5), y: 34, "text-anchor": "end", fill: "#898781", style: "font:10px system-ui"}).textContent = "3.5";
+  mk("rect", {x: 0, y: 12, width: 340, height: 10, rx: 5, fill: "#ddd7c4"});
+  mk("rect", {x: x(2.5), y: 12, width: x(3.5) - x(2.5), height: 10, rx: 5, fill: "rgba(60,74,48,0.22)"});
+  mk("rect", {x: Math.max(0, Math.min(335, x(m.tempo_ratio) - 2.5)), y: 4, width: 5, height: 26, rx: 2.5, fill: "#3c4a30"});
+  mk("text", {x: x(2.5), y: 34, fill: "#8a8577", style: "font:10px system-ui"}).textContent = "2.5";
+  mk("text", {x: x(3.5), y: 34, "text-anchor": "end", fill: "#8a8577", style: "font:10px system-ui"}).textContent = "3.5";
   renderMTrace(sw);
   renderMPath(sw);
   el("mClubMph").textContent = "";
@@ -4656,15 +4668,15 @@ function renderMTrace(sw){
   for (const [tt, lbl] of [[ev.top, "top"], [ev.impact, "impact"]]){
     const x = xs(tt);
     mkSvg(svg, "line", {x1: x, y1: padT, x2: x, y2: H - padB,
-                        stroke: "#3a3a37", "stroke-width": 1, "stroke-dasharray": "3 4"});
-    mkSvg(svg, "text", {x: x + 3, y: H - 5, fill: "#898781",
+                        stroke: "#cfc8b2", "stroke-width": 1, "stroke-dasharray": "3 4"});
+    mkSvg(svg, "text", {x: x + 3, y: H - 5, fill: "#8a8577",
                         style: "font:9.5px system-ui"}).textContent = lbl;
   }
   const line = (arr, vmax, color, w) =>
     mkSvg(svg, "polyline", {fill: "none", stroke: color, "stroke-width": w,
       points: arr.map((v, i) => `${xs(T.t[i]).toFixed(1)},${y(v, vmax).toFixed(1)}`).join(" ")});
   line(T.acc, amax, "rgba(252,252,251,0.4)", 1.5);
-  line(T.gyro, gmax, "#3987e5", 2);
+  line(T.gyro, gmax, "#3c4a30", 2);
   document.getElementById("mTraceCap").textContent =
     `wrist speed (blue) peak ${Math.round(gmax)}°/s · accel (white) peak ${(amax / 9.81).toFixed(1)} g` +
     (sw.metrics.acc_clipped ? " · clipped at impact" : "");
@@ -4697,8 +4709,8 @@ function renderMPath(sw){
   const ix = SX(iI), iy = SY(iI);
   // target line through impact, straight up the screen
   mkSvg(svg, "line", {x1: ix, y1: 6, x2: ix, y2: H - 6,
-                      stroke: "#3a3a37", "stroke-width": 1, "stroke-dasharray": "4 5"});
-  mkSvg(svg, "text", {x: ix + 5, y: 14, fill: "#898781",
+                      stroke: "#cfc8b2", "stroke-width": 1, "stroke-dasharray": "4 5"});
+  mkSvg(svg, "text", {x: ix + 5, y: 14, fill: "#8a8577",
                       style: "font:9.5px system-ui"}).textContent = "address line";
   const seg = (a, b, color, w) => {
     if (b - a < 1) return;
@@ -4708,11 +4720,11 @@ function renderMPath(sw){
                             "stroke-width": w, "stroke-linecap": "round"});
   };
   seg(iI, xr.length - 1, "rgba(252,252,251,0.22)", 2);   // follow-through
-  seg(0, iT, "#898781", 2);                               // backswing
-  seg(iT, iI, "#3987e5", 3);                              // downswing
-  mkSvg(svg, "circle", {cx: SX(0), cy: SY(0), r: 3.5, fill: "#0f110e",
-                        stroke: "#898781", "stroke-width": 1.5});
-  mkSvg(svg, "circle", {cx: ix, cy: iy, r: 4.5, fill: "#3987e5"});
+  seg(0, iT, "#8a8577", 2);                               // backswing
+  seg(iT, iI, "#3c4a30", 3);                              // downswing
+  mkSvg(svg, "circle", {cx: SX(0), cy: SY(0), r: 3.5, fill: "#f0ede2",
+                        stroke: "#8a8577", "stroke-width": 1.5});
+  mkSvg(svg, "circle", {cx: ix, cy: iy, r: 4.5, fill: "#3c4a30"});
   // impact-direction arrow: its lean off the vertical is the path angle
   if (!m.acc_clipped && m.path_angle_deg != null){
     const a = m.path_angle_deg * Math.PI/180, L = 40;
@@ -4720,12 +4732,12 @@ function renderMPath(sw){
     const bx = ex - Math.sin(a)*9, by = ey + Math.cos(a)*9;   // arrowhead base
     const px = Math.cos(a)*4.5, py = Math.sin(a)*4.5;
     mkSvg(svg, "line", {x1: ix, y1: iy, x2: bx, y2: by,
-                        stroke: "#fcfcfb", "stroke-width": 2.5});
+                        stroke: "#f8f6ee", "stroke-width": 2.5});
     mkSvg(svg, "polygon", {points: `${ex},${ey} ${bx+px},${by+py} ${bx-px},${by-py}`,
-                           fill: "#fcfcfb"});
+                           fill: "#f8f6ee"});
     mkSvg(svg, "text", {x: ex + (m.path_angle_deg >= 0 ? 6 : -6), y: ey - 2,
                         "text-anchor": m.path_angle_deg >= 0 ? "start" : "end",
-                        fill: "#fcfcfb", style: "font:600 12px system-ui"})
+                        fill: "#f8f6ee", style: "font:600 12px system-ui"})
       .textContent = `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}°`;
   }
   renderPathBand(m);
@@ -4737,17 +4749,17 @@ function renderPathBand(m){
   const cap = document.getElementById("mPathCap");
   const MAXA = 12, W = 340;
   const x = v => W * (Math.min(Math.max(v, -MAXA), MAXA) + MAXA) / (2 * MAXA);
-  mkSvg(svg, "rect", {x: 0, y: 14, width: W, height: 8, rx: 4, fill: "#2c2c2a"});
+  mkSvg(svg, "rect", {x: 0, y: 14, width: W, height: 8, rx: 4, fill: "#ddd7c4"});
   mkSvg(svg, "rect", {x: x(PATH_TGT.lo), y: 14, width: x(PATH_TGT.hi) - x(PATH_TGT.lo),
-                      height: 8, rx: 4, fill: "rgba(57,135,229,0.28)"});
-  mkSvg(svg, "line", {x1: x(0), y1: 12, x2: x(0), y2: 24, stroke: "#898781", "stroke-width": 1});
-  mkSvg(svg, "text", {x: x(PATH_TGT.lo), y: 36, "text-anchor": "middle", fill: "#898781",
+                      height: 8, rx: 4, fill: "rgba(60,74,48,0.22)"});
+  mkSvg(svg, "line", {x1: x(0), y1: 12, x2: x(0), y2: 24, stroke: "#8a8577", "stroke-width": 1});
+  mkSvg(svg, "text", {x: x(PATH_TGT.lo), y: 36, "text-anchor": "middle", fill: "#8a8577",
                       style: "font:10px system-ui"}).textContent = `${PATH_TGT.lo}°`;
-  mkSvg(svg, "text", {x: x(PATH_TGT.hi), y: 36, "text-anchor": "middle", fill: "#898781",
+  mkSvg(svg, "text", {x: x(PATH_TGT.hi), y: 36, "text-anchor": "middle", fill: "#8a8577",
                       style: "font:10px system-ui"}).textContent = `+${PATH_TGT.hi}°`;
-  mkSvg(svg, "text", {x: 0, y: 8, fill: "#898781",
+  mkSvg(svg, "text", {x: 0, y: 8, fill: "#8a8577",
                       style: "font:9.5px system-ui"}).textContent = "out-to-in";
-  mkSvg(svg, "text", {x: W, y: 8, "text-anchor": "end", fill: "#898781",
+  mkSvg(svg, "text", {x: W, y: 8, "text-anchor": "end", fill: "#8a8577",
                       style: "font:9.5px system-ui"}).textContent = "in-to-out";
   const cal = window.__pathCal || 0;
   const sq = document.getElementById("mSquareBtn");
@@ -4756,28 +4768,28 @@ function renderPathBand(m){
   const p = m.path_angle_deg;
   if (m.acc_clipped || p == null){
     cap.textContent = "accelerometer clipped at impact — path isn't reliable for this swing";
-    cap.style.color = "#898781";
+    cap.style.color = "#8a8577";
     return;
   }
   if (!cal && Math.abs(p) > 12){
     mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
-                        height: 24, rx: 2.5, fill: "#898781"});
+                        height: 24, rx: 2.5, fill: "#8a8577"});
     cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° raw — not squared yet. Hit a few normal swings at a target, then tap Set square.`;
-    cap.style.color = "#898781";
+    cap.style.color = "#8a8577";
     return;
   }
   const inBand = p >= PATH_TGT.lo && p <= PATH_TGT.hi;
   mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
-                      height: 24, rx: 2.5, fill: inBand ? "#3987e5" : "#ec835a"});
+                      height: 24, rx: 2.5, fill: inBand ? "#3c4a30" : "#a8442e"});
   if (p < PATH_TGT.lo){
     cap.textContent = `${fmt1(p)}° out-to-in — cutting across it. Rehearse swinging toward 1 o'clock through impact.`;
-    cap.style.color = "#ec835a";
+    cap.style.color = "#a8442e";
   } else if (p > PATH_TGT.hi){
     cap.textContent = `+${fmt1(p)}° strongly in-to-out — draw territory, but this much invites pushes and hooks.`;
-    cap.style.color = "#f2b63d";
+    cap.style.color = "#a3782a";
   } else {
     cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° — inside the target window (${PATH_TGT.lo}° to +${PATH_TGT.hi}°).`;
-    cap.style.color = "#8fd694";
+    cap.style.color = "#3c4a30";
   }
 }
 function renderMRound(){
@@ -4896,13 +4908,13 @@ function renderMSummary(){
   if (swings.length){
     const maxT = Math.max(4, ...swings.map(s => s.metrics.tempo_ratio));
     const y = v => 50 - (v / maxT) * 42;
-    mk("rect", {x: 0, y: y(3.5), width: 320, height: y(2.5) - y(3.5), fill: "rgba(57,135,229,0.18)"});
+    mk("rect", {x: 0, y: y(3.5), width: 320, height: y(2.5) - y(3.5), fill: "rgba(60,74,48,0.18)"});
     const n = swings.length, bw = Math.min(28, 320 / n * 0.7);
     swings.forEach((s, i) => {
       const cx = 320 * (i + 0.5) / n;
       mk("rect", {x: cx - bw / 2, y: y(s.metrics.tempo_ratio), width: bw,
                   height: 50 - y(s.metrics.tempo_ratio), rx: 3,
-                  fill: i === n - 1 ? "#fcfcfb" : "#3987e5"});
+                  fill: i === n - 1 ? "#f8f6ee" : "#3c4a30"});
     });
   }
   const clipped = swings.filter(s => s.metrics.acc_clipped || s.metrics.gyro_clipped).length;
@@ -4921,7 +4933,7 @@ function renderMSummary(){
     h.style.cssText = "margin:0;font-size:13.5px;font-weight:650";
     h.textContent = top.title;
     const p = document.createElement("p");
-    p.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#52514e";
+    p.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#6b6558";
     p.textContent = top.detail;
     body.append(h, p);
   }

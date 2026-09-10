@@ -35,7 +35,7 @@ struct WebContainer: UIViewRepresentable {
         webView.scrollView.minimumZoomScale = 1
         webView.scrollView.maximumZoomScale = 1
         webView.isOpaque = false
-        webView.backgroundColor = UIColor(red: 0.06, green: 0.07, blue: 0.06, alpha: 1)
+        webView.backgroundColor = UIColor(red: 0.941, green: 0.929, blue: 0.886, alpha: 1)  // Downrange paper
         webView.navigationDelegate = context.coordinator
         #if DEBUG
         if #available(iOS 16.4, *) { webView.isInspectable = true }
@@ -96,11 +96,12 @@ struct WebContainer: UIViewRepresentable {
                      withError error: Error) {
             let html = """
             <!doctype html><meta name=viewport content="width=device-width,initial-scale=1">
-            <body style="background:#101312;color:#f5f4ef;font-family:-apple-system;display:flex;\
+            <body style="background:#f0ede2;color:#23221c;font-family:-apple-system;display:flex;\
             align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
-            <div><h2>SwingCoach needs internet for first load</h2>
-            <p style="color:#97968c">Connect once and the app is cached for the course.</p>
-            <button style="font-size:17px;padding:12px 24px;border-radius:10px;border:0"
+            <div><h2>Downrange needs internet for first load</h2>
+            <p style="color:#6b6558">Connect once and the app is cached for the course.</p>
+            <button style="font-size:17px;padding:12px 24px;border-radius:10px;border:0;\
+            background:#3c4a30;color:#f0ede2"
             onclick="location.href='\(WebContainer.appURL)'">Retry</button></div>
             """
             webView.loadHTMLString(html, baseURL: nil)
