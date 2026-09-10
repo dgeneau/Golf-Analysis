@@ -26,16 +26,20 @@ class Recorder {
     public var swings as Array = [];        // stored flat segments (see MEMORY note)
     public var capturing as Boolean = false;
 
-    // rolling pre-buffer + capture buffer, both FLAT (length is a multiple of 6)
+    // rolling pre-buffer + capture buffer, both FLAT: [t_ms, kind, x, y, z] per
+    // sample (kind 0 = accel mG, 1 = gyro deg/s). The vivoactive 4 delivers
+    // accel and gyro in SEPARATE batches, so each sample carries its own type
+    // and timestamp — that keeps the two streams separable and correctly
+    // clocked instead of scrambling them into one interleaved column set.
     private var _pre as Array<Number> = [];
     private var _cap as Array<Number> = [];
     private var _quietBatches as Number = 0;
 
     // sizes in *samples*, derived from rateHz once probed (see _sizeBuffers)
     private var _preSamples as Number = 40;
-    private var _maxCapSamples as Number = 125;
+    private var _maxCapSamples as Number = 250;   // each sensor ~25 Hz → 2 rows/tick
     private const MAX_SWINGS = 5;           // memory is tight on this tier
-    private const COLS = 6;
+    private const COLS = 5;                  // t_ms, kind, x, y, z
     // burst thresholds: accel magnitude in mG (|a| incl. gravity ~1000 at rest)
     private const BURST_MG = 2500;          // ~2.5 g — any real swing exceeds this
     private const QUIET_MG = 1600;
@@ -64,11 +68,24 @@ class Recorder {
         return (v == null) ? 0 : (v as Number);
     }
 
-    // 2 s of pre-roll, 5 s cap per swing — plenty for a golf swing, and tiny
-    // in memory at this device's rates.
+    // Append one [t, kind, x, y, z] row to the active buffer.
+    private function _push(t as Number, kind as Number,
+                           x as Number, y as Number, z as Number,
+                           maxCap as Number) as Void {
+        if (capturing) {
+            if (_cap.size() < maxCap) {
+                _cap.add(t); _cap.add(kind); _cap.add(x); _cap.add(y); _cap.add(z);
+            }
+        } else {
+            _pre.add(t); _pre.add(kind); _pre.add(x); _pre.add(y); _pre.add(z);
+        }
+    }
+
+    // 2 s of pre-roll, 5 s cap per swing. Both sensors land in the same buffer
+    // (~2 rows per tick), so the row budget is 2×rate.
     private function _sizeBuffers() as Void {
-        _preSamples = rateHz * 2;
-        _maxCapSamples = rateHz * 5;
+        _preSamples = rateHz * 2 * 2;
+        _maxCapSamples = rateHz * 5 * 2;
     }
 
     private function _tryStart(rate as Number, wantGyro as Boolean) as Boolean {
@@ -108,40 +125,40 @@ class Recorder {
 
     function _onDataInner(data as Sensor.SensorData) as Void {
         var acc = data.accelerometerData;
-        if (acc == null) { return; }
-        // On this device/firmware the axis arrays can be null even when the
-        // container isn't (e.g. a batch with no fresh accel) — guard them.
-        var axs = acc.x, ays = acc.y, azs = acc.z;
-        if (axs == null || ays == null || azs == null) { return; }
-        var gyr = data.gyroscopeData;   // null when accel-only
+        var gyr = data.gyroscopeData;
+        var axs = (acc != null) ? acc.x : null;
+        var ays = (acc != null) ? acc.y : null;
+        var azs = (acc != null) ? acc.z : null;
         var gxs = (gyr != null) ? gyr.x : null;
         var gys = (gyr != null) ? gyr.y : null;
         var gzs = (gyr != null) ? gyr.z : null;
-        var n = axs.size();
-        var gN = (gxs != null) ? gxs.size() : 0;
+        var nA = (axs != null) ? axs.size() : 0;
+        var nG = (gxs != null) ? gxs.size() : 0;
+        var n = (nA > nG) ? nA : nG;
+        if (n == 0) { return; }
+
+        // Per-sample timestamps: this batch spans (n-1)/rate seconds ending now.
+        var now = System.getTimer();                 // ms since boot
+        var dt = 1000.0 / rateHz;
+        var base = now - (n - 1) * dt;
         var burst = false;
         var preCap = _preSamples * COLS;
         var maxCap = _maxCapSamples * COLS;
 
         for (var i = 0; i < n; i++) {
-            var ax = _num(axs[i]), ay = _num(ays[i]), az = _num(azs[i]);
-            var gx = 0, gy = 0, gz = 0;
-            if (i < gN) { gx = _num(gxs[i]); gy = _num(gys[i]); gz = _num(gzs[i]); }
-            var mag2 = ax*ax + ay*ay + az*az;
-            if (mag2 > BURST_MG * BURST_MG) { burst = true; }
-
-            if (capturing) {
-                if (_cap.size() < maxCap) {
-                    _cap.add(ax); _cap.add(ay); _cap.add(az);
-                    _cap.add(gx); _cap.add(gy); _cap.add(gz);
-                }
-            } else {
-                _pre.add(ax); _pre.add(ay); _pre.add(az);
-                _pre.add(gx); _pre.add(gy); _pre.add(gz);
-                // trim in one-second chunks to avoid per-sample reallocation
-                if (_pre.size() > preCap + n * COLS) {
-                    _pre = _pre.slice(_pre.size() - preCap, null);
-                }
+            var t = (base + i * dt).toNumber();
+            // A sample slot is either a real accel triple or a real gyro triple
+            // (the other sensor's array is null here). Emit whichever is real.
+            if (i < nA && axs[i] != null) {
+                var ax = _num(axs[i]), ay = _num(ays[i]), az = _num(azs[i]);
+                if (ax*ax + ay*ay + az*az > BURST_MG * BURST_MG) { burst = true; }
+                _push(t, 0, ax, ay, az, maxCap);
+            }
+            if (i < nG && gxs[i] != null) {
+                _push(t, 1, _num(gxs[i]), _num(gys[i]), _num(gzs[i]), maxCap);
+            }
+            if (!capturing && _pre.size() > preCap + n * COLS) {
+                _pre = _pre.slice(_pre.size() - preCap, null);
             }
         }
 

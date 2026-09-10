@@ -30,9 +30,9 @@ module Uploader {
                 "part" => dev.partNumber,
                 "rate_hz" => rec.rateHz,
                 "has_gyro" => rec.hasGyro,
-                "cols" => 6,                     // reshape payload by 6: ax,ay,az,gx,gy,gz
-                "n" => flat.size() / 6,          // sample count
-                "payload" => flat                // FLAT [ax,ay,az,gx,gy,gz, ...] mG / deg-s
+                "cols" => 5,                     // reshape by 5: t_ms, kind, x, y, z
+                "n" => flat.size() / 5,          // row count (accel + gyro rows)
+                "payload" => flat                // FLAT [t_ms,kind,x,y,z,...] kind 0=accel mG, 1=gyro deg/s
             };
             Communications.makeWebRequest(URL, body, {
                 :method => Communications.HTTP_REQUEST_METHOD_POST,
