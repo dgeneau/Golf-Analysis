@@ -20,6 +20,7 @@ class Recorder {
     public var rateHz as Number = 0;        // accepted sample rate
     public var hasGyro as Boolean = false;  // did the device accept a gyro request?
     public var status as String = "probing sensors...";
+    public var err as String? = null;       // last caught exception, shown on the face
 
     // ---- capture state ----
     public var swings as Array = [];        // stored flat segments (see MEMORY note)
@@ -58,6 +59,11 @@ class Recorder {
         status = "sensor listener refused";
     }
 
+    // Coerce a possibly-null sample to a Number (0 when missing).
+    private function _num(v) as Number {
+        return (v == null) ? 0 : (v as Number);
+    }
+
     // 2 s of pre-roll, 5 s cap per swing — plenty for a golf swing, and tiny
     // in memory at this device's rates.
     private function _sizeBuffers() as Void {
@@ -88,19 +94,39 @@ class Recorder {
     }
 
     function onData(data as Sensor.SensorData) as Void {
+        // Self-diagnosing: any exception in the data path is caught and shown
+        // on the watch face instead of throwing the generic Connect IQ "IQ!"
+        // crash screen — so a field crash reports its own cause.
+        try {
+            _onDataInner(data);
+        } catch (ex) {
+            err = "ERR " + ex.getErrorMessage();
+            stop();
+            WatchUi.requestUpdate();
+        }
+    }
+
+    function _onDataInner(data as Sensor.SensorData) as Void {
         var acc = data.accelerometerData;
         if (acc == null) { return; }
+        // On this device/firmware the axis arrays can be null even when the
+        // container isn't (e.g. a batch with no fresh accel) — guard them.
+        var axs = acc.x, ays = acc.y, azs = acc.z;
+        if (axs == null || ays == null || azs == null) { return; }
         var gyr = data.gyroscopeData;   // null when accel-only
-        var n = acc.x.size();
-        var gN = (gyr != null) ? gyr.x.size() : 0;
+        var gxs = (gyr != null) ? gyr.x : null;
+        var gys = (gyr != null) ? gyr.y : null;
+        var gzs = (gyr != null) ? gyr.z : null;
+        var n = axs.size();
+        var gN = (gxs != null) ? gxs.size() : 0;
         var burst = false;
         var preCap = _preSamples * COLS;
         var maxCap = _maxCapSamples * COLS;
 
         for (var i = 0; i < n; i++) {
-            var ax = acc.x[i], ay = acc.y[i], az = acc.z[i];
+            var ax = _num(axs[i]), ay = _num(ays[i]), az = _num(azs[i]);
             var gx = 0, gy = 0, gz = 0;
-            if (i < gN) { gx = gyr.x[i]; gy = gyr.y[i]; gz = gyr.z[i]; }
+            if (i < gN) { gx = _num(gxs[i]); gy = _num(gys[i]); gz = _num(gzs[i]); }
             var mag2 = ax*ax + ay*ay + az*az;
             if (mag2 > BURST_MG * BURST_MG) { burst = true; }
 

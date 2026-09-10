@@ -20,7 +20,12 @@ class GLoggerDelegate extends WatchUi.BehaviorDelegate {
         }
         _view.uploadStatus = "uploading " + rec.swings.size() + "...";
         WatchUi.requestUpdate();
-        Uploader.uploadAll(rec, _view);
+        try {
+            Uploader.uploadAll(rec, _view);
+        } catch (ex) {
+            rec.err = "UPLOAD " + ex.getErrorMessage();
+            WatchUi.requestUpdate();
+        }
         return true;
     }
 }

@@ -21,6 +21,22 @@ class GLoggerView extends WatchUi.View {
         dc.drawText(cx, y, Graphics.FONT_SMALL, "DR Logger", Graphics.TEXT_JUSTIFY_CENTER);
         y += dc.getFontHeight(Graphics.FONT_SMALL) + 6;
         if (rec != null) {
+            if (rec.err != null) {
+                // wrap the caught error across the face so it's readable
+                dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_WHITE);
+                var w = dc.getWidth() - 20;
+                dc.drawText(cx, y, Graphics.FONT_XTINY, "CRASH:", Graphics.TEXT_JUSTIFY_CENTER);
+                y += dc.getFontHeight(Graphics.FONT_XTINY) + 2;
+                var msg = rec.err;
+                var per = 22;   // rough chars per line at XTINY
+                for (var p = 0; p < msg.length(); p += per) {
+                    var end = (p + per < msg.length()) ? p + per : msg.length();
+                    dc.drawText(cx, y, Graphics.FONT_XTINY, msg.substring(p, end),
+                                Graphics.TEXT_JUSTIFY_CENTER);
+                    y += dc.getFontHeight(Graphics.FONT_XTINY);
+                }
+                return;
+            }
             dc.drawText(cx, y, Graphics.FONT_MEDIUM, rec.status, Graphics.TEXT_JUSTIFY_CENTER);
             y += dc.getFontHeight(Graphics.FONT_MEDIUM) + 6;
             var line = rec.capturing ? "CAPTURING" : ("swings: " + rec.swings.size());
