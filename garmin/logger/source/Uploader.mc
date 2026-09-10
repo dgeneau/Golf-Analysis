@@ -24,13 +24,15 @@ module Uploader {
         _ok = 0;
         var dev = System.getDeviceSettings();
         for (var i = 0; i < rec.swings.size(); i++) {
+            var flat = rec.swings[i] as Array;
             var body = {
                 "device" => "vivoactive4",
                 "part" => dev.partNumber,
                 "rate_hz" => rec.rateHz,
                 "has_gyro" => rec.hasGyro,
-                "n" => (rec.swings[i] as Array).size(),
-                "payload" => rec.swings[i]      // [[ax,ay,az,gx,gy,gz], ...] mG / deg-s
+                "cols" => 6,                     // reshape payload by 6: ax,ay,az,gx,gy,gz
+                "n" => flat.size() / 6,          // sample count
+                "payload" => flat                // FLAT [ax,ay,az,gx,gy,gz, ...] mG / deg-s
             };
             Communications.makeWebRequest(URL, body, {
                 :method => Communications.HTTP_REQUEST_METHOD_POST,

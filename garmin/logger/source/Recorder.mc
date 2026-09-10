@@ -3,6 +3,13 @@
 //
 // Units per the CIQ SensorData docs: accelerometer in milli-g (mG),
 // gyroscope in degrees/second.
+//
+// MEMORY: the vivoactive 4 (and this device tier generally) has a small
+// per-app memory budget. Samples are stored as ONE flat number array per
+// swing ([ax,ay,az,gx,gy,gz, ax,ay,az,...]) rather than an array of little
+// 6-element arrays — far less object overhead — and the buffer sizes scale
+// to the probed rate (2 s pre-roll, 5 s cap) instead of a fixed 100 Hz
+// budget. Uploads carry cols=6 so the flat list is reshaped off-watch.
 import Toybox.Lang;
 import Toybox.Sensor;
 import Toybox.System;
@@ -15,17 +22,19 @@ class Recorder {
     public var status as String = "probing sensors...";
 
     // ---- capture state ----
-    public var swings as Array = [];        // stored segments (raw sample arrays)
+    public var swings as Array = [];        // stored flat segments (see MEMORY note)
     public var capturing as Boolean = false;
 
-    // rolling pre-buffer + capture buffer (flat [ax,ay,az,gx,gy,gz] per sample)
-    private var _pre as Array = [];
-    private var _cap as Array = [];
+    // rolling pre-buffer + capture buffer, both FLAT (length is a multiple of 6)
+    private var _pre as Array<Number> = [];
+    private var _cap as Array<Number> = [];
     private var _quietBatches as Number = 0;
 
-    private const PRE_SAMPLES = 150;        // ~1.5 s at 100 Hz (scales w/ rate)
-    private const MAX_CAP = 600;            // hard cap per swing (~6 s at 100 Hz)
-    private const MAX_SWINGS = 6;           // memory is tight on this tier
+    // sizes in *samples*, derived from rateHz once probed (see _sizeBuffers)
+    private var _preSamples as Number = 40;
+    private var _maxCapSamples as Number = 125;
+    private const MAX_SWINGS = 5;           // memory is tight on this tier
+    private const COLS = 6;
     // burst thresholds: accel magnitude in mG (|a| incl. gravity ~1000 at rest)
     private const BURST_MG = 2500;          // ~2.5 g — any real swing exceeds this
     private const QUIET_MG = 1600;
@@ -40,12 +49,20 @@ class Recorder {
                 if (_tryStart(rates[i], wantGyro)) {
                     rateHz = rates[i];
                     hasGyro = wantGyro;
+                    _sizeBuffers();
                     status = "" + rateHz + " Hz" + (hasGyro ? " + gyro" : ", accel only");
                     return;
                 }
             }
         }
         status = "sensor listener refused";
+    }
+
+    // 2 s of pre-roll, 5 s cap per swing — plenty for a golf swing, and tiny
+    // in memory at this device's rates.
+    private function _sizeBuffers() as Void {
+        _preSamples = rateHz * 2;
+        _maxCapSamples = rateHz * 5;
     }
 
     private function _tryStart(rate as Number, wantGyro as Boolean) as Boolean {
@@ -75,38 +92,45 @@ class Recorder {
         if (acc == null) { return; }
         var gyr = data.gyroscopeData;   // null when accel-only
         var n = acc.x.size();
+        var gN = (gyr != null) ? gyr.x.size() : 0;
         var burst = false;
+        var preCap = _preSamples * COLS;
+        var maxCap = _maxCapSamples * COLS;
+
         for (var i = 0; i < n; i++) {
             var ax = acc.x[i], ay = acc.y[i], az = acc.z[i];
             var gx = 0, gy = 0, gz = 0;
-            if (gyr != null && i < gyr.x.size()) {
-                gx = gyr.x[i]; gy = gyr.y[i]; gz = gyr.z[i];
-            }
-            var s = [ax, ay, az, gx, gy, gz];
+            if (i < gN) { gx = gyr.x[i]; gy = gyr.y[i]; gz = gyr.z[i]; }
             var mag2 = ax*ax + ay*ay + az*az;
             if (mag2 > BURST_MG * BURST_MG) { burst = true; }
+
             if (capturing) {
-                _cap.add(s);
+                if (_cap.size() < maxCap) {
+                    _cap.add(ax); _cap.add(ay); _cap.add(az);
+                    _cap.add(gx); _cap.add(gy); _cap.add(gz);
+                }
             } else {
-                _pre.add(s);
-                if (_pre.size() > PRE_SAMPLES) { _pre = _pre.slice(1, null); }
-            }
-            if (mag2 < QUIET_MG * QUIET_MG && capturing) {
-                // quiet counting happens per batch below; nothing per-sample
+                _pre.add(ax); _pre.add(ay); _pre.add(az);
+                _pre.add(gx); _pre.add(gy); _pre.add(gz);
+                // trim in one-second chunks to avoid per-sample reallocation
+                if (_pre.size() > preCap + n * COLS) {
+                    _pre = _pre.slice(_pre.size() - preCap, null);
+                }
             }
         }
+
         if (!capturing && burst) {
             capturing = true;
-            _cap = [];
-            _cap.addAll(_pre);
+            _cap = _pre.slice(0, null);   // copy the pre-roll in
+            _pre = [];
             _quietBatches = 0;
             if (Toybox.Attention has :vibrate) {
                 Toybox.Attention.vibrate([new Toybox.Attention.VibeProfile(60, 120)]);
             }
         } else if (capturing) {
-            if (!burst) { _quietBatches += 1; } else { _quietBatches = 0; }
-            // ~1 batch per second (:period => 1) — 2 quiet batches ends the swing
-            if (_quietBatches >= 2 || _cap.size() >= MAX_CAP) {
+            _quietBatches = burst ? 0 : (_quietBatches + 1);
+            // ~1 batch/second (:period => 1); 2 quiet batches or the cap ends it
+            if (_quietBatches >= 2 || _cap.size() >= maxCap) {
                 capturing = false;
                 if (swings.size() >= MAX_SWINGS) { swings = swings.slice(1, null); }
                 swings.add(_cap);
