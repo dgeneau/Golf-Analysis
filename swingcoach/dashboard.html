@@ -373,6 +373,13 @@
            color: #8a9270; background: rgba(138,146,112,.16); border-radius: 5px; padding: 2px 6px; vertical-align: middle; }
   .mdrillgo { font-size: 18px; color: #8a9270; flex: none; }
 
+  /* putting count-in overlay + big arm button */
+  .mputtarm { display: flex; flex-direction: column; align-items: center; justify-content: center;
+              min-height: 260px; text-align: center; }
+  .mputtarm-big { font: 400 96px "Instrument Serif", Georgia, serif; color: #3c4a30; line-height: 1; }
+  .mputtarm-sub { font: 500 14px "IBM Plex Sans", system-ui; color: #8a8577; margin-top: 10px; letter-spacing: .02em; }
+  .mputtbig { width: 100%; margin-bottom: 10px; padding: 15px; font-size: 16px; }
+
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
   .tile .lbl { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -1125,7 +1132,7 @@
       <button class="mghost" id="mPuttBack" style="padding:10px 16px">◂ Drills</button>
       <span class="mstatus"><span class="mdot" id="mPuttDot"></span><span id="mPuttStatus">Not connected</span></span>
       <span style="flex:1"></span>
-      <span class="mlabel" id="mPuttConsist"></span>
+      <button class="mchip" id="mPuttMode" aria-pressed="true">Guided</button>
     </div>
     <div class="mhero" id="mPuttHero">
       <div class="mempty" id="mPuttEmpty">
@@ -1137,6 +1144,10 @@
         <h2 id="mPuttEmptyTitle">Connect your sensor</h2>
         <p id="mPuttEmptySub">Set your phone down by the hole, strap the DOT to your lead wrist, and connect. Then just putt — each stroke lands here.</p>
         <button class="mprimary" id="mPuttConnectBtn">Connect sensor</button>
+      </div>
+      <div class="mputtarm" id="mPuttArm" hidden>
+        <div class="mputtarm-big" id="mPuttArmBig">3</div>
+        <div class="mputtarm-sub" id="mPuttArmSub">Get ready</div>
       </div>
       <div id="mPuttBody" hidden>
         <div class="mlabel" id="mPuttNumLabel">Putt tempo</div>
@@ -1153,9 +1164,12 @@
       </div>
     </div>
     <div class="mbottom">
+      <div class="mlabel" id="mPuttConsist" style="padding:0 4px 6px"></div>
       <div class="mrail" id="mPuttRail"></div>
+      <button class="mprimary mputtbig" id="mPuttArmBtn" hidden>Putt</button>
       <div class="mactions">
-        <button class="mprimary" id="mPuttDoneBtn" style="flex:1">Finish drill</button>
+        <button class="mghost" id="mPuttCsvBtn" style="flex:1" hidden>Export CSV</button>
+        <button class="mghost" id="mPuttDoneBtn" style="flex:1">Finish</button>
       </div>
     </div>
   </div>
@@ -1200,6 +1214,14 @@ let live = false;
 let drillMode = null;            // null | "putt"
 let drill = null;                // active drill session { type, reps:[], startedAt }
 let puttSelected = 0;
+// guided (armed) putting: detection only listens in a window after a count-in,
+// so non-putt motion is ignored. Free mode runs the detector continuously.
+let puttGuided = true;
+try { puttGuided = localStorage.getItem("sc-putt-free") !== "1"; } catch (e) {}
+let puttArmed = false;           // detector is live (guided window open)
+let puttArming = false;          // count-in / stroke window in progress (overlay up)
+let puttArmSeq = [];             // pending timers for the count-in, so we can cancel
+let puttAudioCtx = null;
 let connected = true;   // dashboard's own link to the local server
 let STATUS = {state: "starting", detail: "", battery: null};  // the sensor
 
@@ -1618,33 +1640,44 @@ function swingToJson(rec, leverM){
    trace + raw CSV make that quick). Metrics are honest about the wrist IMU:
    we report wrist rotation (a strong stroke-length proxy) and a wrist-roll
    *tendency*, never a putter-face angle the sensor can't see. */
+// NOTE: free-mode thresholds are still first estimates — a real green session's
+// CSV (export button in the drill) is what dials them in. The guided/armed mode
+// only listens in the stroke window, so it doesn't depend on these being exact.
 const PUTT = {
-  MOVE_GYRO: 20.0,    // deg/s: wrist is "moving" — starts a stroke
-  QUIET_GYRO: 9.0,    // deg/s: below this the wrist is still
-  QUIET_TIME: 0.45,   // s of stillness that ends a stroke
+  MOVE_GYRO: 30.0,    // deg/s: wrist is "moving" — starts a stroke
+  QUIET_GYRO: 12.0,   // deg/s: below this the wrist is still
+  QUIET_TIME: 0.40,   // s of stillness that ends a stroke
   PRE_BUFFER: 1.0,    // s of pre-motion kept in the buffer
   MAX_WINDOW: 4.0,    // s: give up on a stroke this long
-  MIN_PEAK: 28.0,     // deg/s: reject jitter/handling below this peak
+  MIN_PEAK: 45.0,     // deg/s: reject casual handling/walking below this peak
+  COOLDOWN_S: 0.9,    // s after a stroke to ignore ball-retrieval / reset motion
   MIN_BACK_S: 0.12, MAX_BACK_S: 2.5,
   MIN_THRU_S: 0.08, MAX_THRU_S: 1.5,
 };
 class PuttDetector {
-  constructor(){ this.buf = []; this.moving = false; this.startT = 0; this.quietSince = null; }
-  reset(){ this.buf = []; this.moving = false; this.quietSince = null; }
+  constructor(){ this.reset(); }
+  reset(){ this.buf = []; this.moving = false; this.startT = 0; this.quietSince = null; this.cooldownUntil = 0; }
   feed(s){
     this.buf.push(s);
+    const inCooldown = s.t < this.cooldownUntil;
     if (!this.moving){
       const t0 = s.t - PUTT.PRE_BUFFER;
       while (this.buf.length > 2 && this.buf[0].t < t0) this.buf.shift();
-      if (gmag(s) > PUTT.MOVE_GYRO){ this.moving = true; this.startT = s.t; this.quietSince = null; }
+      if (!inCooldown && gmag(s) > PUTT.MOVE_GYRO){
+        this.moving = true; this.startT = s.t; this.quietSince = null;
+      }
       return null;
     }
+    let done = false;
     if (gmag(s) < PUTT.QUIET_GYRO){
       if (this.quietSince == null) this.quietSince = s.t;
-      if (s.t - this.quietSince >= PUTT.QUIET_TIME) return this._finalize();
+      if (s.t - this.quietSince >= PUTT.QUIET_TIME) done = true;
     } else this.quietSince = null;
-    if (s.t - this.startT > PUTT.MAX_WINDOW) return this._finalize();
-    return null;
+    if (s.t - this.startT > PUTT.MAX_WINDOW) done = true;
+    if (!done) return null;
+    const rec = this._finalize();
+    this.cooldownUntil = s.t + PUTT.COOLDOWN_S;   // recovery motion after a stroke won't re-trigger
+    return rec;
   }
   _finalize(){
     const buf = this.buf; this.buf = []; this.moving = false; this.quietSince = null;
@@ -1703,6 +1736,9 @@ function computePuttMetrics(rec){
   // A face-rotation PROXY only — the wrist can't see the actual clubface.
   m.face_roll_deg = angleDelta(s[rec.iTop].roll, s[rec.iImpact].roll);
   m.dur_s = s[rec.iEnd].t - t0;
+  // absolute event times (same axis as rawLog) so the CSV export can mark them
+  m.t_start = s[rec.iStart].t; m.t_top = s[rec.iTop].t;
+  m.t_impact = s[rec.iImpact].t; m.t_end = s[rec.iEnd].t;
   // a compact trace for the drill screen
   m.trace = {
     t: s.slice(rec.iStart, rec.iEnd + 1).map(x => +(x.t - t0).toFixed(4)),
@@ -4239,8 +4275,12 @@ function initBleMode(){
     rawLog.push(s);    // CSVs pair themselves in future calibration sessions
     if (rawLog.length === 1) setConnectButton();  // reveal CSV button
     if (drillMode === "putt"){
-      const prec = puttDet.feed(s);
-      if (prec) onPuttRep(prec);
+      // guided mode only listens while armed (in the stroke window); free mode
+      // runs continuously. rawLog above still captures everything for the CSV.
+      if (!puttGuided || puttArmed){
+        const prec = puttDet.feed(s);
+        if (prec) onPuttRep(prec);
+      }
       return;   // drills don't feed the full-swing pipeline
     }
     const rec = det.feed(s);
@@ -5086,6 +5126,9 @@ function initMobile(){
   el("mPuttBack").addEventListener("click", () => exitPuttDrill("drills"));
   el("mPuttDoneBtn").addEventListener("click", finishPuttDrill);
   el("mPuttConnectBtn").addEventListener("click", () => document.getElementById("connectBtn").click());
+  el("mPuttMode").addEventListener("click", () => setPuttGuided(!puttGuided));
+  el("mPuttArmBtn").addEventListener("click", armPutt);
+  el("mPuttCsvBtn").addEventListener("click", exportDrillCsv);
   el("mPutt").addEventListener("click", e => {
     const t = e.target.closest("[data-explain]");
     if (t) showExplain(t.getAttribute("data-explain"));
@@ -5966,14 +6009,16 @@ function renderMTrends(){
 /* ---------- Drills: hub + putting module ---------- */
 function renderMDrills(){ /* static hub — nothing dynamic yet */ }
 function startPuttDrill(){
-  drill = {type: "putt", reps: [], startedAt: Date.now()};
+  drill = {type: "putt", reps: [], startedAt: Date.now(), rawStart: rawLog.length};
   puttSelected = 0;
   drillMode = "putt";
+  cancelPuttArm();
   if (window.__puttDet) window.__puttDet.reset();
   mScreen = "putt";
   renderMobile();
 }
 function exitPuttDrill(toScreen){
+  cancelPuttArm();
   drillMode = null;
   if (window.__puttDet) window.__puttDet.reset();
   mScreen = toScreen || "drills";
@@ -5997,10 +6042,121 @@ function finishPuttDrill(){
 }
 function onPuttRep(rec){
   const m = computePuttMetrics(rec);
-  if (!drill) drill = {type: "putt", reps: [], startedAt: Date.now()};
+  if (!drill) drill = {type: "putt", reps: [], startedAt: Date.now(), rawStart: 0};
   drill.reps.push(m);
   puttSelected = drill.reps.length - 1;
+  if (puttGuided){ puttArmed = false; cancelPuttArm(); }   // captured — close the window
   if (mScreen === "putt") renderMobile();
+}
+// ---- guided (armed) putting: count-in + metronome to the 2:1 target ----
+const PUTT_TEMPO = {back: 0.80, thru: 0.40};   // metronome beats (2:1)
+function puttBeep(freq, when, dur){
+  try {
+    const ctx = puttAudioCtx; if (!ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = freq; o.type = "sine";
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(0.28, when + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(when); o.stop(when + dur + 0.02);
+  } catch (e) {}
+}
+function cancelPuttArm(){
+  for (const id of puttArmSeq) clearTimeout(id);
+  puttArmSeq = [];
+  puttArmed = false;
+  puttArming = false;
+  const p = document.getElementById("mPuttArm");
+  if (p) p.hidden = true;
+}
+function armPutt(){
+  if (!drillMode) return;
+  cancelPuttArm();
+  puttArming = true;
+  if (window.__puttDet) window.__puttDet.reset();
+  // audio context must be created/resumed from the tap
+  try {
+    puttAudioCtx = puttAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (puttAudioCtx.state === "suspended") puttAudioCtx.resume();
+  } catch (e) { puttAudioCtx = null; }
+  const arm = document.getElementById("mPuttArm");
+  const big = document.getElementById("mPuttArmBig");
+  const sub = document.getElementById("mPuttArmSub");
+  document.getElementById("mPuttEmpty").hidden = true;
+  document.getElementById("mPuttBody").hidden = true;
+  document.getElementById("mPuttArmBtn").hidden = true;
+  if (arm) arm.hidden = false;
+  const t = (ms, fn) => puttArmSeq.push(setTimeout(fn, ms));
+  const now = puttAudioCtx ? puttAudioCtx.currentTime : 0;
+  const set = (b, s) => { if (big) big.textContent = b; if (sub) sub.textContent = s; };
+  // count-in: 3 · 2 · 1, then GO with the back/top/impact beats
+  set("3", "Get ready");           puttBeep(660, now + 0.00, 0.08);
+  t(600,  () => { set("2", "Get ready"); });   puttBeep(660, now + 0.6, 0.08);
+  t(1200, () => { set("1", "Get ready"); });   puttBeep(660, now + 1.2, 0.08);
+  const goAt = now + 1.8, backMs = PUTT_TEMPO.back * 1000, thruMs = PUTT_TEMPO.thru * 1000;
+  t(1800, () => { set("Back", "stroke to the beats"); puttArmed = true; });
+  puttBeep(880, goAt, 0.10);                                  // start backswing
+  puttBeep(880, goAt + PUTT_TEMPO.back, 0.10);                // top
+  puttBeep(1180, goAt + PUTT_TEMPO.back + PUTT_TEMPO.thru, 0.14);  // impact (higher)
+  t(1800 + backMs, () => set("Through", "…and through"));
+  t(1800 + backMs + thruMs, () => set("Impact", "hold the finish"));
+  // capture window stays open through the follow-through + tail, then times out
+  const windowMs = 1800 + backMs + thruMs + 1800;
+  t(windowMs, () => {
+    if (puttArmed){          // nothing captured
+      puttArmed = false;
+      if (window.__puttDet) window.__puttDet.reset();
+      set("No stroke read", "tap Putt to try again");
+      t(1300, () => { puttArming = false; const a = document.getElementById("mPuttArm");
+        if (a) a.hidden = true; renderMobile(); });
+    }
+  });
+}
+// ---- drill CSV export (raw stream + detected event markers) ----
+function shareFile(file){
+  if (navigator.canShare && navigator.canShare({files: [file]})){
+    navigator.share({files: [file]}).catch(e => { if (e && e.name === "AbortError") return; downloadFile(file); });
+    return;
+  }
+  downloadFile(file);
+}
+function exportDrillCsv(){
+  const start = (drill && drill.rawStart) || 0;
+  const rows = rawLog.slice(start);
+  if (!rows.length){ toast("No samples captured yet — connect and make a stroke first."); return; }
+  const reps = (drill && drill.reps) || [];
+  // tag the nearest sample to each detected event
+  const tag = new Map();   // rawLog-relative index → event label
+  const nearest = tt => {
+    let bi = 0, bd = Infinity;
+    for (let i = 0; i < rows.length; i++){ const d = Math.abs(rows[i].t - tt); if (d < bd){ bd = d; bi = i; } }
+    return bi;
+  };
+  reps.forEach((r, k) => {
+    if (r.t_start != null) tag.set(nearest(r.t_start), `p${k + 1}_start`);
+    if (r.t_top != null)   tag.set(nearest(r.t_top),   `p${k + 1}_top`);
+    if (r.t_impact != null) tag.set(nearest(r.t_impact), `p${k + 1}_impact`);
+    if (r.t_end != null)   tag.set(nearest(r.t_end),   `p${k + 1}_end`);
+  });
+  const lines = ["t,roll,pitch,yaw,ax,ay,az,gx,gy,gz,gmag,event"];
+  rows.forEach((s, i) => {
+    lines.push([s.t.toFixed(4), (s.roll ?? 0).toFixed(3), (s.pitch ?? 0).toFixed(3),
+                (s.yaw ?? 0).toFixed(3), s.ax.toFixed(3), s.ay.toFixed(3), s.az.toFixed(3),
+                s.gx.toFixed(3), s.gy.toFixed(3), s.gz.toFixed(3),
+                gmag(s).toFixed(3), tag.get(i) || ""].join(","));
+  });
+  const name = `downrange-putt-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+  const file = new File([lines.join("\n")], name, {type: "text/csv"});
+  shareFile(file);
+  toast(`Exporting ${rows.length} samples · ${reps.length} detected stroke${reps.length === 1 ? "" : "s"}`);
+}
+function setPuttGuided(on){
+  puttGuided = on;
+  try { localStorage.setItem("sc-putt-free", on ? "0" : "1"); } catch (e) {}
+  cancelPuttArm();
+  if (window.__puttDet) window.__puttDet.reset();
+  renderMobile();
 }
 const PUTT_BAND = {lo: 1.8, hi: 2.2};   // ~2:1 putting-tempo target window
 function renderMPutt(){
@@ -6017,14 +6173,32 @@ function renderMPutt(){
     (STATUS.battery != null ? ` · DOT ${STATUS.battery}%` : "");
   const cons = puttConsistency(reps);
   el("mPuttConsist").textContent = cons != null ? `Consistency ${cons}/100` : "";
+  // mode chip + arm button
+  el("mPuttMode").textContent = puttGuided ? "Guided" : "Free";
+  el("mPuttMode").setAttribute("aria-pressed", String(puttGuided));
+  el("mPuttArmBtn").hidden = !(puttGuided && connected) || puttArming;
+  el("mPuttCsvBtn").hidden = !(drill && rawLog.length > (drill.rawStart || 0));
+  // during the count-in / stroke window the arm overlay owns the hero
+  if (puttArming){
+    el("mPuttEmpty").hidden = true;
+    el("mPuttBody").hidden = true;
+    el("mPuttConnectBtn").hidden = true;
+    el("mPuttRail").textContent = "";
+    // (rail rebuilt on next full render)
+    if (has) buildPuttRail(el("mPuttRail"), reps, puttSelected < reps.length ? puttSelected : reps.length - 1);
+    return;
+  }
+  el("mPuttArm").hidden = true;
   el("mPuttConnectBtn").hidden = connected;
   el("mPuttEmpty").hidden = has;
   el("mPuttBody").hidden = !has;
   if (!has){
-    el("mPuttEmptyTitle").textContent = connected ? "Ready — make a stroke" : "Connect your sensor";
-    el("mPuttEmptySub").textContent = connected
-      ? "Putter in hand, roll one. Each stroke's tempo and length land here."
-      : "Set your phone down by the hole, strap the DOT to your lead wrist, and connect. Then just putt — each stroke lands here.";
+    el("mPuttEmptyTitle").textContent = connected ? "Ready when you are" : "Connect your sensor";
+    el("mPuttEmptySub").textContent = !connected
+      ? "Set your phone down by the hole, strap the DOT to your lead wrist, and connect. Then just putt — each stroke lands here."
+      : puttGuided
+        ? "Tap Putt for a 3-2-1 count-in, then stroke to the beats. It only listens during the stroke, so setting up won't trip it."
+        : "Free mode — putter in hand, roll one and it detects the stroke on its own.";
     el("mPuttRail").textContent = "";
     return;
   }
@@ -6052,8 +6226,9 @@ function renderMPutt(){
   el("mPuttFace").append(fmt1(Math.abs(m.face_roll_deg)));
   const fu = document.createElement("small"); fu.textContent = "°"; el("mPuttFace").appendChild(fu);
   renderPuttTrace(m);
-  // rail (latest first)
-  const rail = el("mPuttRail");
+  buildPuttRail(el("mPuttRail"), reps, i);
+}
+function buildPuttRail(rail, reps, i){
   rail.textContent = "";
   reps.slice().reverse().forEach((r, ri) => {
     const idx = reps.length - 1 - ri;
