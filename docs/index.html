@@ -2285,7 +2285,22 @@ async function fetchCourseGeom(center){
       line: pts,
     });
   }
-  return {greens, tees, holes, fairways, bunkers};
+  // A radius query around a small course pulls in holes from NEIGHBOURING
+  // courses whose ref numbers collide (e.g. Juan de Fuca's 9-hole par-3 loop
+  // sits ~2 km from another course's holes 1–3). find(ref) would then grab the
+  // wrong geometry. Keep, per ref, only the hole nearest THIS course's centre.
+  const midDist = h => {
+    const m = h.line[Math.floor(h.line.length / 2)];
+    return haversineM({lat: center[0], lon: center[1]}, {lat: m[0], lon: m[1]});
+  };
+  const byRef = new Map(), keep = [];
+  for (const h of holes){
+    if (h.ref == null){ keep.push(h); continue; }   // unnumbered: harmless, keep
+    const prev = byRef.get(h.ref);
+    if (!prev || midDist(h) < midDist(prev)) byRef.set(h.ref, h);
+  }
+  for (const h of byRef.values()) keep.push(h);
+  return {greens, tees, holes: keep, fairways, bunkers};
 }
 async function fetchCourseFeatures(center, id, name, recenter = true){
   let geom;
