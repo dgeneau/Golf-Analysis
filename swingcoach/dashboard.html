@@ -206,6 +206,23 @@
   #mRound .mchip, .msummary .mchip { color: #23221c; background: #f8f6ee; border-color: #ddd7c4; }
   .mhero { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; min-height: 0; }
   /* pre-first-swing empty state: replaces the graph carousel entirely */
+  /* onboarding */
+  .obstep { display: flex; flex-direction: column; align-items: flex-start; }
+  .obart { width: 150px; height: 112px; margin: 8px 0 24px; }
+  .obh { margin: 0 0 12px; font-family: "Instrument Serif", Georgia, serif;
+         font-weight: 400; font-size: 34px; line-height: 1.04; color: #23221c; }
+  .obp { margin: 0; font-size: 15.5px; line-height: 1.6; color: #6b6558; max-width: 330px; }
+  /* metric explainer sheet */
+  .mexplain { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end;
+              background: rgba(35,34,28,.38); }
+  .mexplain-card { background: #f8f6ee; width: 100%; border-radius: 18px 18px 0 0;
+                   padding: 22px 22px max(var(--sab), 22px); box-shadow: 0 -6px 24px rgba(0,0,0,.18); }
+  .mexplain-card h3 { margin: 0 0 8px; font-family: "Instrument Serif", Georgia, serif;
+                      font-weight: 400; font-size: 26px; color: #23221c; }
+  .mexplain-card p { margin: 0 0 6px; font-size: 15px; line-height: 1.6; color: #52514e; }
+  .mexplain-card .tgt { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: #3c4a30; }
+  .mtappable { cursor: pointer; }
+  .mtappable::after { content: "ⓘ"; font-size: 10px; color: #b0a892; margin-left: 4px; vertical-align: super; }
   .mempty p, .mempty h2 { margin: 0; }
   .mempty h2 { margin: 18px 0 10px; font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
                font-size: 36px; line-height: 1.02; }
@@ -751,6 +768,51 @@
       <button class="mghost" id="gSkipBtn" style="width:100%">Skip for now — straight to the range</button>
     </div>
   </div>
+  <!-- first-run onboarding: shown once, before the sign-in gate -->
+  <div class="mscreen" id="mOnboard" hidden style="background:#f0ede2;color:#23221c;z-index:6">
+    <div class="mtop">
+      <div class="mwordmark" style="font-size:22px"><svg viewBox="0 0 64 64" width="18" height="18" fill="none" aria-hidden="true"><path d="M8 50 Q 26 14 46 50" stroke="#8a9270" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"></path><line x1="46" y1="8" x2="46" y2="52" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></line><path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"></path></svg>Downrange</div>
+      <span style="flex:1"></span>
+      <button class="mchip" id="obSkip">Skip</button>
+    </div>
+    <div class="mhero" style="justify-content:flex-start; padding-top:6px">
+      <div class="obstep" data-step="0">
+        <svg class="obart" viewBox="0 0 120 90" fill="none" aria-hidden="true">
+          <path d="M12 78 Q 52 8 92 74" stroke="#8a9270" stroke-width="4" stroke-dasharray="1 9" stroke-linecap="round"/>
+          <line x1="92" y1="16" x2="92" y2="80" stroke="#23221c" stroke-width="5" stroke-linecap="round"/>
+          <path d="M92 18 L92 40 L116 29 Z" fill="#3c4a30"/>
+          <circle cx="12" cy="78" r="4.5" fill="#b4632f"/>
+        </svg>
+        <h2 class="serif obh">Feedback on every swing</h2>
+        <p class="obp">Downrange reads your swing from one small sensor on your wrist — your tempo, club path and speed, plus one thing to work on after each shot.</p>
+      </div>
+      <div class="obstep" data-step="1" hidden>
+        <svg class="obart" viewBox="0 0 120 90" fill="none" aria-hidden="true">
+          <rect x="34" y="20" width="52" height="34" rx="9" fill="none" stroke="#23221c" stroke-width="3"/>
+          <rect x="46" y="8" width="28" height="16" rx="4" fill="#3c4a30"/>
+          <path d="M30 37 H22 M90 37 H98" stroke="#8a9270" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="60" cy="37" r="5" fill="#b4632f"/>
+        </svg>
+        <h2 class="serif obh">Wear it on your lead wrist</h2>
+        <p class="obp">Strap the sensor to your <b>lead wrist</b> (left, for right-handed golfers), flat on top of the wrist. Keep the strap snug so it can't rotate — that's what keeps your numbers honest.</p>
+      </div>
+      <div class="obstep" data-step="2" hidden>
+        <div class="obart" style="display:flex;align-items:center;justify-content:center">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:44px;color:#23221c">2.9<span style="font-size:18px;color:#8a8577">:1</span></div>
+        </div>
+        <h2 class="serif obh">Tap any number to learn it</h2>
+        <p class="obp">Not sure what "tempo 2.9:1" means? Tap any metric for a plain-language explainer. You'll start in <b>Simple</b> mode — switch to Detailed whenever you want the full picture.</p>
+      </div>
+    </div>
+    <div class="mbottom" style="padding:0 20px max(var(--sab),16px)">
+      <div class="mdots" id="obDots" style="margin-bottom:16px"><span class="on"></span><span></span><span></span></div>
+      <div style="display:flex;gap:10px">
+        <button class="mghost" id="obBack" hidden style="flex:none;padding-left:22px;padding-right:22px">Back</button>
+        <button class="mprimary" id="obNext" style="flex:1">Next</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 1c · heads-up range -->
   <div class="mscreen" id="mRange">
     <div class="mtop">
@@ -760,6 +822,8 @@
     </div>
     <div class="mtop" style="padding-top:10px">
       <span class="mstatus" id="mStatus"><span class="mdot" id="mDot"></span><span id="mStatusTxt">Not connected</span></span>
+      <span style="flex:1"></span>
+      <button class="mchip" id="mDetailToggle" aria-pressed="false" hidden>Simple</button>
     </div>
     <div class="mhero" id="mHero">
       <!-- empty state: shown until the first swing of the session lands -->
@@ -772,10 +836,11 @@
         <h2 id="mEmptyTitle">Connect your sensor</h2>
         <p id="mEmptySub"></p>
         <button class="mprimary" id="mConnectBtn">Connect sensor</button>
+        <button id="mHowItWorks" style="margin-top:14px;border:0;background:transparent;color:#8a8577;font:500 13px 'IBM Plex Sans',system-ui;padding:6px">New here? How it works</button>
       </div>
       <div class="mswipe" id="mSwipe">
         <div class="mpage">
-          <div class="mlabel" id="mHeroLabel">Ready when you are</div>
+          <div class="mlabel mtappable" id="mHeroLabel" data-explain="tempo">Ready when you are</div>
           <div class="mbig" id="mHeroNum">—</div>
           <div class="msub" id="mHeroSub"></div>
           <svg id="mBand" width="100%" viewBox="0 0 340 34" style="display:none;margin:20px 0 22px"></svg>
@@ -800,8 +865,8 @@
       </div>
       <div class="mdots" id="mDots" hidden><span class="on"></span><span></span><span></span></div>
       <div class="mstats" id="mStats" hidden>
-        <div><div class="mlabel">Est. club</div><div class="mmid" id="mClubMph">—</div></div>
-        <div><div class="mlabel">Path</div><div class="mmid" id="mPath">—</div></div>
+        <div><div class="mlabel mtappable" data-explain="club">Est. club</div><div class="mmid" id="mClubMph">—</div></div>
+        <div><div class="mlabel mtappable" data-explain="path">Path</div><div class="mmid" id="mPath">—</div></div>
       </div>
       <div class="mcue" id="mCue" hidden>
         <div class="mcue-h"><span class="mdot" id="mCueDot"></span><h3 id="mCueTitle"></h3></div>
@@ -814,6 +879,15 @@
         <button class="mprimary" id="mSummaryBtn" style="flex:1">Session summary</button>
         <button class="mghost" id="mRoundBtn">Round mode</button>
       </div>
+    </div>
+  </div>
+
+  <!-- metric explainer bottom sheet -->
+  <div class="mexplain" id="mExplain" hidden>
+    <div class="mexplain-card">
+      <h3 id="mExplainTitle"></h3>
+      <p id="mExplainBody"></p>
+      <button class="mprimary" id="mExplainClose" style="width:100%;margin-top:14px">Got it</button>
     </div>
   </div>
 
@@ -3614,8 +3688,13 @@ function initBleMode(){
     try {
       bleDevice = await connectSensor(onSample);
     } catch (e) {
-      if (e && e.name === "NotFoundError") setSensorStatus("idle", "");  // user closed the chooser
-      else setSensorStatus("error", (e && e.message) || "connection failed");
+      // Actionable failure copy — the connect step is where users churn.
+      if (e && e.name === "NotFoundError"){
+        // chooser closed, or nothing showed up in the chooser
+        setSensorStatus("idle", "No sensor picked. Make sure the DOT is on (LED blinking), charged, and within a few feet — then tap Connect again.");
+      } else {
+        setSensorStatus("error", "Couldn't connect. Check the DOT is on and blinking, not paired to another phone, and close by, then try again.");
+      }
     } finally {
       btn.disabled = false;
       setConnectButton();
@@ -4379,6 +4458,26 @@ function initMobile(){
     el("mStartHole").appendChild(o);
   }
   el("mConnectBtn").addEventListener("click", () => document.getElementById("connectBtn").click());
+  // onboarding step controls
+  el("obNext").addEventListener("click", () => {
+    const n = document.querySelectorAll("#mOnboard .obstep").length;
+    if (obStep >= n - 1) finishOnboard();
+    else { obStep++; renderOnboard(); }
+  });
+  el("obBack").addEventListener("click", () => { if (obStep > 0){ obStep--; renderOnboard(); } });
+  el("obSkip").addEventListener("click", finishOnboard);
+  el("mHowItWorks").addEventListener("click", replayOnboard);
+  // Simple / Detailed toggle
+  el("mDetailToggle").addEventListener("click", () => setDetail(!mDetail));
+  // metric explainers: any element tagged data-explain opens the sheet
+  el("mRange").addEventListener("click", e => {
+    const t = e.target.closest("[data-explain]");
+    if (t) showExplain(t.getAttribute("data-explain"));
+  });
+  el("mExplainClose").addEventListener("click", () => { el("mExplain").hidden = true; });
+  el("mExplain").addEventListener("click", e => {
+    if (e.target === el("mExplain")) el("mExplain").hidden = true;   // tap backdrop to close
+  });
   // graph carousel: keep the dots in step with the swipe position
   const swipe = el("mSwipe");
   let swT = null;
@@ -4575,14 +4674,50 @@ function wireOtp(emailId, sendId, rowId, codeId, verifyId, noteId){
   });
 }
 function mDistShort(m){ return m == null ? "—" : distDisp(m); }
+// ---- first-run onboarding ----
+let obStep = 0;
+function onboarded(){ try { return localStorage.getItem("sc-onboarded") === "1"; } catch (e){ return false; } }
+function renderOnboard(){
+  const steps = document.querySelectorAll("#mOnboard .obstep");
+  steps.forEach(s => { s.hidden = (+s.dataset.step !== obStep); });
+  document.getElementById("obBack").hidden = obStep === 0;
+  document.getElementById("obNext").textContent = obStep >= steps.length - 1 ? "Get started" : "Next";
+  document.querySelectorAll("#obDots span").forEach((d, i) => { d.className = i === obStep ? "on" : ""; });
+}
+function finishOnboard(){ try { localStorage.setItem("sc-onboarded", "1"); } catch (e){} renderMobile(); }
+function replayOnboard(){ try { localStorage.removeItem("sc-onboarded"); } catch (e){} obStep = 0; renderMobile(); }
+// ---- Simple / Detailed range view ----
+let mDetail = false;
+try { mDetail = localStorage.getItem("sc-detail") === "1"; } catch (e){}
+function setDetail(on){
+  mDetail = on;
+  try { localStorage.setItem("sc-detail", on ? "1" : "0"); } catch (e){}
+  renderMobile();
+}
+// ---- plain-language metric explainers ----
+const EXPLAIN = {
+  tempo: {t: "Tempo", b: "The rhythm of your swing — how long the backswing takes compared with the downswing. Tour players sit around 3-to-1. Smooth and repeatable matters more than fast."},
+  club:  {t: "Club speed (est.)", b: "An estimate of clubhead speed at impact, worked out from your wrist motion. It's labelled “est.” because a wrist sensor infers it rather than measuring the clubhead directly — best used to track your own trend over time."},
+  path:  {t: "Swing path", b: "The direction the club is travelling through impact, relative to your target line. In-to-out (a plus number) tends to draw the ball; out-to-in (a minus) tends to fade or slice. Tap “Set square” once you're aimed at a target so it reads against your real aim."},
+};
+function showExplain(key){
+  const e = EXPLAIN[key]; if (!e) return;
+  document.getElementById("mExplainTitle").textContent = e.t;
+  document.getElementById("mExplainBody").textContent = e.b;
+  document.getElementById("mExplain").hidden = false;
+}
 function renderMobile(){
   initMobile();
   const el = id => document.getElementById(id);
   el("mRange").hidden = mScreen !== "range";
   el("mRound").hidden = mScreen !== "round";
   el("mSummary").hidden = mScreen !== "summary";
-  // launch gate: fronts the app until signed in or skipped (cloud configured)
-  el("mGate").hidden = !(sb && !sbUser && !authSkipped);
+  // first run: onboarding fronts everything until completed/skipped
+  const showOnboard = !onboarded() && mScreen === "range";
+  el("mOnboard").hidden = !showOnboard;
+  if (showOnboard) renderOnboard();
+  // launch gate: after onboarding, front the app until signed in or skipped
+  el("mGate").hidden = !(onboarded() && sb && !sbUser && !authSkipped);
   el("mClubSel").value = clubId;
   el("mClubSelR").value = clubId;
 
@@ -4606,16 +4741,25 @@ function renderMRange(){
   el("mEmpty").hidden = has;
   el("mSwipe").hidden = !has;
   el("mBand").style.display = has ? "block" : "none";
-  el("mStats").hidden = !has;
   el("mCue").hidden = !has;
-  el("mPageTrace").hidden = !has;
-  el("mPagePath").hidden = !has;
-  el("mDots").hidden = !has;
+  // Simple mode leads with one number + the cue; Detailed adds trace/path
+  // pages and the club/path stat row.
+  el("mDetailToggle").hidden = !has;
+  el("mDetailToggle").textContent = mDetail ? "Detailed" : "Simple";
+  el("mDetailToggle").setAttribute("aria-pressed", String(mDetail));
+  el("mStats").hidden = !has || !mDetail;
+  el("mPageTrace").hidden = !has || !mDetail;
+  el("mPagePath").hidden = !has || !mDetail;
+  el("mDots").hidden = !has || !mDetail;
+  if (has && !mDetail && el("mSwipe").scrollLeft) el("mSwipe").scrollLeft = 0;
   if (!has){
     el("mEmpty").classList.toggle("live", connected);
-    el("mEmptyTitle").textContent = connected ? "Ready when you are" : "Connect your sensor";
+    const failed = (STATUS.state === "error" || STATUS.state === "disconnected") && STATUS.detail;
+    el("mEmptyTitle").textContent = connected ? "Ready when you are"
+      : failed ? "Couldn't connect" : "Connect your sensor";
     el("mEmptySub").textContent = connected
       ? "Listening for swings — your first tempo lands right here."
+      : failed ? STATUS.detail   // actionable failure copy from the connect handler
       : "Strap the DOT to your lead wrist, pick your club up top, and connect to see tempo, path and club speed live.";
     el("mRail").textContent = "";
     return;
