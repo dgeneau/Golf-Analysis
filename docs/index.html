@@ -990,8 +990,72 @@
           <button class="mghost" id="mSignOutBtn" style="width:100%">Sign out</button>
         </div>
       </div>
+      <button class="mghost" id="mSumTrendsBtn" style="width:100%;margin-top:10px">History &amp; trends ▸</button>
       <button class="mprimary" id="mHomeBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
       <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:8px">Open full dashboard</button>
+    </div>
+  </div>
+
+  <!-- 1d · post-round recap (rendered from the local round, works offline) -->
+  <div class="mscreen msummary" id="mRoundSummary" hidden>
+    <div class="mtop" style="padding-bottom:10px">
+      <div class="mtitle">Round recap</div>
+    </div>
+    <div class="mcardwrap">
+      <div class="mdark">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <div class="mwordmark"><svg viewBox="0 0 64 64" width="17" height="17" fill="none" aria-hidden="true"><path d="M8 50 Q 26 14 46 50" stroke="#8a9270" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"></path><line x1="46" y1="8" x2="46" y2="52" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"></line><path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"></path></svg>Downrange</div>
+          <span style="flex:1"></span>
+          <span class="mlabel" id="mrsMeta"></span>
+        </div>
+        <div class="msumgrid" id="mrsGrid"></div>
+        <p class="mfine" id="mrsFine"></p>
+      </div>
+      <div class="mlight" id="mrsHi" hidden>
+        <h2>Highlights</h2>
+        <div id="mrsHiBody"></div>
+      </div>
+      <div class="mlight" id="mrsWork" hidden>
+        <h2>One thing to take to the range</h2>
+        <div id="mrsWorkBody"></div>
+      </div>
+      <div class="mlight" id="mrsBagCard" hidden>
+        <h2>Your clubs this round</h2>
+        <div id="mrsBag"></div>
+      </div>
+      <div class="mactions">
+        <button class="mprimary" id="mrsShareBtn" style="flex:1">Share image</button>
+        <button class="mghost" id="mrsTrendsBtn" style="flex:1">History &amp; trends ▸</button>
+      </div>
+      <button class="mprimary" id="mrsDoneBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
+    </div>
+  </div>
+
+  <!-- 1e · trends / history (cloud-backed: reuses progressData + raData) -->
+  <div class="mscreen msummary" id="mTrends" hidden>
+    <div class="mtop" style="padding-bottom:10px">
+      <button class="mghost" id="mTrendsBack" style="padding:10px 16px">◂ Back</button>
+      <div class="mtitle">Trends</div>
+    </div>
+    <div class="mcardwrap">
+      <div class="mlight" id="mtGate" hidden><p class="mmeta" id="mtGateMsg" style="margin:0"></p></div>
+      <div id="mtBody" hidden>
+        <div class="mlight">
+          <h2>Tempo over time</h2>
+          <p class="mfine" style="margin-top:0">Average backswing:downswing per session. Band is the 2.5–3.5 target.</p>
+          <div id="mtTempo"></div>
+        </div>
+        <div class="mlight">
+          <h2>Your bag</h2>
+          <p class="mfine" style="margin-top:0">Median carry per club, measured by GPS across your rounds. Distances are measured, not estimated.</p>
+          <div id="mtBag"></div>
+        </div>
+        <div class="mlight">
+          <h2>Recent rounds</h2>
+          <div id="mtRounds"></div>
+        </div>
+        <p class="mfine">Full strokes-gained, fairways and the shot-by-shot replay map live on the desktop dashboard.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -2996,7 +3060,7 @@ function renderProgressCharts(){
     .map(p => ({label: p.label, y: avg(p.ws.map(w=>+w.club_mph))}));
   document.getElementById("progSpeedTitle").textContent = `Club speed by session — ${clubLabel()}`;
   document.getElementById("progSpeedNote").textContent =
-    clubPts.length ? "Average estimated club speed for sessions where this club was swung. Change the club selector to switch."
+    clubPts.length ? "Average estimated club speed for sessions where this club was swung. Change the club selector to switch. Speed is a wrist-IMU estimate — the calculation was recalibrated over the project's life, so older synced sessions may sit on a slightly different scale; read the shape of the trend, not small step-changes. GPS-measured distances (below) are unaffected."
                    : "No synced swings with this club yet — change the club selector above.";
   lineChart("progSpeed", clubPts,
     {label:"Average club speed per session", series:"avg est. club", unit:" mph"});
@@ -3277,6 +3341,9 @@ function raSGChart(rounds){
   });
 }
 function renderRoundAnalytics(){
+  // rounds load async — keep the mobile trends bag/list in step as raData fills
+  if (typeof mobileEligible === "function" && mobileEligible() && mScreen === "trends")
+    renderMTrends();
   const note = document.getElementById("raNote");
   const body = document.getElementById("raBody");
   if (!note) return;
@@ -4491,6 +4558,11 @@ function initMobile(){
   el("mRoundBtn").addEventListener("click", () => { mScreen = "round"; setMode("round"); });
   el("mSummaryBtn").addEventListener("click", () => { mScreen = "summary"; renderAll(); });
   el("mSummaryBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
+  el("mSumTrendsBtn").addEventListener("click", openTrends);
+  el("mTrendsBack").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
+  el("mrsTrendsBtn").addEventListener("click", openTrends);
+  el("mrsShareBtn").addEventListener("click", () => shareCard(false));
+  el("mrsDoneBtn").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
   el("mClassicBtn").addEventListener("click", () => { mScreen = "classic"; setMode("range"); });
   el("classicBack").addEventListener("click", () => {
     mScreen = "range";
@@ -4542,7 +4614,9 @@ function initMobile(){
   el("mEndBtn").addEventListener("click", () => {
     if (round){ round.endedAt = Date.now(); saveRound(); }
     el("mSheet").hidden = true;
-    mScreen = "summary"; setMode("range");
+    // Stop GPS/wake-lock but keep uiMode "round" so Share builds the round card.
+    stopGps(); try { if (wakeLock) wakeLock.release(); } catch (e) {}
+    mScreen = "roundsummary"; renderAll();
   });
   el("mExitRoundBtn").addEventListener("click", () => {
     el("mSheet").hidden = true;
@@ -4712,6 +4786,8 @@ function renderMobile(){
   el("mRange").hidden = mScreen !== "range";
   el("mRound").hidden = mScreen !== "round";
   el("mSummary").hidden = mScreen !== "summary";
+  el("mRoundSummary").hidden = mScreen !== "roundsummary";
+  el("mTrends").hidden = mScreen !== "trends";
   // first run: onboarding fronts everything until completed/skipped
   const showOnboard = !onboarded() && mScreen === "range";
   el("mOnboard").hidden = !showOnboard;
@@ -4732,6 +4808,8 @@ function renderMobile(){
   if (mScreen === "range") renderMRange();
   else if (mScreen === "round") renderMRound();
   else if (mScreen === "summary") renderMSummary();
+  else if (mScreen === "roundsummary") renderMRoundSummary();
+  else if (mScreen === "trends") renderMTrends();
 }
 function renderMRange(){
   const el = id => document.getElementById(id);
@@ -5114,6 +5192,233 @@ function renderMSummary(){
     p.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#6b6558";
     p.textContent = top.detail;
     body.append(h, p);
+  }
+}
+
+/* ---------- Mobile post-round recap (local round, works offline) ----------
+   Built straight from the in-memory `round` so it's ready the instant a round
+   ends — no cloud round-trip. Distances are GPS-measured; club speed is a wrist
+   estimate. Kept honest: no fairways/strokes-gained here (those need mapped
+   geometry — they live on the desktop dashboard). */
+function roundRecapLocal(){
+  const holes = Object.keys(round.holes).map(Number).sort((a, b) => a - b);
+  let played = 0, parSum = 0, strokes = 0, parKnown = 0, putts = 0;
+  let girHit = 0, girElig = 0, best = null;
+  for (const h of holes){
+    const ht = holeTotals(h);
+    if (ht.total === 0) continue;
+    played++; putts += ht.putts;
+    const hm = holeMeta(h);
+    const par = hm && hm.par ? hm.par : null;
+    const completed = ht.putts > 0;
+    if (par && completed){
+      parSum += par; strokes += ht.total; parKnown++;
+      girElig++;
+      if (ht.shots <= par - 2) girHit++;
+      const rel = ht.total - par;
+      if (best == null || rel < best.rel) best = {h, par, total: ht.total, rel};
+    }
+  }
+  let longest = null;
+  for (const s of round.shots)
+    if (s.dist_m != null && (longest == null || s.dist_m > longest.dist_m)) longest = s;
+  const bag = new Map();
+  for (const s of round.shots){
+    const c = swingClub(s);
+    const key = `${c.id}|${c.inches}`;
+    if (!bag.has(key)) bag.set(key, {label: c.label, inches: c.inches, d: [], n: 0});
+    const g = bag.get(key); g.n++;
+    if (s.dist_m != null) g.d.push(s.dist_m);
+  }
+  const tempos = round.shots.map(s => s.tempo).filter(t => t != null);
+  return {
+    played, parKnown, strokes, putts, girHit, girElig, longest, best,
+    toPar: parKnown ? strokes - parSum : null,
+    shots: round.shots.length,
+    medTempo: tempos.length ? median(tempos) : null,
+    clipped: round.shots.filter(s => s.clipped).length,
+    bag: [...bag.values()].sort((a, b) => b.inches - a.inches),
+    course: round.courseName || (course && course.name) || "—",
+  };
+}
+function recapCoaching(rc){
+  // Pick the single most useful takeaway, in priority order, from real signals.
+  if (rc.played >= 3 && rc.putts > 0){
+    const pph = rc.putts / rc.played;
+    if (pph >= 2.2) return {title: "Sharpen the putting",
+      body: `${rc.putts} putts over ${rc.played} holes — ${pph.toFixed(1)} per hole. `
+          + `A few lag-putt reps focused on distance control take the most strokes off the fastest.`};
+  }
+  if (rc.medTempo != null && (rc.medTempo < 2.5 || rc.medTempo > 3.5))
+    return {title: rc.medTempo < 2.5 ? "Smooth out the transition" : "Don't get too slow",
+      body: `Median tempo this round was ${fmt1(rc.medTempo)}:1 `
+          + `(target 2.5–3.5). ${rc.medTempo < 2.5
+              ? "You're rushing from the top — feel a fuller backswing before you fire."
+              : "A touch quicker through the ball will tighten your strike."} `
+          + `Take a few range swings watching the tempo band.`};
+  if (rc.girElig >= 3 && rc.girHit / rc.girElig < 0.34)
+    return {title: "Build the approach game",
+      body: `You hit ${rc.girHit} of ${rc.girElig} greens in regulation. `
+          + `Dialling in your mid-iron distances (see Your bag) turns more of those into looks at birdie.`};
+  if (rc.clipped >= 3)
+    return {title: "A few swings maxed the sensor",
+      body: `${rc.clipped} of ${rc.shots} tracked swings clipped the wrist accelerometer at impact, `
+          + `so their path/speed is less certain. That's expected on your fastest swings — just read those numbers loosely.`};
+  return {title: "Nice, steady round",
+      body: `Nothing jumped out as a leak — keep banking reps at the range and watch the trends build.`};
+}
+function renderMRoundSummary(){
+  const el = id => document.getElementById(id);
+  if (!round){ el("mrsGrid").textContent = ""; return; }
+  const rc = roundRecapLocal();
+  el("mrsMeta").textContent =
+    `${rc.course} · ${new Date(round.endedAt || Date.now()).toLocaleDateString(undefined, {day: "numeric", month: "short"})}`;
+  const grid = el("mrsGrid");
+  grid.textContent = "";
+  const toPar = rc.toPar == null ? "—"
+    : (rc.toPar === 0 ? "E" : (rc.toPar > 0 ? "+" : "") + rc.toPar);
+  const cells = [
+    ["Holes", String(rc.played), ""],
+    ["Score", rc.parKnown ? String(rc.strokes) : String(roundTotal()), rc.parKnown ? " (" + toPar + ")" : ""],
+    ["Greens", rc.girElig ? `${rc.girHit}/${rc.girElig}` : "—", ""],
+    ["Putts", rc.putts ? String(rc.putts) : "—", ""],
+  ];
+  for (const [k, v, u] of cells){
+    const d = document.createElement("div");
+    const l = document.createElement("div"); l.className = "mlabel"; l.textContent = k;
+    const vv = document.createElement("div"); vv.className = "v"; vv.append(v);
+    if (u){ const s = document.createElement("small"); s.textContent = u; vv.appendChild(s); }
+    d.append(l, vv); grid.appendChild(d);
+  }
+  el("mrsFine").textContent = rc.parKnown
+    ? `Score counts tracked shots + putts on ${rc.parKnown} hole${rc.parKnown === 1 ? "" : "s"} with known par. Greens = reached in par−2 tracked strokes.`
+    : `Par wasn't known for these holes (course not mapped) — showing raw tracked strokes + putts.`;
+  // highlights
+  const hi = [];
+  if (rc.longest)
+    hi.push(`Longest measured shot: ${distDisp(rc.longest.dist_m)} with the ${swingClub(rc.longest).label}.`);
+  if (rc.best && rc.best.rel <= 0)
+    hi.push(`Best hole: #${rc.best.h}, ${rc.best.total} on a par ${rc.best.par}`
+            + (rc.best.rel < 0 ? ` (${rc.best.rel}).` : `.`));
+  el("mrsHi").hidden = !hi.length;
+  if (hi.length){
+    const b = el("mrsHiBody"); b.textContent = "";
+    for (const line of hi){
+      const p = document.createElement("p");
+      p.className = "mmeta"; p.style.cssText = "margin:0 0 6px";
+      p.textContent = line; b.appendChild(p);
+    }
+  }
+  // one thing to work on
+  const co = recapCoaching(rc);
+  el("mrsWork").hidden = false;
+  const wb = el("mrsWorkBody"); wb.textContent = "";
+  const h3 = document.createElement("h3");
+  h3.style.cssText = "margin:0;font-size:13.5px;font-weight:650";
+  h3.textContent = co.title;
+  const wp = document.createElement("p");
+  wp.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#6b6558";
+  wp.textContent = co.body;
+  wb.append(h3, wp);
+  // per-club bag (this round)
+  const withDist = rc.bag.filter(g => g.d.length);
+  el("mrsBagCard").hidden = !rc.bag.length;
+  if (rc.bag.length) renderBagRows(el("mrsBag"), rc.bag, "round");
+}
+/* Shared "bag" row renderer. groups: [{label, d:[metres], n}]. mode "round"
+   shows avg + longest; mode "trends" shows median + shots. */
+function renderBagRows(host, groups, mode){
+  host.textContent = "";
+  const yd = m => `${Math.round(m * 1.09361)} yd`;
+  const shown = groups.filter(g => g.n > 0);
+  if (!shown.length){ div("mfine", host, "No shots tracked."); return; }
+  for (const g of shown){
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid #ddd7c4";
+    const name = document.createElement("div");
+    name.style.cssText = "flex:1;font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
+    name.textContent = g.label;
+    const stat = document.createElement("div");
+    stat.style.cssText = "font:600 14px 'IBM Plex Mono',monospace;color:#3c4a30";
+    const sub = document.createElement("div");
+    sub.style.cssText = "font:500 11px 'IBM Plex Mono',monospace;color:#8a8577;min-width:72px;text-align:right";
+    if (g.d.length){
+      const val = mode === "trends" ? median(g.d) : g.d.reduce((a, b) => a + b, 0) / g.d.length;
+      stat.textContent = yd(val);
+      sub.textContent = mode === "trends"
+        ? `${g.d.length} shot${g.d.length === 1 ? "" : "s"}`
+        : `long ${yd(Math.max(...g.d))}`;
+    } else {
+      stat.textContent = "—";
+      sub.textContent = `${g.n} swing${g.n === 1 ? "" : "s"}`;
+    }
+    row.append(name, stat, sub);
+    host.appendChild(row);
+  }
+}
+/* ---------- Mobile trends (cloud history) ---------- */
+function openTrends(){
+  mScreen = "trends";
+  // pull history the first time (loadProgress fills progressData + raData, then
+  // re-renders); if it's already loaded we reuse it.
+  if (progressData == null && sb && sbUser) loadProgress();
+  renderAll();
+}
+function renderMTrends(){
+  const el = id => document.getElementById(id);
+  const gate = el("mtGate"), body = el("mtBody"), msg = el("mtGateMsg");
+  const show = (gated, text) => { gate.hidden = !gated; body.hidden = gated; if (gated) msg.textContent = text; };
+  if (!sbUser) return show(true, "Sign in from the summary screen to save your sessions and see trends here.");
+  if (progressData == null) return show(true, "Loading your history…");
+  if (progressData.error) return show(true, "Couldn't load history: " + progressData.error);
+  if (!progressData.length) return show(true, "No synced sessions yet — hit a range session or play a round while signed in, and your trends build here automatically.");
+  show(false);
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"});
+  lineChart("mtTempo",
+    progressData.map(s => ({label: dlab(s.date), y: avg(s.swings.map(w => +w.tempo))})),
+    {label: "Average tempo per session", series: "avg tempo", band: [2.5, 3.5], minMax: 4, dp: 2});
+  // your bag — median GPS-measured carry per club, across all rounds
+  const bagHost = el("mtBag");
+  const rounds = (raData && raData.rounds) || [];
+  const groups = new Map();
+  for (const r of rounds)
+    for (const d of r.dists || []){
+      const def = CLUBS.find(c => c.id === d.club);
+      const label = def ? (def.id === "custom" ? "Custom" : def.name) : (d.club || "Club");
+      const inches = def && def.inches != null ? def.inches : 0;
+      const key = d.club || label;
+      if (!groups.has(key)) groups.set(key, {label, inches, d: [], n: 0});
+      const g = groups.get(key);
+      g.n++; g.d.push(d.yd / 1.09361);   // store metres; renderBagRows converts back
+    }
+  if (groups.size)
+    renderBagRows(bagHost, [...groups.values()].sort((a, b) => b.inches - a.inches), "trends");
+  else { bagHost.textContent = ""; div("mfine", bagHost,
+    raData == null ? "Loading rounds…" : "No GPS-measured shots yet — distances are captured as you play mapped holes."); }
+  // recent rounds
+  const rl = el("mtRounds");
+  rl.textContent = "";
+  if (!rounds.length){ div("mfine", rl, raData == null ? "Loading rounds…" : "No rounds synced yet."); }
+  for (const r of [...rounds].reverse().slice(0, 8)){
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #ddd7c4";
+    const left = document.createElement("div"); left.style.cssText = "flex:1";
+    const c = document.createElement("div");
+    c.style.cssText = "font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
+    c.textContent = r.course || "—";
+    const d = document.createElement("div");
+    d.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;color:#8a8577";
+    d.textContent = `${raDlab(r.date)} · ${r.holesPlayed} hole${r.holesPlayed === 1 ? "" : "s"}`
+                  + (r.putts ? ` · ${r.putts} putts` : "");
+    left.append(c, d);
+    const score = document.createElement("div");
+    score.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
+    score.textContent = r.parKnown
+      ? `${r.score} (${r.toPar > 0 ? "+" : ""}${r.toPar === 0 ? "E" : r.toPar})`
+      : (r.girElig ? `${r.girHit}/${r.girElig} GIR` : "—");
+    row.append(left, score);
+    rl.appendChild(row);
   }
 }
 
