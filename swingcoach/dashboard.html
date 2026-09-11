@@ -1641,6 +1641,7 @@ window._nativeTrail = arr => {
   if (last && (!lastFix || lastFix.err || last.ep > (lastFix.ts || 0)))
     lastFix = {lat: last.lat, lon: last.lon, acc: last.acc, ts: last.ep};
   if (typeof gpsChip === "function"){ gpsChip(); updateYouMarker(false); }
+  if (typeof updateMobileGreen === "function"){ updateMobileGreen(); updateToHole(); }
 };
 function startGps(){
   if (gpsWatch != null || !navigator.geolocation) return;
@@ -1648,7 +1649,7 @@ function startGps(){
     p => { lastFix = {lat: p.coords.latitude, lon: p.coords.longitude,
                       acc: p.coords.accuracy, ts: Date.now()};
            trailPush({ep: Date.now(), lat: lastFix.lat, lon: lastFix.lon, acc: lastFix.acc});
-           gpsChip(); updateYouMarker(false); checkAutoHole(); },
+           gpsChip(); updateYouMarker(false); updateMobileGreen(); updateToHole(); checkAutoHole(); },
     e => { lastFix = {err: e.message || "GPS unavailable", ts: Date.now()}; gpsChip(); },
     {enableHighAccuracy: true, maximumAge: 2000, timeout: 15000});
 }
@@ -4816,6 +4817,32 @@ function renderPathBand(m){
     cap.style.color = "#3c4a30";
   }
 }
+// Live "to green" distance for the mobile round screen. Safe to call on every
+// GPS fix — it recomputes from the latest position so the number counts down
+// as you walk to the tee, instead of freezing at the hole-switch value.
+function updateMobileGreen(){
+  const el = id => document.getElementById(id);
+  if (!el("mGreenCard")) return;
+  const active = round && !round.endedAt;
+  if (mScreen !== "round" || !active) return;   // renderMRound owns the hidden state
+  const g = currentGreen();
+  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
+  if (g && here){
+    const fcb = greenFCB(g, here);
+    el("mGreenCard").hidden = false;
+    el("mGreenDist").textContent = distDisp(fcb.center);
+    el("mGreenLbl").textContent = `to middle · F ${distDisp(fcb.front)} · B ${distDisp(fcb.back)}`;
+    const sugg = suggestClubs(fcb.center);
+    if (sugg.length){
+      const s = el("mSuggest");
+      s.hidden = false;
+      s.textContent = "";
+      const b = document.createElement("b");
+      b.textContent = sugg[0].label;
+      s.append(b, ` from your distances (avg ${distDisp(sugg[0].avg_m)})`);
+    } else el("mSuggest").hidden = true;
+  } else { el("mGreenCard").hidden = true; el("mSuggest").hidden = true; }
+}
 function renderMRound(){
   const el = id => document.getElementById(id);
   // adopt the shared map full-bleed
@@ -4851,24 +4878,7 @@ function renderMRound(){
   const vp = vsPar();
   el("mHoleScore").textContent = `${ht.total} stroke${ht.total === 1 ? "" : "s"} · round ${roundTotal()}` +
     (vp ? ` (${vp.diff > 0 ? "+" : ""}${vp.diff})` : "");
-  // to-green + suggestion
-  const g = currentGreen();
-  const here = (lastFix && !lastFix.err) ? [lastFix.lat, lastFix.lon] : null;
-  if (g && here){
-    const fcb = greenFCB(g, here);
-    el("mGreenCard").hidden = false;
-    el("mGreenDist").textContent = distDisp(fcb.center);
-    el("mGreenLbl").textContent = `to middle · F ${distDisp(fcb.front)} · B ${distDisp(fcb.back)}`;
-    const sugg = suggestClubs(fcb.center);
-    if (sugg.length){
-      const s = el("mSuggest");
-      s.hidden = false;
-      s.textContent = "";
-      const b = document.createElement("b");
-      b.textContent = sugg[0].label;
-      s.append(b, ` from your distances (avg ${distDisp(sugg[0].avg_m)})`);
-    } else el("mSuggest").hidden = true;
-  } else { el("mGreenCard").hidden = true; el("mSuggest").hidden = true; }
+  updateMobileGreen();   // to-green + suggestion; also refreshed live on each GPS fix
   const last = round.shots[round.shots.length - 1];
   el("mLastShot").hidden = !last;
   if (last){
