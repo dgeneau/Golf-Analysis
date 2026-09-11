@@ -346,6 +346,20 @@
   .mlight h2 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 15px;
                letter-spacing: .04em; text-transform: uppercase; margin: 0 0 8px; }
 
+  /* share-card export carousel */
+  .mshare-strip { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 10px;
+                  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+                  scrollbar-width: none; }
+  .mshare-strip::-webkit-scrollbar { display: none; }
+  .msharetile { flex: 0 0 auto; scroll-snap-align: center; background: transparent; border: 0;
+                padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .msharetile canvas { border-radius: 12px; border: 2px solid transparent; display: block;
+                       box-shadow: 0 2px 10px rgba(35,34,28,.14); transition: border-color .12s, box-shadow .12s; }
+  .msharetile.nobg canvas { background: repeating-conical-gradient(#6f6a5b 0 25%, #837d6c 0 50%) 0 0 / 14px 14px; }
+  .msharetile.sel canvas { border-color: #3c4a30; box-shadow: 0 4px 16px rgba(60,74,48,.34); }
+  .msharetile .lbl { font: 600 11px "IBM Plex Sans", system-ui; color: #8a8577; letter-spacing: .02em; }
+  .msharetile.sel .lbl { color: #3c4a30; }
+
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 12px; }
   .tile .lbl { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -962,6 +976,10 @@
         <h2>Take one thing to the next session</h2>
         <div id="mSumCueBody"></div>
       </div>
+      <div class="mlight" id="mSumShareCard">
+        <h2>Share a card</h2>
+        <div class="mshare-strip" id="mSumShareStrip"></div>
+      </div>
       <div class="mactions">
         <button class="mprimary" id="mShareBtn" style="flex:1">Share image</button>
         <button class="mghost" id="mCsvBtn" style="flex:1">Session CSV</button>
@@ -1022,6 +1040,10 @@
       <div class="mlight" id="mrsBagCard" hidden>
         <h2>Your clubs this round</h2>
         <div id="mrsBag"></div>
+      </div>
+      <div class="mlight" id="mrsShareCard">
+        <h2>Share a card</h2>
+        <div class="mshare-strip" id="mrsShareStrip"></div>
       </div>
       <div class="mactions">
         <button class="mprimary" id="mrsShareBtn" style="flex:1">Share image</button>
@@ -2886,6 +2908,273 @@ async function shareCard(transparent){
   }, "image/png");
 }
 
+function dateUp(ts){ return new Date(ts || Date.now())
+  .toLocaleDateString(undefined, {month:"short", day:"numeric"}).toUpperCase(); }
+
+/* Tempo card: median hero + a bar per swing against the 2.5–3.5 band. */
+function buildTempoCard(){
+  const [c, ctx] = cardBase(`RANGE · TEMPO · ${dateUp()}`);
+  const temps = swings.map(s => s.metrics.tempo_ratio);
+  const med = median(temps), n = temps.length;
+  const inBand = temps.filter(t => t >= 2.5 && t <= 3.5).length;
+  cardHero(ctx, "MEDIAN TEMPO", fmt1(med), ":1",
+    `TARGET 2.5–3.5 · ${n} SWING${n === 1 ? "" : "S"}`);
+  const x0 = 72, x1 = CARD.W - 72, y0 = 664, y1 = 1006;
+  const maxT = Math.max(4, ...temps);
+  const Y = v => y1 - (v / maxT) * (y1 - y0);
+  const sb = ctx.shadowBlur; ctx.shadowBlur = 0;
+  ctx.fillStyle = CS.traceFill;
+  ctx.fillRect(x0, Y(3.5), x1 - x0, Y(2.5) - Y(3.5));
+  ctx.strokeStyle = CS.line; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x1, y1); ctx.stroke();
+  cardText(ctx, "3.5", x1, Y(3.5) - 6, 24, 600, CS.muted, "right");
+  cardText(ctx, "2.5", x1, Y(2.5) - 6, 24, 600, CS.muted, "right");
+  const bw = Math.min(64, (x1 - x0) / n - 8);
+  temps.forEach((t, i) => {
+    const cx = x0 + (x1 - x0) * (i + 0.5) / n;
+    ctx.fillStyle = i === n - 1 ? CS.orange : CS.blue;
+    ctx.fillRect(cx - bw / 2, Y(t), bw, y1 - Y(t));
+  });
+  ctx.shadowBlur = sb;
+  cardText(ctx, "TEMPO PER SWING — LATEST HIGHLIGHTED", 72, 1052, 28, 600, CS.muted, "left", "3px");
+  const sim = similarity();
+  cardStatRow(ctx, 1120, [
+    ["swings", String(n)],
+    ["med tempo", fmt1(med) + ":1"],
+    ["in band", n ? Math.round(100 * inBand / n) + "%" : "—"],
+    ["repeat /100", sim.session != null ? String(Math.round(sim.session)) : "—"],
+  ]);
+  cardFooter(ctx, "backswing : downswing time ratio");
+  return c;
+}
+/* By-club card: shots + estimated speeds for every club swung this session. */
+function buildRangeClubCard(){
+  const [c, ctx] = cardBase(`RANGE · BY CLUB · ${dateUp()}`);
+  const groups = new Map();
+  for (const s of swings){
+    const cl = swingClub(s), key = `${cl.id}|${cl.inches}`;
+    if (!groups.has(key)) groups.set(key, {label: cl.label, inches: cl.inches, sp: []});
+    groups.get(key).sp.push(clubSpeedMph(s));
+  }
+  const rows = [...groups.values()].sort((a, b) => b.inches - a.inches);
+  cardText(ctx, `${swings.length} SWINGS · ${rows.length} CLUB${rows.length === 1 ? "" : "S"}`,
+           72, 244, 36, 600, CS.muted, "left", "3px");
+  const colX = [72, 604, 812, CARD.W - 72], align = ["left", "right", "right", "right"];
+  const head = ["CLUB", "SHOTS", "AVG MPH", "BEST MPH"];
+  let y = 340;
+  head.forEach((h, i) => cardText(ctx, h, colX[i], y, 26, 600, CS.muted, align[i], "3px"));
+  y += 16; ctx.strokeStyle = CS.line; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(72, y); ctx.lineTo(CARD.W - 72, y); ctx.stroke();
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const shown = rows.slice(0, 8);
+  const rowH = Math.min(102, (1170 - (y + 74)) / Math.max(1, shown.length));
+  y += 78;
+  for (const g of shown){
+    const lbl = g.label.toUpperCase();
+    cardText(ctx, lbl, colX[0], y, fitText(ctx, lbl, 500, 46, 700), 700, CS.ink, "left");
+    cardText(ctx, String(g.sp.length), colX[1], y, 46, 700, CS.ink, "right");
+    cardText(ctx, fmt1(avg(g.sp)), colX[2], y, 46, 700, CS.blue, "right");
+    cardText(ctx, fmt1(Math.max(...g.sp)), colX[3], y, 46, 700, CS.ink, "right");
+    y += rowH;
+  }
+  cardFooter(ctx, "club speed estimated from wrist sensor");
+  return c;
+}
+/* Reuse the desktop round analyzer on the in-memory round: gives score, GIR,
+   FIR, per-hole shot positions and strokes gained (when the course is mapped),
+   with no cloud round-trip. */
+function localRoundAnalysis(){
+  if (!round) return null;
+  const sess = {id: "local", started_at: new Date(round.startedAt).toISOString(),
+                course_name: round.courseName || (course && course.name) || null};
+  const shots = round.shots.map(s => ({hole: s.hole, seq: s.n,
+    club_id: s.club && s.club.id, club_inches: s.club && s.club.inches,
+    lat: s.lat, lon: s.lon, dist_m: s.dist_m}));
+  const holeRows = Object.keys(round.holes).map(Number).map(h => {
+    const hm = holeMeta(h), hr = round.holes[h];
+    return {hole: h, putts: hr.putts || 0, penalties: hr.penalties || 0,
+            par: hm && hm.par ? hm.par : null};
+  });
+  try { return analyzeRound(sess, shots, holeRows, course || null); }
+  catch (e){ return null; }
+}
+/* Round shot-map card: clean GPS map of the round + score + strokes gained. */
+function buildRoundMapCard(){
+  const a = localRoundAnalysis();
+  const [c, ctx] = cardBase(`ROUND · ${dateUp(round.startedAt)}`);
+  cardText(ctx, (round.courseName || (course && course.name) || "ON COURSE").toUpperCase(),
+           72, 244, 34, 600, CS.muted, "left", "3px");
+  const scoreTxt = a && a.parKnown ? String(a.score) : String(roundTotal());
+  ctx.font = `700 168px ${CARD.disp}`;
+  const vw = ctx.measureText(scoreTxt).width;
+  cardText(ctx, scoreTxt, 72, 416, 168, 700, CS.ink, "left");
+  const toPar = a && a.parKnown ? (a.toPar === 0 ? "E" : (a.toPar > 0 ? "+" : "") + a.toPar) : "strokes";
+  cardText(ctx, toPar, 72 + vw + 22, 416, 56, 600,
+           a && a.parKnown && a.toPar <= 0 ? CS.aqua : CS.muted, "left");
+  if (a && a.sgHoles){
+    const tot = RA_CATS.reduce((s, [k]) => s + a.sg[k], 0);
+    const sgTxt = (tot >= 0 ? "+" : "") + (Math.round(tot * 10) / 10 + 0).toFixed(1);
+    cardText(ctx, sgTxt, CARD.W - 72, 372, 92, 700, tot >= 0 ? CS.aqua : CS.orange, "right");
+    cardText(ctx, `STROKES GAINED · ${a.sgHoles} HOLE${a.sgHoles === 1 ? "" : "S"}`,
+             CARD.W - 72, 414, 23, 600, CS.muted, "right", "2px");
+  }
+  drawRoundMap(ctx, a, 72, 470, CARD.W - 72, 1024);
+  cardText(ctx, "SHOT MAP — GPS", 72, 1058, 28, 600, CS.muted, "left", "3px");
+  const putts = a ? a.putts : Object.values(round.holes).reduce((s, h) => s + (h.putts || 0), 0);
+  cardStatRow(ctx, 1120, [
+    ["holes", String(a ? a.holesPlayed : Object.keys(round.holes).length)],
+    ["putts", String(putts)],
+    ["greens", a && a.girElig ? `${a.girHit}/${a.girElig}` : "—"],
+    ["fairways", a && a.firElig ? `${a.firHit}/${a.firElig}` : "—"],
+  ]);
+  cardFooter(ctx, a && a.sgHoles ? "SG vs tour scratch · positions from GPS" : "positions & distances from GPS");
+  return c;
+}
+function drawRoundMap(ctx, a, bx0, by0, bx1, by1){
+  const geom = a && a.geom;
+  const holes = a ? a.holes : [];
+  const pts = [];
+  for (const h of holes) for (const s of h.shots) if (s.lat != null) pts.push([s.lat, s.lon]);
+  if (geom) for (const h of holes){
+    const ln = (geom.holes || []).find(x => x.ref === h.hole);
+    if (ln && ln.line) for (const p of ln.line) pts.push([p[0], p[1]]);
+  }
+  if (pts.length < 1){
+    cardText(ctx, "NO GPS SHOTS RECORDED", 72, (by0 + by1) / 2, 38, 600, CS.muted, "left", "3px");
+    return;
+  }
+  const lats = pts.map(p => p[0]), lons = pts.map(p => p[1]);
+  const la0 = Math.min(...lats), la1 = Math.max(...lats);
+  const lo0 = Math.min(...lons), lo1 = Math.max(...lons);
+  const cosLat = Math.cos((la0 + la1) / 2 * Math.PI / 180);
+  const spanX = Math.max((lo1 - lo0) * cosLat, 1e-6), spanY = Math.max(la1 - la0, 1e-6);
+  const sc = Math.min((bx1 - bx0) / spanX, (by1 - by0) / spanY) * 0.92;
+  const cx = (lo0 + lo1) / 2, cy = (la0 + la1) / 2;
+  const mx = (bx0 + bx1) / 2, my = (by0 + by1) / 2;
+  const P = (lat, lon) => [mx + ((lon - cx) * cosLat) * sc, my - (lat - cy) * sc];
+  const sb = ctx.shadowBlur; ctx.shadowBlur = 0;
+  if (geom) for (const f of geom.fairways || []){
+    ctx.beginPath();
+    f.poly.forEach((p, i) => { const q = P(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+    ctx.closePath(); ctx.fillStyle = CS.traceFill; ctx.fill();
+  }
+  if (geom) for (const g of geom.greens || []){
+    ctx.beginPath();
+    g.poly.forEach((p, i) => { const q = P(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+    ctx.closePath();
+    ctx.globalAlpha = CS.transparent ? 0.4 : 0.5; ctx.fillStyle = CS.aqua; ctx.fill(); ctx.globalAlpha = 1;
+  }
+  if (geom){
+    ctx.setLineDash([9, 12]); ctx.strokeStyle = CS.line; ctx.lineWidth = 3;
+    for (const h of holes){
+      const ln = (geom.holes || []).find(x => x.ref === h.hole);
+      if (ln && ln.line && ln.line.length > 1){
+        ctx.beginPath();
+        ln.line.forEach((p, i) => { const q = P(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+  }
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  for (const h of holes){
+    const fx = h.shots.filter(s => s.lat != null).map(s => P(s.lat, s.lon));
+    if (fx.length > 1){
+      ctx.beginPath(); fx.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+      ctx.strokeStyle = CS.routeStroke; ctx.lineWidth = 5; ctx.stroke();
+    }
+    fx.forEach((q, i) => {
+      ctx.beginPath(); ctx.arc(q[0], q[1], i === 0 ? 11 : 9, 0, 7);
+      ctx.fillStyle = i === 0 ? CS.blue : CS.orange; ctx.fill();
+      ctx.lineWidth = 4; ctx.strokeStyle = CS.dotRing; ctx.stroke();
+    });
+  }
+  ctx.shadowBlur = sb;
+}
+/* Export card registry: colour designs first, then their transparent twins. */
+const RANGE_CARDS = [
+  {id: "session", label: "Session",         bg: true,  build: buildRangeCard},
+  {id: "tempo",   label: "Tempo",           bg: true,  build: buildTempoCard},
+  {id: "byclub",  label: "By club",         bg: true,  build: buildRangeClubCard},
+  {id: "session-x", label: "Session · no bg", bg: false, build: buildRangeCard},
+  {id: "tempo-x",   label: "Tempo · no bg",   bg: false, build: buildTempoCard},
+  {id: "byclub-x",  label: "By club · no bg", bg: false, build: buildRangeClubCard},
+];
+const ROUND_CARDS = [
+  {id: "score",  label: "Scorecard",        bg: true,  build: buildRoundCard},
+  {id: "map",    label: "Shot map",         bg: true,  build: buildRoundMapCard},
+  {id: "score-x", label: "Scorecard · no bg", bg: false, build: buildRoundCard},
+  {id: "map-x",   label: "Shot map · no bg",  bg: false, build: buildRoundMapCard},
+];
+let shareIdx = {range: 0, round: 0};
+function renderCardCanvas(slide){ CS = cardStyle(!slide.bg); return slide.build(); }
+function renderShareCarousel(hostId, cards, key, screenName){
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const hasData = key === "round" ? !!(round && round.shots.length) : swings.length > 0;
+  const wrap = host.parentElement;
+  if (wrap) wrap.hidden = !hasData;
+  if (!hasData){ host.textContent = ""; host.dataset.sig = ""; return; }
+  if (shareIdx[key] >= cards.length) shareIdx[key] = 0;
+  const count = key === "round" ? round.shots.length : swings.length;
+  const sig = `${key}|${count}|${window.__cardFontsReady ? 1 : 0}`;
+  if (host.dataset.sig === sig){
+    host.querySelectorAll(".msharetile").forEach((t, i) => t.classList.toggle("sel", i === shareIdx[key]));
+    return;
+  }
+  host.dataset.sig = sig;
+  host.textContent = "";
+  const PW = 152, PH = 190;   // 4:5, matches 1080×1350
+  cards.forEach((slide, i) => {
+    const tile = document.createElement("button");
+    tile.className = "msharetile" + (slide.bg ? "" : " nobg") + (i === shareIdx[key] ? " sel" : "");
+    tile.setAttribute("aria-label", slide.label);
+    const cv = document.createElement("canvas");
+    cv.width = PW * 2; cv.height = PH * 2;
+    cv.style.width = PW + "px"; cv.style.height = PH + "px";
+    try {
+      const full = renderCardCanvas(slide);
+      cv.getContext("2d").drawImage(full, 0, 0, cv.width, cv.height);
+    } catch (e) {}
+    const lbl = document.createElement("span");
+    lbl.className = "lbl"; lbl.textContent = slide.label;
+    tile.append(cv, lbl);
+    tile.addEventListener("click", () => {
+      shareIdx[key] = i;
+      host.querySelectorAll(".msharetile").forEach((t, j) => t.classList.toggle("sel", j === i));
+      tile.scrollIntoView({behavior: "smooth", block: "nearest", inline: "center"});
+    });
+    host.appendChild(tile);
+  });
+  if (!window.__cardFontsReady)
+    ensureCardFonts().then(() => { window.__cardFontsReady = true;
+      if (mScreen === screenName) renderShareCarousel(hostId, cards, key, screenName); });
+}
+async function shareSelected(key){
+  await ensureCardFonts();
+  const cards = key === "round" ? ROUND_CARDS : RANGE_CARDS;
+  const slide = cards[shareIdx[key]];
+  if (!slide) return;
+  let canvas;
+  try { canvas = renderCardCanvas(slide); }
+  catch (e){ toast("Couldn't build that card — try another."); return; }
+  try { window._lastCardData = canvas.toDataURL("image/png"); } catch (e) {}
+  canvas.toBlob(async blob => {
+    if (!blob) return;
+    const file = new File([blob],
+      `downrange-${new Date().toISOString().slice(0, 10)}-${slide.id}.png`, {type: "image/png"});
+    try {
+      if (navigator.canShare && navigator.canShare({files: [file]})){
+        await navigator.share({files: [file]}); return;
+      }
+    } catch (e){ if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = file.name; a.click();
+    URL.revokeObjectURL(a.href);
+  }, "image/png");
+}
+
 function downloadBlob(name, text, type){
   const blob = new Blob([text], {type});
   const a = document.createElement("a");
@@ -4564,7 +4853,7 @@ function initMobile(){
   el("mSumTrendsBtn").addEventListener("click", openTrends);
   el("mTrendsBack").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
   el("mrsTrendsBtn").addEventListener("click", openTrends);
-  el("mrsShareBtn").addEventListener("click", () => shareCard(false));
+  el("mrsShareBtn").addEventListener("click", () => shareSelected("round"));
   el("mrsDoneBtn").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
   el("mClassicBtn").addEventListener("click", () => { mScreen = "classic"; setMode("range"); });
   el("classicBack").addEventListener("click", () => {
@@ -4625,7 +4914,7 @@ function initMobile(){
     el("mSheet").hidden = true;
     mScreen = "range"; setMode("range");
   });
-  el("mShareBtn").addEventListener("click", () => shareCard(false));
+  el("mShareBtn").addEventListener("click", () => shareSelected("range"));
   el("mCsvBtn").addEventListener("click", () => document.getElementById("csvBtn").click());
   // course picker (round start card)
   el("mNearbyBtn").addEventListener("click", () => mSearchCourses(""));
@@ -5179,6 +5468,7 @@ function renderMSummary(){
   const clipped = swings.filter(s => s.metrics.acc_clipped || s.metrics.gyro_clipped).length;
   el("mSumFine").textContent = `Wrist IMU estimates · club speed needs per-club calibration` +
     (clipped ? ` · ${clipped} of ${swings.length} swings clipped the ±16 g accelerometer.` : ".");
+  renderShareCarousel("mSumShareStrip", RANGE_CARDS, "range", "summary");
   // headline cue: first priority-1/2 cue across the session's most recent swings
   let top = null;
   for (const s of swings.slice().reverse())
@@ -5327,6 +5617,7 @@ function renderMRoundSummary(){
   const withDist = rc.bag.filter(g => g.d.length);
   el("mrsBagCard").hidden = !rc.bag.length;
   if (rc.bag.length) renderBagRows(el("mrsBag"), rc.bag, "round");
+  renderShareCarousel("mrsShareStrip", ROUND_CARDS, "round", "roundsummary");
 }
 /* Shared "bag" row renderer. groups: [{label, d:[metres], n}]. mode "round"
    shows avg + longest; mode "trends" shows median + shots. */
