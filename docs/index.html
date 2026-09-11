@@ -2883,29 +2883,51 @@ function vsPar(){
   }
   return n ? {diff: strokes - parSum, n} : null;
 }
-async function shareCard(transparent){
-  await ensureCardFonts();
+// iOS requires navigator.share() to fire SYNCHRONOUSLY inside the tap that
+// triggered it — any await beforehand (font loading, canvas.toBlob's async
+// callback) burns the "transient user activation" and the share is silently
+// blocked, so the button needs several presses before one happens to land.
+// So: warm the fonts up front (warmCardFonts, at boot + on carousel render),
+// then build the PNG synchronously here and hand it straight to navigator.share
+// with no await in between. dataURLtoBlob keeps the blob conversion synchronous
+// too (canvas.toBlob is async and would break activation).
+function dataURLtoBlob(durl){
+  const comma = durl.indexOf(",");
+  const mime = (durl.slice(0, comma).match(/:(.*?);/) || [])[1] || "image/png";
+  const bin = atob(durl.slice(comma + 1));
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: mime});
+}
+function downloadFile(file){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function exportCanvasShare(canvas, name){
+  let file;
+  try {
+    const durl = canvas.toDataURL("image/png");
+    try { window._lastCardData = durl; } catch (e) {}
+    file = new File([dataURLtoBlob(durl)], name, {type: "image/png"});
+  } catch (e){ toast("Couldn't render that image — try again."); return; }
+  // called still inside the click's user activation — no await before this
+  if (navigator.canShare && navigator.canShare({files: [file]})){
+    navigator.share({files: [file]}).catch(err => {
+      if (err && err.name === "AbortError") return;   // user dismissed the sheet
+      downloadFile(file);                              // share unavailable → save
+    });
+    return;
+  }
+  downloadFile(file);
+}
+function shareCard(transparent){
   CS = cardStyle(!!transparent);
   const canvas = (uiMode === "round" && round && round.shots.length)
     ? buildRoundCard() : buildRangeCard();
-  try { window._lastCardData = canvas.toDataURL("image/png"); } catch (e) {}
-  canvas.toBlob(async blob => {
-    if (!blob) return;
-    const file = new File([blob],
-      `swingcoach-${new Date().toISOString().slice(0,10)}${transparent ? "-overlay" : ""}.png`,
-      {type: "image/png"});
-    try {
-      if (navigator.canShare && navigator.canShare({files: [file]})){
-        await navigator.share({files: [file]});
-        return;
-      }
-    } catch (e) { if (e && e.name === "AbortError") return; }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file.name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }, "image/png");
+  exportCanvasShare(canvas,
+    `downrange-${new Date().toISOString().slice(0, 10)}${transparent ? "-overlay" : ""}.png`);
 }
 
 function dateUp(ts){ return new Date(ts || Date.now())
@@ -3150,29 +3172,18 @@ function renderShareCarousel(hostId, cards, key, screenName){
     ensureCardFonts().then(() => { window.__cardFontsReady = true;
       if (mScreen === screenName) renderShareCarousel(hostId, cards, key, screenName); });
 }
-async function shareSelected(key){
-  await ensureCardFonts();
+// Synchronous end to end (see exportCanvasShare) so the iOS share sheet opens
+// on the first tap. Fonts are warmed when the carousel renders, so the card
+// text is already the right typeface by the time this runs.
+function shareSelected(key){
   const cards = key === "round" ? ROUND_CARDS : RANGE_CARDS;
   const slide = cards[shareIdx[key]];
   if (!slide) return;
   let canvas;
   try { canvas = renderCardCanvas(slide); }
   catch (e){ toast("Couldn't build that card — try another."); return; }
-  try { window._lastCardData = canvas.toDataURL("image/png"); } catch (e) {}
-  canvas.toBlob(async blob => {
-    if (!blob) return;
-    const file = new File([blob],
-      `downrange-${new Date().toISOString().slice(0, 10)}-${slide.id}.png`, {type: "image/png"});
-    try {
-      if (navigator.canShare && navigator.canShare({files: [file]})){
-        await navigator.share({files: [file]}); return;
-      }
-    } catch (e){ if (e && e.name === "AbortError") return; }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file.name; a.click();
-    URL.revokeObjectURL(a.href);
-  }, "image/png");
+  exportCanvasShare(canvas,
+    `downrange-${new Date().toISOString().slice(0, 10)}-${slide.id}.png`);
 }
 
 function downloadBlob(name, text, type){
@@ -5718,6 +5729,8 @@ function renderMTrends(){
 
 initClubFilter();
 boot();
+// warm the card fonts early so the first Share tap builds synchronously
+try { ensureCardFonts().then(() => { window.__cardFontsReady = true; }); } catch (e) {}
 let rzT; addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(renderAll, 150); });
 </script>
 </body></html>
