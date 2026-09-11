@@ -172,9 +172,9 @@
   }
   .leaflet-tooltip.distlabel::before { display: none; }
   /* round replay: numbered shot pins + clickable round rows */
-  .shotpin { background: #3c4a30; color: #23221c; border: 2px solid #f8f6ee; border-radius: 50%;
+  .shotpin { background: #3c4a30; color: #f8f6ee; border: 2px solid #f8f6ee; border-radius: 50%;
              width: 22px; height: 22px; line-height: 18px; text-align: center;
-             font: 700 11px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+             font: 700 12px 'IBM Plex Mono', monospace; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
   #raTable tr[data-round] { cursor: pointer; }
   #raTable tr[data-round]:hover td { background: var(--band); }
   #raTable tr.sel td { background: var(--band); }
@@ -2996,7 +2996,8 @@ function lineChart(hostId, pts, opts){
   host.textContent = "";
   if (!pts.length){ div("note", host, "No data yet."); return; }
   const W = host.clientWidth || 480, H = 190, m = {t:12,r:12,b:24,l:34};
-  const svg = el("svg",{width:W,height:H,role:"img","aria-label":opts.label},host);
+  const svg = el("svg",{width:"100%",height:H,viewBox:`0 0 ${W} ${H}`,
+    preserveAspectRatio:"none","aria-label":opts.label,role:"img"},host);
   const pw = W-m.l-m.r, ph = H-m.t-m.b;
   const maxY = Math.max(opts.minMax || 0, ...pts.map(p=>p.y))*1.12;
   const y = v => m.t + ph - (v/maxY)*ph;
@@ -3267,7 +3268,8 @@ function raDistChart(rounds){
     return;
   }
   const W = host.clientWidth || 480, H = 210, m = {t: 12, r: 12, b: 24, l: 38};
-  const svg = el("svg", {width: W, height: H, role: "img", "aria-label": "Shot distances by round"}, host);
+  const svg = el("svg", {width: "100%", height: H, viewBox: `0 0 ${W} ${H}`,
+    preserveAspectRatio: "none", role: "img", "aria-label": "Shot distances by round"}, host);
   const maxY = Math.max(...per.flatMap(p => p.ds)) * 1.1;
   const y = v => m.t + (H - m.t - m.b) * (1 - v / maxY);
   const x = i => m.l + (per.length === 1 ? (W - m.l - m.r) / 2 : (W - m.l - m.r) * i / (per.length - 1));
@@ -3302,7 +3304,8 @@ function raSGChart(rounds){
     return;
   }
   const W = host.clientWidth || 480, H = 230, m = {t: 26, r: 12, b: 24, l: 38};
-  const svg = el("svg", {width: W, height: H, role: "img", "aria-label": "Strokes gained by round"}, host);
+  const svg = el("svg", {width: "100%", height: H, viewBox: `0 0 ${W} ${H}`,
+    preserveAspectRatio: "none", role: "img", "aria-label": "Strokes gained by round"}, host);
   let maxUp = 0.5, maxDn = 0.5;
   for (const r of per){
     let up = 0, dn = 0;
