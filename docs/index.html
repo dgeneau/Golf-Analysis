@@ -1150,15 +1150,20 @@
       </div>
       <div class="mputtarm" id="mPuttArm" hidden>
         <div class="mputtarm-big" id="mPuttArmBig">Watch</div>
-        <svg class="mtempoviz" id="mPuttTempoViz" width="100%" viewBox="0 0 320 96" aria-hidden="true">
+        <svg class="mtempoviz" id="mPuttTempoViz" width="100%" viewBox="0 0 320 112" aria-hidden="true">
           <line x1="24" y1="52" x2="296" y2="52" stroke="#cfc8b2" stroke-width="2"/>
-          <text x="24" y="82" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">through</text>
-          <text x="160" y="82" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">ball</text>
-          <text x="296" y="82" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">back</text>
-          <circle cx="160" cy="52" r="5" fill="#b4632f"/>
+          <text x="24" y="80" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">through</text>
+          <text x="160" y="80" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">ball</text>
+          <text x="296" y="80" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">back</text>
+          <circle cx="160" cy="52" r="4" fill="none" stroke="#8a8577" stroke-width="1.5"/>
           <rect id="mPuttTempoBar" x="157" y="30" width="6" height="44" rx="3" fill="#3c4a30"/>
+          <circle id="mPuttTempoLive" cx="160" cy="52" r="8" fill="#b4632f" opacity="0"/>
+          <rect x="112" y="96" width="10" height="10" rx="2" fill="#3c4a30"/>
+          <text x="127" y="105" fill="#8a8577" style="font:10px system-ui">guide</text>
+          <circle cx="188" cy="101" r="5" fill="#b4632f"/>
+          <text x="198" y="105" fill="#8a8577" style="font:10px system-ui">your wrist</text>
         </svg>
-        <div class="mputtarm-sub" id="mPuttArmSub">it cycles twice — stroke with the bar on the third</div>
+        <div class="mputtarm-sub" id="mPuttArmSub">it cycles twice — on the third, match the dot to the bar</div>
       </div>
       <div id="mPuttBody" hidden>
         <div class="mlabel" id="mPuttNumLabel">Putt tempo</div>
@@ -1294,6 +1299,12 @@ let drillArming = false;         // count-in / stroke window in progress (overla
 let drillArmSeq = [];            // pending timers for the count-in, so we can cancel
 let drillAudioCtx = null;
 let drillRaf = 0;                // requestAnimationFrame handle for the tempo pendulum
+// live wrist projection (putting): integrate gyro along the stroke's own axis
+// (self-calibrated from the takeaway), zeroed at the quiet address moment, so
+// the pendulum can show where the wrist actually is vs the guide bar.
+let liveAxis = null, liveAxisAcc = [0, 0, 0], liveAxisN = 0;
+let liveAngle = 0, liveLastT = null;
+const PUTT_LIVE_SCALE = 30;      // deg of wrist rotation ≈ full deflection (tunable)
 let connected = true;   // dashboard's own link to the local server
 let STATUS = {state: "starting", detail: "", battery: null};  // the sensor
 
@@ -4410,6 +4421,7 @@ function initBleMode(){
     if (drillMode){
       // guided mode only listens while armed (in the stroke window); free mode
       // runs continuously. rawLog above still captures everything for the CSV.
+      if (drillMode === "putt" && drillArmed) updateLive(s);   // live wrist marker
       if (!drillGuided || drillArmed){
         const det = drillMode === "chip" ? chipDet : puttDet;
         const prec = det.feed(s);
@@ -6227,6 +6239,8 @@ function cancelDrillArm(){
   drillArming = false;
   document.querySelectorAll(".mputtarm").forEach(p => p.hidden = true);
   document.querySelectorAll(".mtempoviz").forEach(v => v.classList.remove("go"));
+  const live = document.getElementById("mPuttTempoLive"); if (live) live.setAttribute("opacity", "0");
+  resetLive();
 }
 // A tempo pendulum: a bar sweeps a horizontal line to the drill's rhythm.
 // It PREVIEWS the tempo for two cycles (so you feel it before moving), then on
@@ -6236,6 +6250,26 @@ function cancelDrillArm(){
 // follow-through left (→0), then a glide back to centre before the next cycle.
 const TEMPO = {REST: 0.45, PREVIEW: 2};
 const smooth = p => p * p * (3 - 2 * p);                 // smoothstep 0→1
+function resetLive(){ liveAxis = null; liveAxisAcc = [0, 0, 0]; liveAxisN = 0; liveAngle = 0; liveLastT = null; }
+// integrate signed angular velocity along the stroke axis → live wrist angle (deg)
+function updateLive(s){
+  const w = [s.gx, s.gy, s.gz], mag = Math.hypot(w[0], w[1], w[2]);
+  if (liveLastT == null){ liveLastT = s.t; return; }
+  const dt = Math.max(0, Math.min(0.1, s.t - liveLastT)); liveLastT = s.t;
+  if (!liveAxis){
+    // hold at the address origin until real motion, then lock the axis to the
+    // takeaway direction (a few samples averaged for stability)
+    if (mag > 25){
+      liveAxisAcc[0] += w[0]; liveAxisAcc[1] += w[1]; liveAxisAcc[2] += w[2]; liveAxisN++;
+      if (liveAxisN >= 3){
+        const m = Math.hypot(liveAxisAcc[0], liveAxisAcc[1], liveAxisAcc[2]) || 1;
+        liveAxis = [liveAxisAcc[0] / m, liveAxisAcc[1] / m, liveAxisAcc[2] / m];
+      }
+    }
+    return;
+  }
+  liveAngle += (w[0] * liveAxis[0] + w[1] * liveAxis[1] + w[2] * liveAxis[2]) * dt;
+}
 function armDrill(){
   if (!drillMode) return;
   const cfg = drillCfg();
@@ -6264,8 +6298,9 @@ function armDrill(){
       drillBeep(1150, base + BACK + THRU, 0.12);
     }
   }
+  const liveDot = drillMode === "putt" ? document.getElementById("mPuttTempoLive") : null;
   // arm detection at the start of the final cycle; time out after its stroke+tail
-  drillArmSeq.push(setTimeout(() => { drillArmed = true; if (viz) viz.classList.add("go"); },
+  drillArmSeq.push(setTimeout(() => { drillArmed = true; resetLive(); if (viz) viz.classList.add("go"); },
     Math.round(goCycle * cycle * 1000)));
   const windowMs = Math.round((goCycle * cycle + BACK + 2 * THRU + 1.4) * 1000);
   drillArmSeq.push(setTimeout(() => {
@@ -6291,6 +6326,16 @@ function armDrill(){
     else if (u < BACK + 2 * THRU){ const p = (u - BACK - THRU) / THRU; pos = 0.5 - 0.5 * (1 - (1 - p) * (1 - p)); }  // centre → left, decel
     else pos = 0.5 * smooth((u - BACK - 2 * THRU) / REST);            // left → centre (glide)
     if (bar) bar.setAttribute("x", String((24 + 272 * pos - 3).toFixed(1)));
+    // live wrist marker (putt): where the wrist actually is, from the IMU
+    if (liveDot){
+      if (drillArmed && liveAxis){
+        const lp = 0.5 + Math.max(-0.5, Math.min(0.5, liveAngle / (2 * PUTT_LIVE_SCALE)));
+        liveDot.setAttribute("cx", String((24 + 272 * lp).toFixed(1)));
+        liveDot.setAttribute("opacity", "1");
+      } else if (!drillArmed){
+        liveDot.setAttribute("opacity", "0");
+      }
+    }
     // phase label
     const isGo = c >= goCycle;
     const phase = u < BACK ? 0 : u < BACK + THRU ? 1 : u < BACK + 2 * THRU ? 2 : 3;
