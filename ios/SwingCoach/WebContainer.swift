@@ -69,7 +69,9 @@ struct WebContainer: UIViewRepresentable {
                   let cmd = body["cmd"] as? String else { return }
             switch cmd {
             case "connect":
-                ble.connect()
+                let choose = body["choose"] as? Bool ?? false
+                if choose { ble.forgetSensor() }
+                ble.connect(choose: choose)
                 LocationTrail.shared.start()   // native GPS trail: places
             case "pick": ble.pick(id: body["id"] as? String ?? "")   // locked-phone swings
             case "disconnect":

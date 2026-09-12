@@ -37,6 +37,13 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     private var discoveredMeta: [(id: String, name: String, rssi: Int)] = []
     private var scanTimeout: DispatchWorkItem?
 
+    // Remember the last sensor the user picked so the next launch connects
+    // silently (scan → picker → tap was three steps before any value). The
+    // page can ask for the chooser explicitly with {cmd:"connect", choose:true}.
+    private let lastSensorKey = "sc.lastDotId"
+    private var forceChooser = false
+    private var rememberedId: String? { UserDefaults.standard.string(forKey: lastSensorKey) }
+
     // timestamp unwrap: DOT clock is uint32 microseconds
     private var tsFirst: UInt32?
     private var tsLast: UInt32 = 0
@@ -78,8 +85,9 @@ final class DotBluetoothManager: NSObject, ObservableObject {
 
     // MARK: public API (called from the page via the message handler)
 
-    func connect() {
+    func connect(choose: Bool = false) {
         wantConnect = true
+        forceChooser = choose
         tsFirst = nil; tsOffset = 0
         discovered.removeAll()
         discoveredMeta.removeAll()
@@ -132,12 +140,18 @@ final class DotBluetoothManager: NSObject, ObservableObject {
     /// Connect to a specific sensor the user chose in the picker.
     func pick(id: String) {
         guard let p = discovered[id] else { return }
+        UserDefaults.standard.set(id, forKey: lastSensorKey)
         central?.stopScan()
         scanTimeout?.cancel()
         peripheral = p
         p.delegate = self
         status("connected", "connecting to \(p.name ?? "sensor")…")
         central?.connect(p, options: nil)
+    }
+
+    /// Forget the remembered sensor (the page's "choose a different sensor").
+    func forgetSensor() {
+        UserDefaults.standard.removeObject(forKey: lastSensorKey)
     }
 
     func disconnect() {
@@ -197,7 +211,7 @@ final class DotBluetoothManager: NSObject, ObservableObject {
             if self.discoveredMeta.isEmpty {
                 self.central?.stopScan()
                 self.wantConnect = false
-                self.status("error", "no DOT found — is it on and charged?")
+                self.status("error", "No sensor found. Hold the DOT's button until the LED blinks, check it's charged, and make sure it isn't connected to the Movella app or another phone — then tap Connect again.")
             }
         }
         scanTimeout = timeout
@@ -264,6 +278,12 @@ extension DotBluetoothManager: CBCentralManagerDelegate {
         // Don't auto-connect: collect matches and let the user pick one.
         let id = peripheral.identifier.uuidString
         discovered[id] = peripheral
+        // Remembered sensor: skip the picker and connect straight away.
+        if !forceChooser, self.peripheral == nil, id == rememberedId {
+            status("connected", "reconnecting to your sensor…")
+            pick(id: id)
+            return
+        }
         if let idx = discoveredMeta.firstIndex(where: { $0.id == id }) {
             discoveredMeta[idx].rssi = RSSI.intValue
         } else {

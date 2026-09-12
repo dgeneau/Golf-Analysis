@@ -1260,6 +1260,7 @@
     <h3>Choose your sensor</h3>
     <p id="mPickNote"><span class="mspin"></span><span id="mPickNoteTxt">Scanning for Movella DOTs…</span></p>
     <div id="mPickList"></div>
+    <button class="msheet-item" id="mPickOther" style="border-top:1px solid #e9e4d3">Not your sensor? Choose another</button>
     <button class="msheet-item" id="mPickCancel" style="border-top:1px solid #e9e4d3">Cancel</button>
   </div>
 </div>
@@ -4328,6 +4329,7 @@ window._nativeDevices = list => {
 };
 function openPicker(){
   nativeDevices = [];
+  document.getElementById("mPickOther").hidden = false;
   document.getElementById("mPickWrap").hidden = false;
   renderPicker();
 }
@@ -4366,6 +4368,12 @@ function renderPicker(){
   }
 }
 document.getElementById("mPickCancel").addEventListener("click", () => closePicker(true));
+// The shell auto-connects to the last sensor you picked; this forgets it and
+// keeps the chooser open so a different DOT can be selected.
+document.getElementById("mPickOther").addEventListener("click", () => {
+  document.getElementById("mPickOther").hidden = true;
+  window.webkit.messageHandlers.swingcoach.postMessage({cmd: "connect", choose: true});
+});
 
 let userDisconnected = false;
 // Stream watchdog (web BLE): the DOT can silently stop measuring while the
