@@ -24,9 +24,24 @@ log = logging.getLogger("swingcoach.web")
 
 TEMPLATE = pathlib.Path(__file__).parent / "dashboard.html"
 
+def _build_stamp() -> str:
+    """Short git sha + UTC date, or 'dev' outside a git checkout."""
+    import datetime
+    import subprocess
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                             capture_output=True, text=True, timeout=5,
+                             cwd=str(TEMPLATE.parent)).stdout.strip()
+    except Exception:  # noqa: BLE001
+        sha = ""
+    date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    return f"{sha or 'dev'} · {date}"
+
+
 def _render_page() -> bytes:
     body = TEMPLATE.read_text()
     body = body.replace("/*__DATA__*/", "null", 1)
+    body = body.replace("/*__BUILD__*/", _build_stamp(), 1)
     page = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, "
             "maximum-scale=1, user-scalable=no, viewport-fit=cover\">"

@@ -198,6 +198,7 @@
   .mdot { width: 8px; height: 8px; border-radius: 50%; background: #b08a3e; flex: none; }
   .mdot.ok { background: #3c4a30; }
   .mdot.err { background: #a8442e; }
+  .batt.low { color: #b08a3e; font-weight: 600; }
   .mchip {
     font: 600 12px system-ui; color: #6b6558; background: transparent;
     border: 1px solid #d5cfba; border-radius: 999px; padding: 6px 12px;
@@ -465,6 +466,8 @@
   select.rowclub:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
 
   footer { color: var(--muted); font-size: 12px; margin-top: 26px; max-width: 78ch; }
+  .build { display: block; color: var(--muted); font: 11px 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .04em; margin-top: 14px; text-align: center; opacity: .8; }
+  footer .build { text-align: left; }
   .scroll-x { overflow-x: auto; }
 </style>
 
@@ -773,6 +776,7 @@
     and metrics pipeline that live Bluetooth data uses. </span>⚠ marks swings where the ±16&nbsp;g
     accelerometer saturated — hand speed is a floor and path/attack are suppressed from coaching
     on those swings. Path and attack angles carry roughly ±6–10° at the 60&nbsp;Hz stream rate.
+    <span class="build" id="buildStamp"></span>
   </footer>
 </div>
 
@@ -1036,6 +1040,7 @@
       <button class="mghost" id="mSumTrendsBtn" style="width:100%;margin-top:10px">History &amp; trends ▸</button>
       <button class="mprimary" id="mHomeBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
       <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:8px">Open full dashboard</button>
+      <div class="build" id="mBuildStamp"></div>
     </div>
   </div>
 
@@ -1267,6 +1272,13 @@
 
 <script>
 const DATA = /*__DATA__*/;
+// Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
+// footer / session summary so a bug report can name the exact build.
+const BUILD = "/*__BUILD__*/";
+for (const id of ["buildStamp", "mBuildStamp"]) {
+  const e = document.getElementById(id);
+  if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
+}
 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt1 = x => x.toFixed(1);
@@ -1312,6 +1324,15 @@ const PUTT_LIVE_SCALE = 30;      // deg of wrist rotation ≈ full deflection (t
 let drillArmBuf = [];            // samples collected during the armed window (guided)
 let connected = true;   // dashboard's own link to the local server
 let STATUS = {state: "starting", detail: "", battery: null};  // the sensor
+// Battery: the DOT dies mid-round with no warning otherwise. ≤20% = warn,
+// ≤10% = charge now. Text + dot colour, no modal — glanceable, not nagging.
+const BATT_LOW = 20, BATT_CRIT = 10;
+function battLow(){ return STATUS.battery != null && STATUS.battery <= BATT_LOW; }
+function battTxt(pre = " · DOT "){
+  if (STATUS.battery == null) return "";
+  const b = STATUS.battery;
+  return `${pre}${b}%` + (b <= BATT_CRIT ? " — charge now" : b <= BATT_LOW ? " — low" : "");
+}
 
 /* ---------- club selection (drives the club-speed estimate) ---------- */
 const CLUBS = [
@@ -5130,8 +5151,8 @@ function updateBadge(){
   b.append(txt);
   if (STATUS.battery != null) {
     const s = document.createElement("span");
-    s.className = "batt";
-    s.textContent = ` · ${STATUS.battery}%`;
+    s.className = "batt" + (battLow() ? " low" : "");
+    s.textContent = battTxt(" · ");
     b.appendChild(s);
   }
   if (typeof mobileEligible === "function" && mobileEligible() && mScreen !== "classic")
@@ -5605,10 +5626,9 @@ function renderMobile(){
   // status chip (shared by range screen)
   const ui = SENSOR_UI[STATUS.state] || SENSOR_UI.starting;
   const dot = el("mDot");
-  dot.className = "mdot" + (ui.cls.includes("ok") ? " ok" : ui.cls.includes("err") ? " err" : "");
+  dot.className = "mdot" + (ui.cls.includes("err") ? " err" : ui.cls.includes("ok") && !battLow() ? " ok" : "");
   el("mStatusTxt").textContent =
-    (STATUS.state === "ready" ? "Listening" : ui.label) +
-    (STATUS.battery != null ? ` · DOT ${STATUS.battery}%` : "");
+    (STATUS.state === "ready" ? "Listening" : ui.label) + battTxt();
 
   if (mScreen === "range") renderMRange();
   else if (mScreen === "round") renderMRound();
@@ -6479,9 +6499,8 @@ function exportDrillCsv(){
 function renderDrillHead(cfg, reps, connected){
   const ui = SENSOR_UI[STATUS.state] || SENSOR_UI.starting;
   const dot = dEl("Dot");
-  dot.className = "mdot" + (ui.cls.includes("ok") ? " ok" : ui.cls.includes("err") ? " err" : "");
-  dEl("Status").textContent = (STATUS.state === "ready" ? "Listening" : ui.label) +
-    (STATUS.battery != null ? ` · DOT ${STATUS.battery}%` : "");
+  dot.className = "mdot" + (ui.cls.includes("err") ? " err" : ui.cls.includes("ok") && !battLow() ? " ok" : "");
+  dEl("Status").textContent = (STATUS.state === "ready" ? "Listening" : ui.label) + battTxt();
   const cons = cfg.consistency(reps);
   dEl("Consist").textContent = cons != null ? `Consistency ${cons}/100` : "";
   dEl("Mode").textContent = drillGuided ? "Guided" : "Free";
