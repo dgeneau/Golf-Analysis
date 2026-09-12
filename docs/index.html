@@ -252,6 +252,8 @@
   .msub { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 20px;
           letter-spacing: .08em; text-transform: uppercase; color: #6b6558; margin-top: 4px; }
   .mstats { display: flex; gap: 28px; margin-top: 4px; }
+  .mstats.mstats3 { gap: 18px; justify-content: space-between; }
+  .mstats.mstats3 .mmid { font-size: 27px; }
   .mmid { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
   .mmid small { font-size: 17px; color: #6b6558; margin-left: 3px; font-weight: 600; }
   .mcue { margin-top: 22px; border-top: 1px solid #ddd7c4; padding-top: 14px; }
@@ -1170,8 +1172,9 @@
         <div class="mbig" id="mPuttTempo">—</div>
         <div class="msub" id="mPuttTempoSub"></div>
         <svg id="mPuttBand" width="100%" viewBox="0 0 340 34" style="margin:12px 0 16px"></svg>
-        <div class="mstats">
-          <div><div class="mlabel mtappable" data-explain="puttsym">Back / through</div><div class="mmid" id="mPuttSym">—</div></div>
+        <div class="mstats mstats3">
+          <div><div class="mlabel mtappable" data-explain="puttsym">Back / thru</div><div class="mmid" id="mPuttSym">—</div></div>
+          <div><div class="mlabel mtappable" data-explain="puttplane">On plane</div><div class="mmid" id="mPuttPlane">—</div></div>
           <div><div class="mlabel mtappable" data-explain="puttface">Wrist roll</div><div class="mmid" id="mPuttFace">—</div></div>
         </div>
         <div class="mlabel" style="margin-top:16px">Stroke</div>
@@ -1305,6 +1308,7 @@ let drillRaf = 0;                // requestAnimationFrame handle for the tempo p
 let liveAxis = null, liveAxisAcc = [0, 0, 0], liveAxisN = 0;
 let liveAngle = 0, liveLastT = null;
 const PUTT_LIVE_SCALE = 30;      // deg of wrist rotation ≈ full deflection (tunable)
+let drillArmBuf = [];            // samples collected during the armed window (guided)
 let connected = true;   // dashboard's own link to the local server
 let STATUS = {state: "starting", detail: "", battery: null};  // the sensor
 
@@ -1751,6 +1755,20 @@ const CHIP = {
   MIN_BACK_S: 0.12, MAX_BACK_S: 2.0,
   MIN_THRU_S: 0.06, MAX_THRU_S: 1.2,
 };
+// GUIDED (armed) configs: the count-in window already gates out setup/handling
+// motion, so detection can be much more forgiving here than the strict free-mode
+// configs (which must reject non-strokes on a continuous stream). A real putt's
+// wrist gyro is gentle — these low gates are why guided capture catches it.
+const PUTT_G = {
+  MOVE_GYRO: 12.0, QUIET_GYRO: 6.0, QUIET_TIME: 0.30, PRE_BUFFER: 1.0,
+  MAX_WINDOW: 3.5, MIN_PEAK: 14.0, COOLDOWN_S: 0.0,
+  MIN_BACK_S: 0.10, MAX_BACK_S: 2.5, MIN_THRU_S: 0.05, MAX_THRU_S: 1.6,
+};
+const CHIP_G = {
+  MOVE_GYRO: 25.0, QUIET_GYRO: 10.0, QUIET_TIME: 0.28, PRE_BUFFER: 1.0,
+  MAX_WINDOW: 3.0, MIN_PEAK: 35.0, COOLDOWN_S: 0.0,
+  MIN_BACK_S: 0.10, MAX_BACK_S: 2.0, MIN_THRU_S: 0.05, MAX_THRU_S: 1.3,
+};
 class StrokeDetector {
   constructor(cfg){ this.C = cfg; this.reset(); }
   reset(){ this.buf = []; this.moving = false; this.startT = 0; this.quietSince = null; this.cooldownUntil = 0; }
@@ -1820,6 +1838,35 @@ function angDisp(samples, a, b){
     d += 0.5 * (gmag(samples[i]) + gmag(samples[i-1])) * (samples[i].t - samples[i-1].t);
   return d;
 }
+// eigenvalues (descending) of a symmetric 3×3 via Jacobi rotations.
+function eig3vals(A){
+  let a = A.map(r => r.slice());
+  for (let it = 0; it < 60; it++){
+    let p = 0, q = 1, mx = Math.abs(a[0][1]);
+    if (Math.abs(a[0][2]) > mx){ p = 0; q = 2; mx = Math.abs(a[0][2]); }
+    if (Math.abs(a[1][2]) > mx){ p = 1; q = 2; mx = Math.abs(a[1][2]); }
+    if (mx < 1e-12) break;
+    const th = 0.5 * Math.atan2(2 * a[p][q], a[q][q] - a[p][p]);
+    const c = Math.cos(th), s = Math.sin(th);
+    for (let k = 0; k < 3; k++){ const kp = a[k][p], kq = a[k][q]; a[k][p] = c*kp - s*kq; a[k][q] = s*kp + c*kq; }
+    for (let k = 0; k < 3; k++){ const pk = a[p][k], qk = a[q][k]; a[p][k] = c*pk - s*qk; a[q][k] = s*pk + c*qk; }
+  }
+  return [a[0][0], a[1][1], a[2][2]].sort((x, y) => y - x);
+}
+// On-plane fraction: how much of the wrist's rotation stays on one stroke plane.
+// Second-moment matrix of the gyro vectors; largest eigenvalue / total = share
+// of angular motion on the dominant axis. 1.0 = a clean single-plane pendulum;
+// lower = the wrist wobbling off the stroke plane. Honest: it's about stroke
+// planarity/repeatability, NOT the clubface or the ball's start line.
+function planarity(samples, a, b){
+  const M = [[0,0,0],[0,0,0],[0,0,0]];
+  for (let i = a; i <= b; i++){
+    const w = [samples[i].gx, samples[i].gy, samples[i].gz];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) M[r][c] += w[r] * w[c];
+  }
+  const ev = eig3vals(M), sum = ev[0] + ev[1] + ev[2] || 1;
+  return {on: ev[0] / sum, off: ev[1] / sum};
+}
 function computePuttMetrics(rec){
   const s = rec.samples, t0 = s[rec.iStart].t;
   const m = {};
@@ -1833,6 +1880,10 @@ function computePuttMetrics(rec){
   // wrist-roll tendency through impact: net roll change top→impact (deg).
   // A face-rotation PROXY only — the wrist can't see the actual clubface.
   m.face_roll_deg = angleDelta(s[rec.iTop].roll, s[rec.iImpact].roll);
+  // on-plane: how much of the stroke stays on one plane (planarity of the
+  // wrist rotation). A stroke-consistency read, not a clubface/line reading.
+  const pl = planarity(s, rec.iStart, rec.iEnd);
+  m.on_plane = pl.on;               // 0..1 (≈1 = clean single-plane pendulum)
   m.dur_s = s[rec.iEnd].t - t0;
   // absolute event times (same axis as rawLog) so the CSV export can mark them
   m.t_start = s[rec.iStart].t; m.t_top = s[rec.iTop].t;
@@ -4402,7 +4453,9 @@ function initBleMode(){
   renderAll();
   const det = new SwingDetector();
   const puttDet = new StrokeDetector(PUTT), chipDet = new StrokeDetector(CHIP);
+  const puttDetG = new StrokeDetector(PUTT_G), chipDetG = new StrokeDetector(CHIP_G);
   window.__puttDet = puttDet; window.__chipDet = chipDet;   // reset on drill exit
+  window.__puttDetG = puttDetG; window.__chipDetG = chipDetG;   // lenient guided capture
   // Timestamp continuity: every sensor (re)connect resets the DOT clock to 0,
   // corrupting the stream's time axis (4 resets in one real round). Re-base
   // here so the detector, rawLog, and CSV exports stay monotonic.
@@ -4419,12 +4472,21 @@ function initBleMode(){
     rawLog.push(s);    // CSVs pair themselves in future calibration sessions
     if (rawLog.length === 1) setConnectButton();  // reveal CSV button
     if (drillMode){
-      // guided mode only listens while armed (in the stroke window); free mode
-      // runs continuously. rawLog above still captures everything for the CSV.
-      if (drillMode === "putt" && drillArmed) updateLive(s);   // live wrist marker
-      if (!drillGuided || drillArmed){
-        const det = drillMode === "chip" ? chipDet : puttDet;
-        const prec = det.feed(s);
+      // rawLog above still captures everything for the CSV regardless.
+      if (drillGuided){
+        // guided: only listen in the armed stroke window, with a LENIENT
+        // detector (the window already excludes setup/handling motion). Buffer
+        // the window so a window-end fallback can still find a missed stroke.
+        if (drillArmed){
+          if (drillMode === "putt") updateLive(s);   // live wrist marker
+          drillArmBuf.push(s);
+          const gdet = drillMode === "chip" ? chipDetG : puttDetG;
+          const prec = gdet.feed(s);
+          if (prec) onDrillRep(prec);
+        }
+      } else {
+        // free mode: strict detector runs continuously
+        const prec = (drillMode === "chip" ? chipDet : puttDet).feed(s);
         if (prec) onDrillRep(prec);
       }
       return;   // drills don't feed the full-swing pipeline
@@ -5502,6 +5564,7 @@ const EXPLAIN = {
   path:  {t: "Swing path", b: "The direction the club is travelling through impact, relative to your target line. In-to-out (a plus number) tends to draw the ball; out-to-in (a minus) tends to fade or slice. Tap “Set square” once you're aimed at a target so it reads against your real aim."},
   puttsym: {t: "Back / through", b: "How far the wrist rotates on the backstroke versus the follow-through. 1.0 means they're even — a common putting cue is a follow-through as long as (or a touch longer than) the backstroke. This is wrist rotation, a strong proxy for stroke length, not putter-head distance."},
   puttface: {t: "Wrist roll", b: "How much your wrist rolls through the stroke. The sensor can't see the clubface itself — face angle is what actually sends a putt off line — so treat this as a tendency, not a face-angle reading. The useful thing is keeping it small and, above all, the same every time."},
+  puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
   chiplen: {t: "Stroke length", b: "How far your wrist rotates on the backswing — the main lever for chip distance. There's no single 'right' number; distance control is about repeating the SAME length for the same shot. The dots below show how tightly you're stacking your recent chips."},
   chiphinge: {t: "Wrist hinge", b: "How much your wrist cocks (sets) going back. Some chipping methods want it quiet, others hinge-and-hold — either works, the key is consistency. It's a tendency read from wrist orientation, not a measured shaft angle."},
 };
@@ -6299,18 +6362,27 @@ function armDrill(){
     }
   }
   const liveDot = drillMode === "putt" ? document.getElementById("mPuttTempoLive") : null;
-  // arm detection at the start of the final cycle; time out after its stroke+tail
-  drillArmSeq.push(setTimeout(() => { drillArmed = true; resetLive(); if (viz) viz.classList.add("go"); },
-    Math.round(goCycle * cycle * 1000)));
-  const windowMs = Math.round((goCycle * cycle + BACK + 2 * THRU + 1.4) * 1000);
+  const gCfg = drillMode === "chip" ? CHIP_G : PUTT_G;
+  const gDet = () => drillMode === "chip" ? window.__chipDetG : window.__puttDetG;
+  // arm detection at the start of the final cycle; reset the lenient detector,
+  // the live marker and the fallback buffer
   drillArmSeq.push(setTimeout(() => {
-    if (drillArmed){                     // nothing captured in the window
-      drillArmed = false;
-      const dd = cfg.det(); if (dd) dd.reset();
-      if (big) big.textContent = "No stroke read";
-      if (sub) sub.textContent = `tap ${cfg.noun} to try again`;
-      drillArmSeq.push(setTimeout(() => { drillArming = false; if (arm) arm.hidden = true; renderMobile(); }, 1300));
-    }
+    drillArmed = true; resetLive(); drillArmBuf = [];
+    const gd = gDet(); if (gd) gd.reset();
+    if (viz) viz.classList.add("go");
+  }, Math.round(goCycle * cycle * 1000)));
+  // generous window so a slow/late stroke still finalizes; on close, if the
+  // streaming detector missed it, take one more forgiving pass over the buffer
+  const windowMs = Math.round((goCycle * cycle + BACK + 2 * THRU + 2.2) * 1000);
+  drillArmSeq.push(setTimeout(() => {
+    if (!drillArmed) return;                       // already captured
+    const rec = segmentStroke(drillArmBuf, gCfg);  // fallback: best effort over the window
+    if (rec){ onDrillRep(rec); return; }
+    drillArmed = false;
+    const gd = gDet(); if (gd) gd.reset();
+    if (big) big.textContent = "No stroke read";
+    if (sub) sub.textContent = `tap ${cfg.noun} to try again`;
+    drillArmSeq.push(setTimeout(() => { drillArming = false; if (arm) arm.hidden = true; renderMobile(); }, 1300));
   }, windowMs));
   // animation: position the bar every frame from elapsed time
   const t0 = performance.now();
@@ -6455,6 +6527,9 @@ function renderMPutt(){
   el("mPuttSym").textContent = "";
   el("mPuttSym").append(fmt1(m.symmetry));
   const su = document.createElement("small"); su.textContent = "×"; el("mPuttSym").appendChild(su);
+  el("mPuttPlane").textContent = "";
+  el("mPuttPlane").append(m.on_plane != null ? String(Math.round(m.on_plane * 100)) : "—");
+  const pu = document.createElement("small"); pu.textContent = "%"; el("mPuttPlane").appendChild(pu);
   el("mPuttFace").textContent = "";
   el("mPuttFace").append(fmt1(Math.abs(m.face_roll_deg)));
   const fu = document.createElement("small"); fu.textContent = "°"; el("mPuttFace").appendChild(fu);
