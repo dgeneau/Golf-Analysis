@@ -292,10 +292,36 @@
          display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
   .mholeN { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 28px; line-height: 1; }
   .mmeta { font-size: 12.5px; color: #6b6558; }
+  .mtabs { display: flex; gap: 6px; padding: 0 16px 10px; }
+  .mtab { flex: 1; padding: 9px 10px; border-radius: 10px; border: 1px solid #ddd7c4;
+          background: #f8f6ee; color: #8a8577; font: 600 13px "IBM Plex Sans", system-ui; }
+  .mtab.on { background: #3c4a30; border-color: #3c4a30; color: #f8f6ee; }
+  .mbagwin { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
+  .mbagwin button { padding: 6px 11px; border-radius: 999px; border: 1px solid #ddd7c4;
+        background: transparent; color: #8a8577; font: 600 11.5px "IBM Plex Sans", system-ui; }
+  .mbagwin button.on { background: #3c4a30; border-color: #3c4a30; color: #f8f6ee; }
+  .bagrow { border-bottom: 1px solid #ddd7c4; }
+  .bagrow > button { width: 100%; display: flex; align-items: baseline; gap: 10px;
+        padding: 9px 0; background: none; border: 0; text-align: left; cursor: pointer; }
+  .bagname { flex: 1; font: 600 13.5px "IBM Plex Sans", system-ui; color: #23221c; }
+  .bagdist { font: 600 15px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30; }
+  .bagn { font: 500 11px "IBM Plex Mono", ui-monospace, monospace; color: #8a8577;
+          min-width: 54px; text-align: right; }
+  .bagcar { color: #8a8577; font-size: 11px; width: 10px; }
+  .bagdet { padding: 0 0 12px; }
+  .baggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; margin-top: 2px; }
+  .bagk { font: 500 9.5px "IBM Plex Sans", system-ui; color: #8a8577;
+          text-transform: uppercase; letter-spacing: .07em; }
+  .bagv { font: 600 14px "IBM Plex Mono", ui-monospace, monospace; color: #23221c; }
+  .bagv small { font-size: 10px; color: #8a8577; font-weight: 500; margin-left: 2px; }
   .mtr { top: calc(max(var(--sat), 16px) + 8px); right: 14px; padding: 8px 14px;
          text-align: center; max-width: 42%; box-sizing: border-box; }
   .mtr b { display: block; font-size: 26px; font-weight: 650; line-height: 1.1; }
   .mtr span { font-size: 11px; color: #6b6558; }
+  .mtr .slopeflag { font-size: 14px; color: #b4632f; vertical-align: 3px; margin-left: 1px; }
+  .mtr .mrise { display: block; margin: 2px 0 1px; font-weight: 600; color: #b4632f;
+                font-size: 10.5px; letter-spacing: .01em; }
+  .mtr.slopeoff .mrise { color: #8a8577; font-weight: 500; }
   .mtr2 { top: calc(max(var(--sat), 16px) + 96px); right: 14px; padding: 8px 12px;
           font-size: 11.5px; color: #6b6558; text-align: right; max-width: 46%; box-sizing: border-box; }
   .mtr2 b { color: #23221c; }
@@ -942,7 +968,9 @@
       <div><div class="mlabel" id="mHoleMeta"></div><div class="mmeta" id="mHoleScore"></div></div>
     </div>
     <div class="movl mtr" id="mGreenCard" hidden>
-      <b id="mGreenDist">—</b><span id="mGreenLbl">to green</span>
+      <b id="mGreenDist">—</b>
+      <span class="mrise" id="mGreenRise" hidden></span>
+      <span id="mGreenLbl">to green</span>
     </div>
     <div class="movl mtr2" id="mSuggest" hidden></div>
     <div class="mroundbottom">
@@ -976,6 +1004,8 @@
       <button class="msheet-item" id="mSensorBtn">Reconnect sensor</button>
       <button class="msheet-item" id="mUndoBtn">Undo shot</button>
       <button class="msheet-item" id="mPenaltyBtn">+1 penalty stroke</button>
+      <button class="msheet-item" id="mSlopeBtn">Turn slope off</button>
+      <button class="msheet-item" id="mSlopeHelpBtn">What is “plays like”?</button>
       <button class="msheet-item" id="mOrientBtn">Switch to north-up map</button>
       <button class="msheet-item" id="mUnitBtn">Switch to meters</button>
       <button class="msheet-item" id="mEndBtn">End round</button>
@@ -1037,7 +1067,7 @@
           <button class="mghost" id="mSignOutBtn" style="width:100%">Sign out</button>
         </div>
       </div>
-      <button class="mghost" id="mSumTrendsBtn" style="width:100%;margin-top:10px">History &amp; trends ▸</button>
+      <button class="mghost" id="mSumTrendsBtn" style="width:100%;margin-top:10px">Analytics ▸</button>
       <button class="mprimary" id="mHomeBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
       <button class="mghost" id="mClassicBtn" style="width:100%;margin-top:8px">Open full dashboard</button>
       <div class="build" id="mBuildStamp"></div>
@@ -1077,36 +1107,66 @@
       </div>
       <div class="mactions">
         <button class="mprimary" id="mrsShareBtn" style="flex:1">Share image</button>
-        <button class="mghost" id="mrsTrendsBtn" style="flex:1">History &amp; trends ▸</button>
+        <button class="mghost" id="mrsTrendsBtn" style="flex:1">Analytics ▸</button>
       </div>
       <button class="mprimary" id="mrsDoneBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
     </div>
   </div>
 
-  <!-- 1e · trends / history (cloud-backed: reuses progressData + raData) -->
+  <!-- 1e · analytics: Rounds (what you shot) | Range (how you swung) -->
   <div class="mscreen msummary" id="mTrends" hidden>
-    <div class="mtop" style="padding-bottom:10px">
+    <div class="mtop" style="padding-bottom:6px">
       <button class="mghost" id="mTrendsBack" style="padding:10px 16px">◂ Back</button>
-      <div class="mtitle">Trends</div>
+      <div class="mtitle">Analytics</div>
+    </div>
+    <div class="mtabs" id="mAnTabs">
+      <button class="mtab on" id="mTabRounds" data-tab="rounds">Rounds</button>
+      <button class="mtab" id="mTabRange" data-tab="range">Range</button>
     </div>
     <div class="mcardwrap">
       <div class="mlight" id="mtGate" hidden><p class="mmeta" id="mtGateMsg" style="margin:0"></p></div>
       <div id="mtBody" hidden>
-        <div class="mlight">
-          <h2>Tempo over time</h2>
-          <p class="mfine" style="margin-top:0">Average backswing:downswing per session. Band is the 2.5–3.5 target.</p>
-          <div id="mtTempo"></div>
+
+        <!-- ---- ROUNDS ---- -->
+        <div id="mPaneRounds">
+          <div class="mlight">
+            <h2>Your bag</h2>
+            <div class="mbagwin" id="mBagWin"></div>
+            <div id="mtBagChart"></div>
+            <div id="mtBag"></div>
+            <p class="mfine mtappable" id="mBagNote" data-explain="flatcarry" style="margin-bottom:0"></p>
+          </div>
+          <div class="mlight">
+            <h2>Scoring</h2>
+            <div class="msumgrid" id="mtScoreGrid"></div>
+            <p class="mfine" id="mtScoreNote" style="margin-bottom:0"></p>
+          </div>
+          <div class="mlight">
+            <h2>Recent rounds</h2>
+            <div id="mtRoundList"></div>
+          </div>
+          <p class="mfine">Strokes-gained, fairways and the shot-by-shot replay map live on the full dashboard.</p>
         </div>
-        <div class="mlight">
-          <h2>Your bag</h2>
-          <p class="mfine" style="margin-top:0">Median carry per club, measured by GPS across your rounds. Distances are measured, not estimated.</p>
-          <div id="mtBag"></div>
+
+        <!-- ---- RANGE ---- -->
+        <div id="mPaneRange" hidden>
+          <div class="mlight">
+            <h2>Tempo over time</h2>
+            <p class="mfine" style="margin-top:0">Average backswing:downswing per session. Band is the 2.5–3.5 target.</p>
+            <div id="mtTempo"></div>
+          </div>
+          <div class="mlight">
+            <h2>Club speed over time</h2>
+            <p class="mfine" style="margin-top:0">Average estimated club speed per session. Swings that clipped the sensor are excluded.</p>
+            <div id="mtSpeed"></div>
+          </div>
+          <div class="mlight">
+            <h2>Recent sessions</h2>
+            <div id="mtSessions"></div>
+          </div>
+          <p class="mfine">Club speed is estimated from wrist angular velocity and your club length — good for tracking change over time, not for comparing against a launch monitor.</p>
         </div>
-        <div class="mlight">
-          <h2>Recent rounds</h2>
-          <div id="mtRounds"></div>
-        </div>
-        <p class="mfine">Full strokes-gained, fairways and the shot-by-shot replay map live on the desktop dashboard.</p>
+
       </div>
     </div>
   </div>
@@ -2223,6 +2283,11 @@ function cloudEnsureHoleRow(hole){
 /* ---------- Round mode (on-course shot tracking) ---------- */
 let uiMode = "range";           // "range" | "round"
 let round = null;               // active or finished round object
+/* Slope (elevation-adjusted yardage) is on by default and one tap from off —
+   adjusted distances are not legal for competition, so it has to be obvious
+   which mode you are in and trivial to leave. */
+let slopeOn = true;
+try { slopeOn = localStorage.getItem("sc-slope") !== "0"; } catch (e) {}
 let lastFix = null;             // latest GPS fix {lat, lon, acc, ts} or {err}
 let gpsWatch = null;
 let wakeLock = null;
@@ -2238,6 +2303,220 @@ function distDisp(m){
   if (m == null) return "—";
   const yd = round && round.unit === "m" ? false : true;
   return yd ? `${Math.round(m*1.09361)} yd` : `${Math.round(m)} m`;
+}
+
+/* ---------- Terrain elevation, offline-first ----------
+   GPS distance is already HORIZONTAL (haversine ignores height), so the only
+   thing missing for a real "plays like" number is how much higher or lower the
+   target sits. We pull terrain once per course — a couple of terrain-RGB tiles
+   decoded into a small grid — cache it alongside the course, and from then on
+   every lookup is local and needs no signal.
+
+   Source is the ~30 m SRTM/NED blend. Absolute height is only good to ~±10 m,
+   but that error is strongly correlated across something as small as a golf
+   course, so the DIFFERENCE we actually use is far better — a couple of metres.
+   Everything degrades silently: no terrain just means no plays-like line. */
+const DEM_Z = 12;      // ~26 m/px at 48°N, matching the ~30 m source
+const DEM_N = 128;     // grid nodes per side across the course box
+const DEM_R = 2600;    // metres, half-span of the cached box (Overpass uses 2500)
+const DEM_Q = 4;       // stored units per metre (0.25 m steps, ±8191 m range)
+const DEM_TILE = (z, x, y) =>
+  `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+const DEM_PTS_API = "https://api.opentopodata.org/v1/srtm30m?locations=";
+
+function lonToTileX(lon, z){ return (lon + 180) / 360 * Math.pow(2, z); }
+function latToTileY(lat, z){
+  const r = lat * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z);
+}
+function b64FromI16(a){
+  const b = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+  let s = ""; const CH = 0x8000;
+  for (let i = 0; i < b.length; i += CH)
+    s += String.fromCharCode.apply(null, b.subarray(i, i + CH));
+  return btoa(s);
+}
+function i16FromB64(s){
+  const bin = atob(s), b = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+  return new Int16Array(b.buffer, 0, b.byteLength / 2);
+}
+function loadTileImg(url){
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error("tile load failed"));
+    im.src = url;
+    setTimeout(() => rej(new Error("tile timeout")), 15000);
+  });
+}
+/* Primary path: decode terrain tiles into a regular lat/lon grid. */
+async function buildDemGrid(center){
+  const [clat, clon] = center;
+  const dLat = DEM_R / 111320;
+  const dLon = DEM_R / (111320 * Math.cos(clat * Math.PI / 180));
+  const lat0 = clat - dLat, lat1 = clat + dLat;
+  const lon0 = clon - dLon, lon1 = clon + dLon;
+  const x0 = Math.floor(lonToTileX(lon0, DEM_Z)), x1 = Math.floor(lonToTileX(lon1, DEM_Z));
+  const y0 = Math.floor(latToTileY(lat1, DEM_Z)), y1 = Math.floor(latToTileY(lat0, DEM_Z));
+  const nT = (x1 - x0 + 1) * (y1 - y0 + 1);
+  if (nT > 9) throw new Error("terrain area too large");
+  const W = (x1 - x0 + 1) * 256, H = (y1 - y0 + 1) * 256;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d", {willReadFrequently: true});
+  const tiles = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) tiles.push([x, y]);
+  const imgs = await Promise.all(tiles.map(([x, y]) => loadTileImg(DEM_TILE(DEM_Z, x, y))));
+  imgs.forEach((im, i) => ctx.drawImage(im, (tiles[i][0] - x0) * 256, (tiles[i][1] - y0) * 256));
+  // Throws SecurityError if the tiles came back without CORS headers — the
+  // caller treats that like any other failure and falls back.
+  const px = ctx.getImageData(0, 0, W, H).data;
+  const hAt = (fx, fy) => {
+    const gx = Math.min(W - 1.001, Math.max(0, fx)), gy = Math.min(H - 1.001, Math.max(0, fy));
+    const ix = Math.floor(gx), iy = Math.floor(gy), tx = gx - ix, ty = gy - iy;
+    const s = (a, b) => { const o = (b * W + a) * 4;
+      return px[o] * 256 + px[o + 1] + px[o + 2] / 256 - 32768; };
+    return s(ix, iy) * (1 - tx) * (1 - ty) + s(ix + 1, iy) * tx * (1 - ty)
+         + s(ix, iy + 1) * (1 - tx) * ty + s(ix + 1, iy + 1) * tx * ty;
+  };
+  const d = new Int16Array(DEM_N * DEM_N);
+  for (let j = 0; j < DEM_N; j++){
+    const lat = lat0 + (lat1 - lat0) * j / (DEM_N - 1);
+    const fy = (latToTileY(lat, DEM_Z) - y0) * 256;
+    for (let i = 0; i < DEM_N; i++){
+      const lon = lon0 + (lon1 - lon0) * i / (DEM_N - 1);
+      const fx = (lonToTileX(lon, DEM_Z) - x0) * 256;
+      const v = Math.round(hAt(fx, fy) * DEM_Q);
+      d[j * DEM_N + i] = Math.max(-32000, Math.min(32000, v));
+    }
+  }
+  return {kind: "grid", lat0, lat1, lon0, lon1, n: DEM_N, d, src: "terrain tiles"};
+}
+/* Fallback: one batched point query for the course's fixed features. Coarser
+   (we only know heights at greens and tees) but enough for a plays-like number. */
+async function buildDemPts(c){
+  const pts = [];
+  for (const g of c.greens || []) pts.push(g.centroid);
+  for (const t of c.tees || []) pts.push(t);
+  for (const h of c.holes || []) if (h.line && h.line.length) pts.push(h.line[0]);
+  const uniq = [];
+  for (const p of pts){
+    if (!uniq.some(q => Math.abs(q[0] - p[0]) < 3e-5 && Math.abs(q[1] - p[1]) < 3e-5))
+      uniq.push(p);
+    if (uniq.length >= 100) break;
+  }
+  if (!uniq.length) throw new Error("no course points to sample");
+  const q = uniq.map(p => `${p[0].toFixed(6)},${p[1].toFixed(6)}`).join("|");
+  const r = await fetch(DEM_PTS_API + encodeURIComponent(q));
+  const js = await r.json();
+  const out = (js.results || [])
+    .map((x, i) => uniq[i] ? [uniq[i][0], uniq[i][1], x.elevation] : null)
+    .filter(x => x && typeof x[2] === "number");
+  if (out.length < 2) throw new Error("no elevations returned");
+  return {kind: "pts", p: out, src: "point elevations"};
+}
+/* Height above sea level at a coordinate, or null if we can't say. */
+function elevAt(dem, lat, lon){
+  if (!dem) return null;
+  if (dem.kind === "grid"){
+    const fx = (lon - dem.lon0) / (dem.lon1 - dem.lon0) * (dem.n - 1);
+    const fy = (lat - dem.lat0) / (dem.lat1 - dem.lat0) * (dem.n - 1);
+    if (!(fx >= 0 && fy >= 0 && fx <= dem.n - 1 && fy <= dem.n - 1)) return null;
+    const ix = Math.min(dem.n - 2, Math.floor(fx)), iy = Math.min(dem.n - 2, Math.floor(fy));
+    const tx = fx - ix, ty = fy - iy;
+    const v = (a, b) => dem.d[b * dem.n + a] / DEM_Q;
+    return v(ix, iy) * (1 - tx) * (1 - ty) + v(ix + 1, iy) * tx * (1 - ty)
+         + v(ix, iy + 1) * (1 - tx) * ty + v(ix + 1, iy + 1) * tx * ty;
+  }
+  const near = dem.p
+    .map(p => [haversineM({lat, lon}, {lat: p[0], lon: p[1]}), p[2]])
+    .sort((a, b) => a[0] - b[0]).slice(0, 4);
+  if (!near.length || near[0][0] > 400) return null;   // too far to vouch for
+  if (near[0][0] < 5) return near[0][1];
+  let ws = 0, vs = 0;
+  for (const [d, h] of near){ const w = 1 / (d * d); ws += w; vs += w * h; }
+  return vs / ws;
+}
+/* localStorage can't hold a typed array — pack the grid as base64. */
+function demPack(dem){
+  if (!dem) return null;
+  if (dem.kind !== "grid") return dem;
+  const {lat0, lat1, lon0, lon1, n, src} = dem;
+  return {kind: "grid", lat0, lat1, lon0, lon1, n, src, b64: b64FromI16(dem.d)};
+}
+function demUnpack(dem){
+  if (!dem || dem.kind !== "grid" || !dem.b64) return dem || null;
+  try {
+    const {lat0, lat1, lon0, lon1, n, src} = dem;
+    return {kind: "grid", lat0, lat1, lon0, lon1, n, src, d: i16FromB64(dem.b64)};
+  } catch (e){ return null; }
+}
+/* Fetch terrain for a course once, then keep it. Never throws, never blocks
+   play — it just quietly upgrades the distances when it lands. */
+async function buildDemFor(center, courseLike){
+  try { return await buildDemGrid(center); }
+  catch (e){
+    try { return await buildDemPts(courseLike || {}); }
+    catch (e2){ return null; }
+  }
+}
+let demBusy = false;
+async function ensureCourseDem(c){
+  if (!c || !c.center || c.dem || demBusy) return;
+  demBusy = true;
+  const dem = await buildDemFor(c.center, c);
+  demBusy = false;
+  if (!dem || !course || course.id !== c.id) return;
+  course.dem = dem;
+  if (course.id){
+    const cache = courseCache(); cache[course.id] = course; saveCourseCache(cache);
+  }
+  courseNoteRender();
+  if (typeof updateMobileGreen === "function"){ updateMobileGreen(); updateToHole(); }
+}
+
+/* ---------- plays-like (elevation-adjusted) distance ----------
+   The ball comes down at a descent angle; a target Δh above you truncates the
+   flight Δh/tan(descent) earlier, so that's what you add back.
+       plays_like = horizontal + Δh / tan(descent)
+   At 45° that's the familiar "a yard per yard of rise". A driver lands shallow
+   (~38°) so uphill costs it ~1.3×; a wedge drops in steeply (~55°) and only
+   pays ~0.7×. This is the same first-order model slope rangefinders use — it
+   ignores the smaller flight-time and air-density effects, which is why we
+   never dress the result up as more than a yardage nudge. */
+const DESCENT_DEG = {driver: 38, "3w": 40, "5w": 41, hybrid: 43, "4i": 44, "5i": 45,
+                     "6i": 46, "7i": 47, "8i": 48, "9i": 50, pw: 52, sw: 55};
+function descentDeg(clubId, distM){
+  if (clubId && DESCENT_DEG[clubId]) return DESCENT_DEG[clubId];
+  const yd = (distM || 0) * 1.09361;          // no club picked? infer from yardage
+  if (yd >= 230) return 39;
+  if (yd >= 190) return 43;
+  if (yd >= 150) return 46;
+  if (yd >= 110) return 49;
+  return 53;
+}
+function slopeFactor(clubId, distM){
+  return 1 / Math.tan(descentDeg(clubId, distM) * Math.PI / 180);
+}
+function riseBetween(from, to, demOverride){
+  const dem = demOverride || (course && course.dem);
+  if (!dem || !from || !to) return null;
+  const a = elevAt(dem, from[0], from[1]), b = elevAt(dem, to[0], to[1]);
+  return (a == null || b == null) ? null : b - a;
+}
+function playsLikeM(distM, riseM, clubId){
+  if (distM == null || riseM == null) return null;
+  return distM + riseM * slopeFactor(clubId, distM);
+}
+/* Under this the adjustment is inside the noise of a 30 m terrain model — we
+   say nothing rather than pretend to a yard we don't have. */
+const RISE_MIN_M = 1.8;
+function riseLabel(riseM){
+  if (riseM == null) return "";
+  const ft = riseM * 3.28084;
+  const up = riseM >= 0;
+  return `${up ? "↑" : "↓"}${Math.abs(Math.round(ft))} ft ${up ? "uphill" : "downhill"}`;
 }
 
 /* GPS trail: live browser fixes + the native background trail (recorded while
@@ -2689,13 +2968,27 @@ function updateShotMarkers(){
 
 /* -- OSM course data via Overpass, cached per course for offline rounds -- */
 function courseCache(){
-  try { return JSON.parse(localStorage.getItem("sc-courses")) || {}; } catch (e) { return {}; }
+  try {
+    const c = JSON.parse(localStorage.getItem("sc-courses")) || {};
+    for (const k of Object.keys(c)) if (c[k] && c[k].dem) c[k].dem = demUnpack(c[k].dem);
+    return c;
+  } catch (e) { return {}; }
 }
 function saveCourseCache(cache){
   // keep the 5 most recent courses
   const ids = Object.keys(cache).sort((a,b)=>cache[b].fetchedAt-cache[a].fetchedAt).slice(0,5);
-  const out = {}; for (const id of ids) out[id] = cache[id];
-  try { localStorage.setItem("sc-courses", JSON.stringify(out)); } catch (e) {}
+  const out = {};
+  for (const id of ids) out[id] = cache[id].dem
+    ? {...cache[id], dem: demPack(cache[id].dem)} : cache[id];
+  try { localStorage.setItem("sc-courses", JSON.stringify(out)); }
+  catch (e){
+    // Terrain grids are the bulky part — drop them rather than lose the course.
+    try {
+      const lean = {};
+      for (const id of ids){ lean[id] = {...cache[id]}; delete lean[id].dem; }
+      localStorage.setItem("sc-courses", JSON.stringify(lean));
+    } catch (e2) {}
+  }
 }
 function loadCachedCourse(){
   try {
@@ -2708,6 +3001,7 @@ function loadCachedCourse(){
     }
   } catch (e) {}
   courseNoteRender();
+  if (course && !course.dem) ensureCourseDem(course);
 }
 function ago(ts){
   const m = Math.round((Date.now() - ts) / 60000);
@@ -2719,6 +3013,7 @@ function courseNoteRender(){
   const label = course
     ? `${course.name || "Course"}: ${course.greens.length} greens` +
       (course.holes.length ? `, ${course.holes.length} hole lines` : "") +
+      (course.dem ? ` · terrain ✓` : ` · terrain —`) +
       (course.fetchedAt ? ` · updated ${ago(course.fetchedAt)}` : "")
     : "No course selected — search above, or load data by map position.";
   const n = document.getElementById("courseNote");
@@ -2729,7 +3024,8 @@ function courseNoteRender(){
   }
   const sn = document.getElementById("courseStartNote");
   if (sn) sn.textContent = course
-    ? `Selected: ${course.name || "course"} · ${course.greens.length} greens ✓` : "";
+    ? `Selected: ${course.name || "course"} · ${course.greens.length} greens ✓`
+      + (course.dem ? " · terrain ✓" : "") : "";
 }
 async function refreshCourseData(){
   if (!course || !course.center) return;
@@ -2941,6 +3237,7 @@ async function fetchCourseFeatures(center, id, name, recenter = true){
   }
   renderCourseLayer(); courseNoteRender(); updateToHole();
   if (lmap && recenter){ lmap.setView(center, 16); mapCentered = true; }
+  ensureCourseDem(course);   // terrain in the background; play never waits on it
   return greens.length > 0;
 }
 async function loadCourseData(){
@@ -3107,7 +3404,11 @@ function refreshTargetInfo(){
   let dYou = null;
   if (here){
     dYou = haversineM({lat: here[0], lon: here[1]}, {lat: target[0], lon: target[1]});
-    parts.push(`You → target: ${distDisp(dYou)}`);
+    const rise = riseBetween(here, target);
+    const adj = (slopeOn && rise != null && Math.abs(rise) >= RISE_MIN_M)
+      ? playsLikeM(dYou, rise, clubId) : null;
+    parts.push(`You → target: ${distDisp(dYou)}`
+      + (adj != null ? ` · plays ${distDisp(adj)} (${riseLabel(rise)})` : ""));
     if (targetLayer)
       L.polyline([here, target], {color: "#f8f6ee", weight: 2, opacity: 0.95})
         .addTo(targetLayer)
@@ -3916,12 +4217,32 @@ function analyzeRound(sess, shots, holeRows, geom){
   for (const s of shots){
     if (!byHole.has(s.hole)) byHole.set(s.hole, []);
     byHole.get(s.hole).push(s);
-    if (s.dist_m != null && s.club_id) r.dists.push({club: s.club_id, yd: s.dist_m * RA_YD});
   }
   const hr = new Map(holeRows.map(h => [h.hole, h]));
+  const dem = geom && geom.dem;
   for (const [holeNo, hs] of byHole){
     hs.sort((a, b) => a.seq - b.seq);
     r.holesPlayed++;
+    // Per-club distances for the bag. A shot's distance is measured to where
+    // the NEXT shot was played from, so that next position also tells us how
+    // much the ball climbed or dropped — which is what lets us restate the
+    // carry as its flat-ground equivalent and compare courses honestly.
+    for (let i = 0; i < hs.length; i++){
+      const sh = hs[i], nx = hs[i + 1];
+      if (sh.dist_m == null || !sh.club_id) continue;
+      let rise = null, flatYd = null;
+      if (dem && nx && sh.lat != null && nx.lat != null){
+        rise = riseBetween([sh.lat, sh.lon], [nx.lat, nx.lon], dem);
+        if (rise != null) flatYd = playsLikeM(sh.dist_m, rise, sh.club_id) * RA_YD;
+      }
+      const sw = sh.swing || null;
+      r.dists.push({club: sh.club_id, yd: sh.dist_m * RA_YD, flatYd,
+                    rise_m: rise == null ? null : +rise.toFixed(1),
+                    tempo: sw && sw.tempo != null ? +sw.tempo : null,
+                    club_mph: sh.club_mph != null ? +sh.club_mph
+                            : (sw && sw.club_mph != null ? +sw.club_mph : null),
+                    clipped: !!(sw && sw.clipped), date: sess.started_at});
+    }
     const row = hr.get(holeNo);
     const par = (row && row.par) || null;
     const putts = row ? row.putts : 0;
@@ -3987,12 +4308,22 @@ async function loadRoundAnalytics(){
     if (!rs.length){ raData = {rounds: []}; renderRoundAnalytics(); return; }
     const ids = rs.map(s => s.id);
     const [shotsQ, holesQ] = await Promise.all([
-      sb.from("shots").select("session_id,seq,hole,club_id,club_inches,lat,lon,dist_m")
+      sb.from("shots").select("session_id,seq,hole,club_id,club_inches,lat,lon,dist_m,club_mph,swing_seq")
         .in("session_id", ids).order("seq", {ascending: true}).limit(10000),
       sb.from("holes").select("session_id,hole,putts,penalties,par").in("session_id", ids).limit(4000),
     ]);
     if (shotsQ.error) throw shotsQ.error;
     if (holesQ.error) throw holesQ.error;
+    // Mechanics live on the swing row; shots.swing_seq is the join. Tempo and
+    // plane are what turn "my 7 iron goes 150" into something coachable.
+    const swMap = new Map();
+    try {
+      const swQ = await sb.from("swings").select("session_id,seq,tempo,club_mph,plane_deg,clipped")
+        .in("session_id", ids).limit(20000);
+      for (const w of swQ.data || []) swMap.set(w.session_id + ":" + w.seq, w);
+    } catch (e) {}
+    for (const sh of shotsQ.data || [])
+      if (sh.swing_seq != null) sh.swing = swMap.get(sh.session_id + ":" + sh.swing_seq) || null;
     // one geometry fetch per distinct course; reuse the offline course cache
     const geoms = new Map();
     for (const s of rs){
@@ -4005,6 +4336,18 @@ async function loadRoundAnalytics(){
         g = cache[s.course_id];
       if (!g && s.course_lat != null){
         try { g = await fetchCourseGeom([s.course_lat, s.course_lon]); } catch (e) {}
+      }
+      // Terrain for this course, so historical rounds get flat-normalised
+      // distances too. Cached per course, so this costs one fetch ever.
+      if (g && !g.dem){
+        const centre = s.course_lat != null ? [s.course_lat, s.course_lon] : (g.center || null);
+        if (centre){
+          g.dem = await buildDemFor(centre, g);
+          if (s.course_id && g.dem){
+            const cc = courseCache();
+            if (cc[s.course_id]){ cc[s.course_id].dem = g.dem; saveCourseCache(cc); }
+          }
+        }
       }
       geoms.set(key, g);
     }
@@ -5340,6 +5683,10 @@ function initMobile(){
     const t = e.target.closest("[data-explain]");
     if (t) showExplain(t.getAttribute("data-explain"));
   });
+  el("mTrends").addEventListener("click", e => {
+    const t = e.target.closest("[data-explain]");
+    if (t) showExplain(t.getAttribute("data-explain"));
+  });
   el("mExplainClose").addEventListener("click", () => { el("mExplain").hidden = true; });
   el("mExplain").addEventListener("click", e => {
     if (e.target === el("mExplain")) el("mExplain").hidden = true;   // tap backdrop to close
@@ -5376,9 +5723,11 @@ function initMobile(){
   wireDrillScreen("mPutt", "mPutt");
   wireDrillScreen("mChip", "mChip");
   el("mSummaryBack").addEventListener("click", () => { mScreen = "range"; renderAll(); });
-  el("mSumTrendsBtn").addEventListener("click", openTrends);
+  el("mSumTrendsBtn").addEventListener("click", () => { anTab = "range"; openTrends(); });
+  for (const b of document.querySelectorAll("#mAnTabs .mtab"))
+    b.addEventListener("click", () => setAnTab(b.dataset.tab));
   el("mTrendsBack").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
-  el("mrsTrendsBtn").addEventListener("click", openTrends);
+  el("mrsTrendsBtn").addEventListener("click", () => { anTab = "rounds"; openTrends(); });
   el("mrsShareBtn").addEventListener("click", () => shareSelected("round"));
   el("mrsDoneBtn").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
   el("mClassicBtn").addEventListener("click", () => { mScreen = "classic"; setMode("range"); });
@@ -5423,6 +5772,29 @@ function initMobile(){
     if (round){ round.unit = round.unit === "yd" ? "m" : "yd"; saveRound(); }
     el("mSheet").hidden = true; renderAll();
   });
+  const setSlope = on => {
+    slopeOn = on;
+    try { localStorage.setItem("sc-slope", on ? "1" : "0"); } catch (e) {}
+    const b = el("mSlopeBtn");
+    if (b) b.textContent = on ? "Turn slope off" : "Turn slope on";
+    updateMobileGreen(); updateToHole(); refreshTargetInfo();
+  };
+  el("mSlopeHelpBtn").addEventListener("click", () => {
+    el("mSheet").hidden = true; showExplain("playslike");
+  });
+  el("mSlopeBtn").addEventListener("click", () => {
+    setSlope(!slopeOn);
+    el("mSheet").hidden = true;
+    toast(slopeOn
+      ? "Slope on — yardages adjusted for elevation"
+      : "Slope off — true GPS yardages (competition legal)");
+  });
+  // the green card is the fastest way to flip it mid-shot
+  el("mGreenCard").addEventListener("click", () => {
+    setSlope(!slopeOn);
+    toast(slopeOn ? "Slope on" : "Slope off — true yardages");
+  });
+  setSlope(slopeOn);   // sync the sheet label with the stored preference
   el("mOrientBtn").addEventListener("click", () => {
     mapOrient = mapOrient === "hole" ? "north" : "hole";
     try { localStorage.setItem("sc-map-orient", mapOrient); } catch (e) {}
@@ -5595,6 +5967,8 @@ const EXPLAIN = {
   puttface: {t: "Wrist roll", b: "How much your wrist rolls through the stroke. The sensor can't see the clubface itself — face angle is what actually sends a putt off line — so treat this as a tendency, not a face-angle reading. The useful thing is keeping it small and, above all, the same every time."},
   puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
   chiplen: {t: "Stroke length", b: "How far your wrist rotates on the backswing — the main lever for chip distance. There's no single 'right' number; distance control is about repeating the SAME length for the same shot. The dots below show how tightly you're stacking your recent chips."},
+  playslike: {t: "Plays like (slope)", b: "GPS gives the distance across the ground; \u201cplays like\u201d adds what the hill costs you. The ball comes down at an angle, so a green above you cuts the flight short and one below you stretches it. We add \u0394height \u00f7 tan(landing angle) \u2014 which is why the same 15 ft of rise costs your driver more than your wedge: the driver lands shallow. Two honest caveats: the terrain model is ~30 m resolution, so treat it as a nudge of a few yards rather than a survey, and it ignores wind and air density entirely. Slope-adjusted yardages are not legal for competition \u2014 tap the card to switch back to true distance."},
+  flatcarry: {t: "Flat-ground carry", b: "Your club distances are restated as what they would have been on level ground. A shot that finishes above you covered less ground than the strike deserved, and one that finishes below covered more \u2014 so without this correction a hilly course quietly rewrites your bag. Only shots where we know the terrain get adjusted; the rest are taken at face value, and the count is shown under the bag."},
   chiphinge: {t: "Wrist hinge", b: "How much your wrist cocks (sets) going back. Some chipping methods want it quiet, others hinge-and-hold — either works, the key is consistency. It's a tendency read from wrist orientation, not a measured shaft angle."},
 };
 function showExplain(key){
@@ -5880,9 +6254,33 @@ function updateMobileGreen(){
   if (g && here){
     const fcb = greenFCB(g, here);
     el("mGreenCard").hidden = false;
-    el("mGreenDist").textContent = distDisp(fcb.center);
-    el("mGreenLbl").textContent = `to middle · F ${distDisp(fcb.front)} · B ${distDisp(fcb.back)}`;
-    const sugg = suggestClubs(fcb.center);
+    // Elevation: adjust only when we have terrain AND the change is big enough
+    // to mean something against a 30 m model — otherwise say nothing.
+    const rise = riseBetween(here, g.centroid);
+    const live = Math.abs(rise) >= RISE_MIN_M;
+    const adj = (slopeOn && rise != null && live)
+      ? playsLikeM(fcb.center, rise, clubId) : null;
+    const hero = adj != null ? adj : fcb.center;
+    const card = el("mGreenCard");
+    card.classList.toggle("slopeoff", !slopeOn);
+    const dist = el("mGreenDist");
+    dist.textContent = distDisp(hero);
+    if (adj != null){
+      const f = document.createElement("span");
+      f.className = "slopeflag";
+      f.textContent = rise > 0 ? "▲" : "▼";
+      dist.appendChild(f);
+    }
+    const riseEl = el("mGreenRise");
+    const haveRise = rise != null && live;
+    riseEl.hidden = !haveRise;
+    if (haveRise)
+      riseEl.textContent = adj != null
+        ? `plays like · ${riseLabel(rise)}`
+        : `slope off · ${riseLabel(rise)}`;
+    el("mGreenLbl").textContent = (adj != null ? `${distDisp(fcb.center)} actual · ` : "to middle · ")
+      + `F ${distDisp(fcb.front)} · B ${distDisp(fcb.back)}`;
+    const sugg = suggestClubs(hero);
     if (sugg.length){
       const s = el("mSuggest");
       s.hidden = false;
@@ -6052,12 +6450,26 @@ function roundRecapLocal(){
   for (const s of round.shots)
     if (s.dist_m != null && (longest == null || s.dist_m > longest.dist_m)) longest = s;
   const bag = new Map();
-  for (const s of round.shots){
-    const c = swingClub(s);
+  for (let i = 0; i < round.shots.length; i++){
+    const sh = round.shots[i], nx = round.shots[i + 1];
+    const c = swingClub(sh);
     const key = `${c.id}|${c.inches}`;
-    if (!bag.has(key)) bag.set(key, {label: c.label, inches: c.inches, d: [], n: 0});
+    if (!bag.has(key)) bag.set(key, {id: c.id, label: c.label, inches: c.inches,
+                                     d: [], flat: [], tempo: [], speed: [], adj: 0, n: 0});
     const g = bag.get(key); g.n++;
-    if (s.dist_m != null) g.d.push(s.dist_m);
+    if (sh.tempo != null) g.tempo.push(sh.tempo);
+    if (sh.club_mph != null) g.speed.push(sh.club_mph);
+    if (sh.dist_m != null){
+      g.d.push(sh.dist_m);
+      // the shot ended where the next one was played from — that's the height
+      // change, and the reason we can restate this carry as flat-ground
+      let flat = null;
+      if (nx && nx.hole === sh.hole && sh.lat != null && nx.lat != null){
+        const rise = riseBetween([sh.lat, sh.lon], [nx.lat, nx.lon]);
+        if (rise != null){ flat = playsLikeM(sh.dist_m, rise, c.id); g.adj++; }
+      }
+      g.flat.push(flat != null ? flat : sh.dist_m);
+    }
   }
   const tempos = round.shots.map(s => s.tempo).filter(t => t != null);
   return {
@@ -6155,100 +6567,336 @@ function renderMRoundSummary(){
   if (rc.bag.length) renderBagRows(el("mrsBag"), rc.bag, "round");
   renderShareCarousel("mrsShareStrip", ROUND_CARDS, "round", "roundsummary");
 }
-/* Shared "bag" row renderer. groups: [{label, d:[metres], n}]. mode "round"
-   shows avg + longest; mode "trends" shows median + shots. */
-function renderBagRows(host, groups, mode){
-  host.textContent = "";
-  const yd = m => `${Math.round(m * 1.09361)} yd`;
-  const shown = groups.filter(g => g.n > 0);
-  if (!shown.length){ div("mfine", host, "No shots tracked."); return; }
-  for (const g of shown){
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid #ddd7c4";
-    const name = document.createElement("div");
-    name.style.cssText = "flex:1;font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
-    name.textContent = g.label;
-    const stat = document.createElement("div");
-    stat.style.cssText = "font:600 14px 'IBM Plex Mono',monospace;color:#3c4a30";
-    const sub = document.createElement("div");
-    sub.style.cssText = "font:500 11px 'IBM Plex Mono',monospace;color:#8a8577;min-width:72px;text-align:right";
-    if (g.d.length){
-      const val = mode === "trends" ? median(g.d) : g.d.reduce((a, b) => a + b, 0) / g.d.length;
-      stat.textContent = yd(val);
-      sub.textContent = mode === "trends"
-        ? `${g.d.length} shot${g.d.length === 1 ? "" : "s"}`
-        : `long ${yd(Math.max(...g.d))}`;
-    } else {
-      stat.textContent = "—";
-      sub.textContent = `${g.n} swing${g.n === 1 ? "" : "s"}`;
+/* ---------- The bag ----------
+   One row per club, built from GPS-measured shots. Two things make these
+   numbers worth trusting: distances are measured between where you actually
+   played consecutive shots (never estimated from swing speed), and they are
+   restated as their flat-ground equivalent so a downhill par 3 doesn't
+   flatter your 8 iron. Where terrain is unknown a shot is taken at face
+   value, and the note under the bag says how many. */
+function pct(a, q){
+  if (!a.length) return null;
+  const s = [...a].sort((x, y) => x - y);
+  const i = (s.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
+  return lo === hi ? s[lo] : s[lo] + (s[hi] - s[lo]) * (i - lo);
+}
+const TO_YD = 1.09361;
+function bagStats(g){
+  const src = (g.flat && g.flat.length === g.d.length && g.flat.length) ? g.flat : g.d;
+  const a = src.map(m => m * TO_YD);
+  const avg = x => x && x.length ? x.reduce((p, q) => p + q, 0) / x.length : null;
+  return {n: g.n, shots: a.length,
+          med: a.length ? median(a) : null,
+          p25: pct(a, .25), p75: pct(a, .75),
+          min: a.length ? Math.min(...a) : null,
+          max: a.length ? Math.max(...a) : null,
+          all: a,
+          tempo: avg(g.tempo), speed: avg(g.speed),
+          adj: g.adj || 0,
+          rounds: g.rounds ? g.rounds.size : null};
+}
+/* Compact names for the gapping chart — "Pitching wedge" doesn't fit a phone's
+   label gutter, and PW is what's stamped on the club anyway. */
+const CLUB_SHORT = {driver: "Driver", "3w": "3 wd", "5w": "5 wd", hybrid: "Hybrid",
+  "4i": "4i", "5i": "5i", "6i": "6i", "7i": "7i", "8i": "8i", "9i": "9i",
+  pw: "PW", sw: "SW", custom: "Custom"};
+function bagShort(g){
+  if (g.id && CLUB_SHORT[g.id]) return CLUB_SHORT[g.id];
+  const l = g.label || "Club";
+  return l.length > 8 ? l.slice(0, 7) + "…" : l;
+}
+function bagGroupsFromRounds(rounds){
+  const M = new Map();
+  for (const r of rounds)
+    for (const x of r.dists || []){
+      const def = CLUBS.find(c => c.id === x.club);
+      const label = def ? (def.id === "custom" ? "Custom" : def.name) : (x.club || "Club");
+      const inches = def && def.inches != null ? def.inches : 0;
+      const key = x.club || label;
+      if (!M.has(key)) M.set(key, {id: x.club, label, inches, d: [], flat: [],
+                                   tempo: [], speed: [], adj: 0, n: 0, rounds: new Set()});
+      const g = M.get(key);
+      g.n++; g.rounds.add(r.id);
+      g.d.push(x.yd / TO_YD);
+      if (x.flatYd != null){ g.flat.push(x.flatYd / TO_YD); g.adj++; }
+      else g.flat.push(x.yd / TO_YD);
+      if (x.tempo != null) g.tempo.push(+x.tempo);
+      if (x.club_mph != null && !x.clipped) g.speed.push(+x.club_mph);
     }
-    row.append(name, stat, sub);
-    host.appendChild(row);
+  return [...M.values()].sort((a, b) => b.inches - a.inches);
+}
+/* Gapping picture: every club on one yardage axis, so overlaps and holes in
+   the set are obvious at a glance. Box is the middle half of your shots,
+   whisker the full range, tick the median. */
+function renderBagChart(host, groups){
+  host.textContent = "";
+  const rows = groups.map(g => ({g, st: bagStats(g)})).filter(r => r.st.shots >= 2);
+  if (rows.length < 2) return;
+  const W = 320, RH = 21, PADT = 4, PADB = 18, L = 44, R = 8;
+  const H = PADT + rows.length * RH + PADB;
+  const lo = Math.min(...rows.map(r => r.st.min)), hi = Math.max(...rows.map(r => r.st.max));
+  const span = Math.max(20, hi - lo);
+  const x0 = lo - span * 0.05, x1 = hi + span * 0.05;
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R);
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Club distance gapping"}, host);
+  svg.style.cssText = "width:100%;height:auto;display:block;overflow:visible";
+  rows.forEach((r, i) => {
+    const y = PADT + i * RH + RH / 2;
+    const t = el("text", {x: 0, y: y + 3.5, fill: "#23221c"}, svg);
+    t.style.cssText = "font:600 10.5px 'IBM Plex Sans',system-ui";
+    t.textContent = bagShort(r.g);
+    el("line", {x1: X(r.st.min), x2: X(r.st.max), y1: y, y2: y,
+                stroke: "#c9d0ae", "stroke-width": 2, "stroke-linecap": "round"}, svg);
+    const bx = X(r.st.p25), bw = Math.max(2, X(r.st.p75) - X(r.st.p25));
+    el("rect", {x: bx, y: y - 5, width: bw, height: 10, rx: 3,
+                fill: "#8a9270", opacity: .75}, svg);
+    el("line", {x1: X(r.st.med), x2: X(r.st.med), y1: y - 7, y2: y + 7,
+                stroke: "#b4632f", "stroke-width": 2.2, "stroke-linecap": "round"}, svg);
+    const v = el("text", {x: Math.min(W - 2, X(r.st.max) + 5), y: y + 3.5, fill: "#8a8577"}, svg);
+    v.style.cssText = "font:500 9.5px 'IBM Plex Mono',monospace";
+    v.textContent = Math.round(r.st.med);
+  });
+  const ay = H - 6;
+  el("line", {x1: L, x2: W - R, y1: ay - 9, y2: ay - 9, stroke: "#ddd7c4", "stroke-width": 1}, svg);
+  for (const v of [x0, (x0 + x1) / 2, x1]){
+    const tx = el("text", {x: X(v), y: ay,
+      "text-anchor": v === x0 ? "start" : (v === x1 ? "end" : "middle"), fill: "#8a8577"}, svg);
+    tx.style.cssText = "font:500 9px 'IBM Plex Mono',monospace";
+    tx.textContent = Math.round(v);
   }
 }
-/* ---------- Mobile trends (cloud history) ---------- */
+/* Expandable per-club rows. mode "round" = just-played round (average + long,
+   no history); mode "trends" = across rounds (median + spread + mechanics). */
+let bagOpen = null;
+function renderBagRows(host, groups, mode){
+  host.textContent = "";
+  const shown = groups.filter(g => g.n > 0);
+  if (!shown.length){ div("mfine", host, "No shots tracked."); return; }
+  const ydT = v => v == null ? "—" : `${Math.round(v)} yd`;
+  for (const g of shown){
+    const st = bagStats(g);
+    const row = div("bagrow", host);
+    const head = document.createElement("button");
+    head.type = "button";
+    const key = (g.id || g.label) + "|" + mode;
+    const name = div("bagname", null, g.label);
+    const dist = div("bagdist", null,
+      st.shots ? ydT(mode === "round" ? st.all.reduce((a, b) => a + b, 0) / st.all.length : st.med) : "—");
+    const sub = div("bagn", null, st.shots
+      ? (mode === "round" ? `long ${Math.round(st.max)}` : `${st.shots} shot${st.shots === 1 ? "" : "s"}`)
+      : `${g.n} swing${g.n === 1 ? "" : "s"}`);
+    const car = div("bagcar", null, bagOpen === key ? "▾" : "▸");
+    head.append(name, dist, sub, car);
+    row.appendChild(head);
+    const det = div("bagdet", row);
+    det.hidden = bagOpen !== key;
+    const grid = div("baggrid", det);
+    const cell = (k, v, u) => {
+      const d = div("", grid);
+      div("bagk", d, k);
+      const val = div("bagv", d, v);
+      if (u && v !== "—"){ const sm = document.createElement("small"); sm.textContent = u; val.appendChild(sm); }
+    };
+    if (st.shots){
+      cell("Median", ydT(st.med), "");
+      cell("Middle half", st.shots >= 4 ? `${Math.round(st.p25)}–${Math.round(st.p75)}` : "—", "yd");
+      cell("Range", `${Math.round(st.min)}–${Math.round(st.max)}`, "yd");
+    } else {
+      cell("Median", "—", ""); cell("Middle half", "—", ""); cell("Range", "—", "");
+    }
+    cell("Tempo", st.tempo != null ? st.tempo.toFixed(2) : "—", "");
+    cell("Club speed", st.speed != null ? Math.round(st.speed) : "—", "mph");
+    cell(mode === "round" ? "Swings" : "Rounds",
+         mode === "round" ? String(g.n) : (st.rounds != null ? String(st.rounds) : String(g.n)), "");
+    if (st.shots && st.shots < 3)
+      div("mfine", det, `Only ${st.shots} measured shot${st.shots === 1 ? "" : "s"} — treat this as a first read, not your number.`)
+        .style.margin = "8px 0 0";
+    head.addEventListener("click", () => {
+      bagOpen = bagOpen === key ? null : key;
+      renderBagRows(host, groups, mode);
+    });
+  }
+}
+
+/* ---------- Analytics: Rounds (what you shot) | Range (how you swung) ----------
+   The two halves answer different questions and mix badly on one screen: a
+   round tells you about your bag and your scoring, a range session tells you
+   about the swing itself. Range charts here use range sessions only — swings
+   logged during a round are shots, not practice, and they drag the averages. */
+let anTab = "rounds";
+let bagWin = 10;                      // rounds included in the bag; 0 = all time
+try {
+  anTab = localStorage.getItem("sc-antab") === "range" ? "range" : "rounds";
+  const w = +localStorage.getItem("sc-bagwin");
+  if (w === 0 || w === 5 || w === 10) bagWin = w;
+} catch (e) {}
+
 function openTrends(){
   mScreen = "trends";
-  // pull history the first time (loadProgress fills progressData + raData, then
-  // re-renders); if it's already loaded we reuse it.
   if (progressData == null && sb && sbUser) loadProgress();
+  else if (raData == null && sb && sbUser) loadRoundAnalytics();
   renderAll();
 }
+function setAnTab(t){
+  anTab = t;
+  try { localStorage.setItem("sc-antab", t); } catch (e) {}
+  renderMTrends();
+}
 function renderMTrends(){
-  const el = id => document.getElementById(id);
-  const gate = el("mtGate"), body = el("mtBody"), msg = el("mtGateMsg");
-  const show = (gated, text) => { gate.hidden = !gated; body.hidden = gated; if (gated) msg.textContent = text; };
-  if (!sbUser) return show(true, "Sign in from the summary screen to save your sessions and see trends here.");
-  if (progressData == null) return show(true, "Loading your history…");
-  if (progressData.error) return show(true, "Couldn't load history: " + progressData.error);
-  if (!progressData.length) return show(true, "No synced sessions yet — hit a range session or play a round while signed in, and your trends build here automatically.");
-  show(false);
-  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
-  const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"});
-  lineChart("mtTempo",
-    progressData.map(s => ({label: dlab(s.date), y: avg(s.swings.map(w => +w.tempo))})),
-    {label: "Average tempo per session", series: "avg tempo", band: [2.5, 3.5], minMax: 4, dp: 2});
-  // your bag — median GPS-measured carry per club, across all rounds
-  const bagHost = el("mtBag");
-  const rounds = (raData && raData.rounds) || [];
-  const groups = new Map();
-  for (const r of rounds)
-    for (const d of r.dists || []){
-      const def = CLUBS.find(c => c.id === d.club);
-      const label = def ? (def.id === "custom" ? "Custom" : def.name) : (d.club || "Club");
-      const inches = def && def.inches != null ? def.inches : 0;
-      const key = d.club || label;
-      if (!groups.has(key)) groups.set(key, {label, inches, d: [], n: 0});
-      const g = groups.get(key);
-      g.n++; g.d.push(d.yd / 1.09361);   // store metres; renderBagRows converts back
-    }
-  if (groups.size)
-    renderBagRows(bagHost, [...groups.values()].sort((a, b) => b.inches - a.inches), "trends");
-  else { bagHost.textContent = ""; div("mfine", bagHost,
-    raData == null ? "Loading rounds…" : "No GPS-measured shots yet — distances are captured as you play mapped holes."); }
+  const g = id => document.getElementById(id);
+  for (const b of document.querySelectorAll("#mAnTabs .mtab"))
+    b.classList.toggle("on", b.dataset.tab === anTab);
+  const gate = g("mtGate"), body = g("mtBody");
+  if (!sbUser){
+    gate.hidden = false; body.hidden = true;
+    g("mtGateMsg").textContent = "Sign in from the session summary to save your "
+      + "rounds and range sessions — your bag and trends build here automatically.";
+    return;
+  }
+  gate.hidden = true; body.hidden = false;
+  g("mPaneRounds").hidden = anTab !== "rounds";
+  g("mPaneRange").hidden  = anTab !== "range";
+  if (anTab === "rounds") renderAnRounds(); else renderAnRange();
+}
+function anAvg(a){ return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+function anToPar(v){
+  if (v == null) return "—";
+  const r = Math.round(v * 10) / 10;
+  return r === 0 ? "E" : (r > 0 ? "+" : "") + r;
+}
+function anTiles(host, cells){
+  host.textContent = "";
+  for (const [k, v, u] of cells){
+    const d = document.createElement("div");
+    const l = div("mlabel", d, k);
+    const vv = div("v", d, v);
+    if (u && v !== "—"){ const sm = document.createElement("small"); sm.textContent = u; vv.appendChild(sm); }
+    host.appendChild(d);
+  }
+}
+function renderAnRounds(){
+  const g = id => document.getElementById(id);
+  const win = g("mBagWin"), chart = g("mtBagChart"), bagHost = g("mtBag"),
+        note = g("mBagNote"), list = g("mtRoundList"),
+        grid = g("mtScoreGrid"), snote = g("mtScoreNote");
+  win.textContent = "";
+  for (const [v, lab] of [[5, "Last 5"], [10, "Last 10"], [0, "All time"]]){
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = lab;
+    if (bagWin === v) b.classList.add("on");
+    b.addEventListener("click", () => {
+      bagWin = v;
+      try { localStorage.setItem("sc-bagwin", String(v)); } catch (e) {}
+      bagOpen = null;
+      renderAnRounds();
+    });
+    win.appendChild(b);
+  }
+  const clear = () => { chart.textContent = ""; bagHost.textContent = "";
+                        list.textContent = ""; grid.textContent = "";
+                        note.textContent = ""; snote.textContent = ""; };
+  if (raData == null){ clear(); div("mfine", bagHost, "Loading your rounds…"); return; }
+  if (raData.error){ clear(); div("mfine", bagHost, "Couldn't load rounds: " + raData.error); return; }
+  const all = [...(raData.rounds || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!all.length){
+    clear();
+    div("mfine", bagHost, "No rounds synced yet — play a round while signed in and your bag builds itself.");
+    return;
+  }
+  const use = bagWin ? all.slice(-bagWin) : all;
+  const groups = bagGroupsFromRounds(use);
+  chart.textContent = "";
+  renderBagChart(chart, groups);
+  renderBagRows(bagHost, groups, "trends");
+  const measured = groups.reduce((n, x) => n + x.d.length, 0);
+  const adjusted = groups.reduce((n, x) => n + (x.adj || 0), 0);
+  note.textContent = measured
+    ? `${measured} GPS-measured shot${measured === 1 ? "" : "s"} across `
+      + `${use.length} round${use.length === 1 ? "" : "s"}. `
+      + (adjusted ? `${adjusted} restated as flat-ground carry using course terrain. ` : "")
+      + `Distances are measured between where you played consecutive shots — never estimated from swing speed.`
+    : "No GPS-measured shots yet — distances are captured as you play mapped holes.";
+  // scoring across the same window
+  const scored = use.filter(r => r.parKnown);
+  const girE = use.reduce((n, r) => n + r.girElig, 0), girH = use.reduce((n, r) => n + r.girHit, 0);
+  const pRounds = use.filter(r => r.putts > 0);
+  anTiles(grid, [
+    ["Rounds", String(use.length), ""],
+    ["Avg to par", scored.length ? anToPar(anAvg(scored.map(r => r.toPar))) : "—", ""],
+    ["Greens", girE ? `${Math.round(100 * girH / girE)}%` : "—", ""],
+    ["Putts/rd", pRounds.length ? (anAvg(pRounds.map(r => r.putts))).toFixed(1) : "—", ""],
+  ]);
+  snote.textContent = scored.length < use.length
+    ? `To-par uses the ${scored.length} of ${use.length} round${use.length === 1 ? "" : "s"} where par was known.`
+    : "Greens in regulation = on the putting surface in par−2 tracked strokes.";
   // recent rounds
-  const rl = el("mtRounds");
-  rl.textContent = "";
-  if (!rounds.length){ div("mfine", rl, raData == null ? "Loading rounds…" : "No rounds synced yet."); }
-  for (const r of [...rounds].reverse().slice(0, 8)){
+  list.textContent = "";
+  for (const r of [...all].reverse().slice(0, 8)){
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #ddd7c4";
     const left = document.createElement("div"); left.style.cssText = "flex:1";
-    const c = document.createElement("div");
+    const c = div("", left, r.course || "—");
     c.style.cssText = "font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
-    c.textContent = r.course || "—";
-    const d = document.createElement("div");
+    const d = div("", left,
+      `${raDlab(r.date)} · ${r.holesPlayed} hole${r.holesPlayed === 1 ? "" : "s"}`
+      + (r.putts ? ` · ${r.putts} putts` : ""));
     d.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;color:#8a8577";
-    d.textContent = `${raDlab(r.date)} · ${r.holesPlayed} hole${r.holesPlayed === 1 ? "" : "s"}`
-                  + (r.putts ? ` · ${r.putts} putts` : "");
-    left.append(c, d);
-    const score = document.createElement("div");
-    score.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
-    score.textContent = r.parKnown
+    const score = div("", null, r.parKnown
       ? `${r.score} (${r.toPar > 0 ? "+" : ""}${r.toPar === 0 ? "E" : r.toPar})`
-      : (r.girElig ? `${r.girHit}/${r.girElig} GIR` : "—");
+      : (r.girElig ? `${r.girHit}/${r.girElig} GIR` : "—"));
+    score.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
     row.append(left, score);
-    rl.appendChild(row);
+    list.appendChild(row);
+  }
+}
+function renderAnRange(){
+  const g = id => document.getElementById(id);
+  const sess = g("mtSessions");
+  const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"});
+  if (progressData == null){
+    g("mtTempo").textContent = ""; g("mtSpeed").textContent = ""; sess.textContent = "";
+    div("mfine", sess, "Loading your sessions…");
+    return;
+  }
+  if (progressData.error){
+    sess.textContent = ""; div("mfine", sess, "Couldn't load history: " + progressData.error);
+    return;
+  }
+  // range sessions only — swings hit during a round belong to the Rounds tab
+  const rng = progressData.filter(s => s.kind === "Range");
+  if (!rng.length){
+    g("mtTempo").textContent = ""; g("mtSpeed").textContent = ""; sess.textContent = "";
+    div("mfine", sess, progressData.length
+      ? "No range sessions yet — every session synced so far was a round. Hit a range session while signed in and these charts fill in."
+      : "No synced sessions yet — hit a range session while signed in and your trends build here automatically.");
+    return;
+  }
+  lineChart("mtTempo",
+    rng.map(s => ({label: dlab(s.date), y: anAvg(s.swings.map(w => +w.tempo).filter(v => isFinite(v)))}))
+       .filter(p => p.y != null),
+    {label: "Average tempo per range session", series: "avg tempo", band: [2.5, 3.5], minMax: 4, dp: 2});
+  lineChart("mtSpeed",
+    rng.map(s => ({label: dlab(s.date),
+                   y: anAvg(s.swings.map(w => +w.club_mph).filter(v => isFinite(v) && v > 0))}))
+       .filter(p => p.y != null),
+    {label: "Average club speed per range session", series: "avg club speed", minMax: 4, dp: 0});
+  sess.textContent = "";
+  for (const s of [...rng].reverse().slice(0, 8)){
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #ddd7c4";
+    const left = document.createElement("div"); left.style.cssText = "flex:1";
+    const c = div("", left, dlab(s.date));
+    c.style.cssText = "font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
+    const t = anAvg(s.swings.map(w => +w.tempo).filter(v => isFinite(v)));
+    const sp = anAvg(s.swings.map(w => +w.club_mph).filter(v => isFinite(v) && v > 0));
+    const d = div("", left, `${s.swings.length} swing${s.swings.length === 1 ? "" : "s"}`
+      + (t != null ? ` · tempo ${t.toFixed(2)}` : ""));
+    d.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;color:#8a8577";
+    const v = div("", null, sp != null ? `${Math.round(sp)} mph` : "—");
+    v.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
+    row.append(left, v);
+    sess.appendChild(row);
   }
 }
 
