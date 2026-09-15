@@ -4257,17 +4257,6 @@ function renderDesktopBag(){
   const win = document.getElementById("dBagWin");
   if (!chart || !table) return;
   win.textContent = "";
-  for (const [v, lab] of [[5, "Last 5"], [10, "Last 10"], [0, "All time"]]){
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "chip"; b.textContent = lab;
-    b.setAttribute("aria-pressed", bagWin === v ? "true" : "false");
-    b.addEventListener("click", () => {
-      bagWin = v;
-      try { localStorage.setItem("sc-bagwin", String(v)); } catch (e) {}
-      renderDesktopBag();
-    });
-    win.appendChild(b);
-  }
   const clear = t => { chart.textContent = ""; table.textContent = ""; note.textContent = t;
                        const hc = document.getElementById("dHeldCard"); if (hc) hc.hidden = true; };
   if (raData == null){ clear(""); loadingLine(note, "Loading your rounds…"); return; }
@@ -4275,7 +4264,21 @@ function renderDesktopBag(){
   const all = [...(raData.rounds || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (!all.length)
     return clear("No rounds synced yet — play a round while signed in and your bag builds itself.");
-  const use = bagWin ? all.slice(-bagWin) : all;
+  const {opts, eff} = bagWindows(all.length);
+  if (opts.length > 1){
+    for (const o of opts){
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = o.label;
+      b.setAttribute("aria-pressed", eff === o.v ? "true" : "false");
+      b.addEventListener("click", () => {
+        bagWin = o.v;
+        try { localStorage.setItem("sc-bagwin", String(o.v)); } catch (e) {}
+        renderDesktopBag();
+      });
+      win.appendChild(b);
+    }
+  }
+  const use = eff ? all.slice(-eff) : all;
   const heldList = outlierList(use);
   if (heldList.length){
     const t = document.createElement("button");
@@ -4314,8 +4317,10 @@ function renderDesktopBag(){
   }
   const measured = groups.reduce((n, x) => n + x.d.length, 0);
   const adjusted = groups.reduce((n, x) => n + (x.adj || 0), 0);
-  note.textContent = `${measured} GPS-measured shot${measured === 1 ? "" : "s"} across `
-    + `${use.length} round${use.length === 1 ? "" : "s"}. `
+  note.textContent = bagScope(all.length, eff)
+    + (opts.length === 1 && all.length > 1
+        ? "Once you've played more than 5 rounds you'll be able to narrow this to recent form. " : "")
+    + `${measured} GPS-measured shot${measured === 1 ? "" : "s"}. `
     + (adjusted ? `${adjusted} restated as flat-ground carry using course terrain — a shot finishing above where it was struck covered less ground than the strike deserved, so without that a hilly course quietly rewrites your bag. ` : "")
     + `Distances are measured between where you played consecutive shots, never estimated from swing speed. `
     + (heldList.length ? (showOutliers
@@ -7084,6 +7089,21 @@ function outlierList(rounds){
   return out.sort((a, b) => new Date(b.date) - new Date(a.date) || a.hole - b.hole);
 }
 
+/* Which bag windows are worth offering. "Last 10" against 8 rounds selects the
+   same set as "All time", so showing it anyway makes the control look broken
+   when the numbers don't move — which is exactly how it read. Offer a window
+   only when it genuinely narrows the set, label "all" with the real count, and
+   say the scope in words so it's never a mystery what you're looking at. */
+function bagWindows(total){
+  const opts = [];
+  for (const v of [5, 10]) if (v < total) opts.push({v, label: `Last ${v}`});
+  opts.push({v: 0, label: total ? `All ${total}` : "All time"});
+  return {opts, eff: (bagWin && opts.some(o => o.v === bagWin)) ? bagWin : 0};
+}
+function bagScope(total, eff){
+  if (eff) return `Your last ${eff} rounds, of ${total}. `;
+  return total === 1 ? "Your 1 round so far. " : `All ${total} rounds. `;
+}
 let showOutliers = false;   // "show held-out shots" toggle on the bag
 function bagGroupsFromRounds(rounds){
   const M = new Map();
@@ -7265,18 +7285,6 @@ function renderAnRounds(){
         note = g("mBagNote"), list = g("mtRoundList"),
         grid = g("mtScoreGrid"), snote = g("mtScoreNote");
   win.textContent = "";
-  for (const [v, lab] of [[5, "Last 5"], [10, "Last 10"], [0, "All time"]]){
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = lab;
-    if (bagWin === v) b.classList.add("on");
-    b.addEventListener("click", () => {
-      bagWin = v;
-      try { localStorage.setItem("sc-bagwin", String(v)); } catch (e) {}
-      bagOpen = null;
-      renderAnRounds();
-    });
-    win.appendChild(b);
-  }
   const clear = () => { chart.textContent = ""; bagHost.textContent = "";
                         list.textContent = ""; grid.textContent = "";
                         note.textContent = ""; snote.textContent = ""; };
@@ -7288,7 +7296,22 @@ function renderAnRounds(){
     div("mfine", bagHost, "No rounds synced yet — play a round while signed in and your bag builds itself.");
     return;
   }
-  const use = bagWin ? all.slice(-bagWin) : all;
+  const {opts, eff} = bagWindows(all.length);
+  if (opts.length > 1){
+    for (const o of opts){
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = o.label;
+      if (eff === o.v) b.classList.add("on");
+      b.addEventListener("click", () => {
+        bagWin = o.v;
+        try { localStorage.setItem("sc-bagwin", String(o.v)); } catch (e) {}
+        bagOpen = null;
+        renderAnRounds();
+      });
+      win.appendChild(b);
+    }
+  }
+  const use = eff ? all.slice(-eff) : all;
   const held = use.reduce((n, r) => n + (r.dists || []).filter(x => x.suspect).length, 0);
   if (held){
     const t = document.createElement("button");
@@ -7304,8 +7327,10 @@ function renderAnRounds(){
   const measured = groups.reduce((n, x) => n + x.d.length, 0);
   const adjusted = groups.reduce((n, x) => n + (x.adj || 0), 0);
   note.textContent = measured
-    ? `${measured} GPS-measured shot${measured === 1 ? "" : "s"} across `
-      + `${use.length} round${use.length === 1 ? "" : "s"}. `
+    ? bagScope(all.length, eff)
+      + (opts.length === 1 && all.length > 1
+          ? "Once you've played more than 5 rounds you'll be able to narrow this to recent form. " : "")
+      + `${measured} GPS-measured shot${measured === 1 ? "" : "s"}. `
       + (adjusted ? `${adjusted} restated as flat-ground carry using course terrain. ` : "")
       + (held ? (showOutliers
           ? `${held} likely missed-swing shot${held === 1 ? " is" : "s are"} currently INCLUDED — tap "Held out" to take them back out. `
