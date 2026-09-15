@@ -748,6 +748,16 @@
         <div class="scroll-x"><table class="all" id="dBagTable"></table></div>
         <p class="note" id="dBagNote" style="margin-top:10px"></p>
       </div>
+      <div class="card" id="dHeldCard" hidden style="margin-bottom:14px">
+        <h2>Held-out shots</h2>
+        <p class="note">A shot's distance is measured to wherever you played the next
+          shot from, so a swing the sensor missed makes one segment cover two strokes —
+          a drive plus a wedge becomes one enormous drive. These are kept out of your bag
+          but never deleted. If one of them was real, put it back and it returns to your
+          numbers straight away. Only the long end is ever questioned: a missed swing can
+          only make a distance too big, and short shots are real golf.</p>
+        <div class="scroll-x"><table class="all" id="dHeldTable"></table></div>
+      </div>
       <div class="card">
         <h2>Round analytics</h2>
         <p class="note" id="raNote">Loading rounds…</p>
@@ -1164,7 +1174,7 @@
             <div class="mbagwin" id="mBagWin"></div>
             <div id="mtBagChart"></div>
             <div id="mtBag"></div>
-            <p class="mfine mtappable" id="mBagNote" data-explain="flatcarry" style="margin-bottom:0"></p>
+            <p class="mfine mtappable" id="mBagNote" data-explain="heldout" style="margin-bottom:0"></p>
           </div>
           <div class="mlight">
             <h2>Scoring</h2>
@@ -4205,13 +4215,24 @@ function renderDesktopBag(){
     });
     win.appendChild(b);
   }
-  const clear = t => { chart.textContent = ""; table.textContent = ""; note.textContent = t; };
+  const clear = t => { chart.textContent = ""; table.textContent = ""; note.textContent = t;
+                       const hc = document.getElementById("dHeldCard"); if (hc) hc.hidden = true; };
   if (raData == null) return clear("Loading your rounds…");
   if (raData.error) return clear("Couldn't load rounds: " + raData.error);
   const all = [...(raData.rounds || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (!all.length)
     return clear("No rounds synced yet — play a round while signed in and your bag builds itself.");
   const use = bagWin ? all.slice(-bagWin) : all;
+  const heldList = outlierList(use);
+  if (heldList.length){
+    const t = document.createElement("button");
+    t.type = "button"; t.className = "chip"; t.textContent = `Held out ${heldList.length}`;
+    t.setAttribute("aria-pressed", showOutliers ? "true" : "false");
+    t.title = "Include the held-out shots in these numbers";
+    t.addEventListener("click", () => { showOutliers = !showOutliers; renderDesktopBag(); });
+    win.appendChild(t);
+  }
+  renderHeldTable(heldList);
   const groups = bagGroupsFromRounds(use);
   if (!groups.length)
     return clear("No GPS-measured shots in these rounds yet — distances are captured as you play mapped holes.");
@@ -4244,7 +4265,52 @@ function renderDesktopBag(){
     + `${use.length} round${use.length === 1 ? "" : "s"}. `
     + (adjusted ? `${adjusted} restated as flat-ground carry using course terrain — a shot finishing above where it was struck covered less ground than the strike deserved, so without that a hilly course quietly rewrites your bag. ` : "")
     + `Distances are measured between where you played consecutive shots, never estimated from swing speed. `
+    + (heldList.length ? (showOutliers
+        ? `${heldList.length} likely missed-swing shot${heldList.length === 1 ? " is" : "s are"} currently INCLUDED in these numbers. `
+        : `${heldList.length} shot${heldList.length === 1 ? "" : "s"} held out as likely missed-swing artifacts — listed below. `) : "")
     + `Clubs with fewer than 3 measured shots are dimmed — treat those as a first read.`;
+}
+/* Every shot the artifact test took out, with a way to put it back. Restoring is
+   per-shot and sticks (localStorage), so a genuine career drive only has to be
+   vouched for once. */
+function renderHeldTable(list){
+  const card = document.getElementById("dHeldCard");
+  const t = document.getElementById("dHeldTable");
+  if (!card || !t) return;
+  card.hidden = !list.length;
+  t.textContent = "";
+  if (!list.length) return;
+  const tr = document.createElement("tr");
+  for (const h of ["Date", "Course", "Hole", "Club", "Measured", "Why it's held out", ""]){
+    const th = document.createElement("th"); th.textContent = h; tr.appendChild(th);
+  }
+  t.appendChild(tr);
+  for (const x of list){
+    const row = document.createElement("tr");
+    const club = CLUBS.find(c => c.id === x.club);
+    [new Date(x.date).toLocaleDateString(), x.course || "—", String(x.hole ?? "—"),
+     club ? club.name : (x.club || "—"), `${Math.round(x.yd)} yd`, x.why]
+      .forEach((c, k) => { const td = document.createElement("td"); td.textContent = c;
+        if (k === 1 || k === 5) td.style.textAlign = "left";
+        if (k === 5) td.style.color = "var(--muted)";
+        row.appendChild(td); });
+    const td = document.createElement("td");
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn secondary radel";
+    b.textContent = "This was real";
+    b.title = "Put this shot back into your club distances";
+    b.addEventListener("click", () => {
+      setKeepShot(x.key, true);
+      if (raData && raData.rounds){
+        const set = markOutliers(raData.rounds);
+        raData.outliers = set.size;
+      }
+      toast("Shot restored to your club distances.");
+      renderRoundAnalytics();
+    });
+    td.appendChild(b); row.appendChild(td);
+    t.appendChild(row);
+  }
 }
 function renderProgTable(rng){
   const t = document.getElementById("progTable");
@@ -4325,7 +4391,7 @@ function raGreenFor(geom, holeNo){
   }
   return bd < 150 ? best : null;
 }
-function analyzeRound(sess, shots, holeRows, geom){
+function analyzeRound(sess, shots, holeRows, geom, suspects){
   const r = {id: sess.id, date: sess.started_at, course: sess.course_name || "—",
              holesPlayed: 0, score: 0, toPar: 0, parKnown: 0, putts: 0,
              firHit: 0, firElig: 0, girHit: 0, girElig: 0,
@@ -4354,7 +4420,8 @@ function analyzeRound(sess, shots, holeRows, geom){
         if (rise != null) flatYd = playsLikeM(sh.dist_m, rise, sh.club_id) * RA_YD;
       }
       const sw = sh.swing || null;
-      r.dists.push({club: sh.club_id, yd: sh.dist_m * RA_YD, flatYd,
+      r.dists.push({club: sh.club_id, seq: sh.seq, hole: holeNo,
+                    yd: sh.dist_m * RA_YD, flatYd,
                     rise_m: rise == null ? null : +rise.toFixed(1),
                     tempo: sw && sw.tempo != null ? +sw.tempo : null,
                     club_mph: sh.club_mph != null ? +sh.club_mph
@@ -4390,8 +4457,13 @@ function analyzeRound(sess, shots, holeRows, geom){
     }
     // strokes gained: every stroke needs a fix, plus green + par + completion.
     // Penalty holes are excluded — the position chain has invisible strokes.
+    // So is a hole holding a missed-swing artifact, for exactly the same reason:
+    // if a stroke wasn't recorded, this hole's stroke count is wrong and every
+    // gain/loss computed from it is fiction.
+    const holeSuspect = suspects
+      ? hs.some(x => suspects.has(`${sess.id}:${x.seq}`)) : false;
     const green = geom ? raGreenFor(geom, holeNo) : null;
-    if (green && completed && par && pens === 0 && pos.length && pos.every(p => p)){
+    if (green && completed && par && pens === 0 && !holeSuspect && pos.length && pos.every(p => p)){
       const d = pos.map(p => haversineM({lat: p[0], lon: p[1]},
         {lat: green.centroid[0], lon: green.centroid[1]}) * RA_YD);
       if (!d.some(v => v > 700)){    // a fix that far out is GPS junk, not golf
@@ -4469,15 +4541,20 @@ async function loadRoundAnalytics(){
       }
       geoms.set(key, g);
     }
-    const rounds = rs.map(s => {
+    const build = suspects => rs.map(s => {
       const key = s.course_id ||
         (s.course_lat != null ? `${s.course_lat.toFixed(3)},${s.course_lon.toFixed(3)}` : null);
       return analyzeRound(s,
         (shotsQ.data || []).filter(x => x.session_id === s.id),
         (holesQ.data || []).filter(x => x.session_id === s.id),
-        key ? geoms.get(key) : null);
+        key ? geoms.get(key) : null, suspects);
     }).filter(r => r.holesPlayed > 0);
-    raData = {rounds};
+    // First pass to get distances, then find the missed-swing artifacts, then
+    // re-analyse so strokes gained skips the holes they sit on.
+    let rounds = build(null);
+    const suspects = markOutliers(rounds);
+    if (suspects.size){ rounds = build(suspects); markOutliers(rounds); }
+    raData = {rounds, outliers: suspects.size};
   } catch (e){ raData = {error: e.message || String(e)}; }
   renderRoundAnalytics();
 }
@@ -6136,6 +6213,7 @@ const EXPLAIN = {
   puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
   chiplen: {t: "Stroke length", b: "How far your wrist rotates on the backswing — the main lever for chip distance. There's no single 'right' number; distance control is about repeating the SAME length for the same shot. The dots below show how tightly you're stacking your recent chips."},
   playslike: {t: "Plays like (slope)", b: "GPS gives the distance across the ground; \u201cplays like\u201d adds what the hill costs you. The ball comes down at an angle, so a green above you cuts the flight short and one below you stretches it. We add \u0394height \u00f7 tan(landing angle) \u2014 which is why the same 15 ft of rise costs your driver more than your wedge: the driver lands shallow. Two honest caveats: the terrain model is ~30 m resolution, so treat it as a nudge of a few yards rather than a survey, and it ignores wind and air density entirely. Slope-adjusted yardages are not legal for competition \u2014 tap the card to switch back to true distance."},
+  heldout: {t: "Held-out shots", b: "A shot's distance is measured to wherever you played the NEXT shot from. If the sensor misses a swing, that one segment quietly covers two strokes and the club gets credited with both — a 230 yd drive plus an 80 yd wedge becomes a 310 yd drive. The giveaway is usually a big jump in distance with no extra clubhead speed behind it, which is not what a career drive looks like. Those shots are held out of your bag, and only ever from the long end: a missed swing can only make a distance too big, while short shots are real golf and belong in your numbers. Nothing is deleted — the full dashboard lists every held-out shot and lets you put any of them back."},
   flatcarry: {t: "Flat-ground carry", b: "Your club distances are restated as what they would have been on level ground. A shot that finishes above you covered less ground than the strike deserved, and one that finishes below covered more \u2014 so without this correction a hilly course quietly rewrites your bag. Only shots where we know the terrain get adjusted; the rest are taken at face value, and the count is shown under the bag."},
   chiphinge: {t: "Wrist hinge", b: "How much your wrist cocks (sets) going back. Some chipping methods want it quiet, others hinge-and-hold — either works, the key is consistency. It's a tendency read from wrist orientation, not a measured shaft angle."},
 };
@@ -6773,10 +6851,134 @@ function bagShort(g){
   const l = g.label || "Club";
   return l.length > 8 ? l.slice(0, 7) + "…" : l;
 }
+/* ---------- Missed-swing artifacts ("chain breaks") ----------
+   A shot's distance is measured to where the NEXT shot was played from. When the
+   sensor misses a swing, that segment silently spans TWO strokes and the club is
+   credited with both: a 230 yd drive plus an 80 yd wedge becomes a 310 yd drive.
+
+   The error is one-directional. A missed swing can only ever INFLATE a distance,
+   never shorten it. That asymmetry is the whole basis for what follows, and it is
+   why we only ever trim the top: short shots are real golf — mishits, punch-outs,
+   laid-up seconds — and dropping those would bias the bag upward, a worse lie
+   than the one we're fixing.
+
+   We cannot recover the two real distances from their sum, so a flagged shot is
+   held out of the statistics. It is never repaired, never invented, and never
+   deleted — you can put any of them back. */
+const OUT = {
+  EXCESS_HARD: 0.40,  // this much past your median, on its own, is enough
+  EXCESS_MIN:  0.18,  // below this a shot is never questioned, whatever else says
+  TUKEY_K: 1.5,       // standard upper-fence multiplier on the IQR
+  MIN_N_STATS: 6,     // shots needed before the club's spread is worth testing
+  MIN_N_SPEED: 5,     // shots needed before its speed median means anything
+  MIN_N_ANY: 3,       // shots needed before a median means anything at all
+};
+/* Per-club robust reference. skipFlagged rebuilds it ignoring shots already
+   flagged, so the median that judges the next pass isn't itself contaminated. */
+function clubRefs(rounds, skipFlagged){
+  const M = new Map();
+  for (const r of rounds || [])
+    for (const x of r.dists || []){
+      if (!x.club) continue;
+      if (skipFlagged && x.suspect) continue;
+      if (!M.has(x.club)) M.set(x.club, {d: [], sp: []});
+      const g = M.get(x.club);
+      g.d.push(x.flatYd != null ? x.flatYd : x.yd);
+      if (x.club_mph != null && !x.clipped && +x.club_mph > 0) g.sp.push(+x.club_mph);
+    }
+  const out = new Map();
+  for (const [k, g] of M){
+    if (!g.d.length) continue;
+    const q1 = pct(g.d, .25), q3 = pct(g.d, .75);
+    out.set(k, {n: g.d.length, med: median(g.d), q1, q3, iqr: q3 - q1,
+                medSpeed: g.sp.length >= 3 ? median(g.sp) : null});
+  }
+  return out;
+}
+/* Returns a plain-English reason, or null if the shot looks like one stroke. */
+function shotSuspect(x, ref){
+  if (!ref || ref.n < OUT.MIN_N_ANY) return null;
+  const d = x.flatYd != null ? x.flatYd : x.yd;
+  if (!(d > 0) || !(ref.med > 0)) return null;
+  // Work in EXCESS over your own median rather than a flat ratio: a tight
+  // driver and a wedge have very different yardages but the same question —
+  // is this more extra distance than one strike can explain?
+  const excess = d - ref.med;
+  if (excess < OUT.EXCESS_MIN * ref.med) return null;
+  const R = Math.round, pctOver = R((d / ref.med - 1) * 100);
+  if (excess >= OUT.EXCESS_HARD * ref.med)
+    return `${R(d)} yd is ${pctOver}% past your ${R(ref.med)} yd median for this club`;
+  // corroboration 1 — the club's own spread calls it an outlier
+  if (ref.n >= OUT.MIN_N_STATS && ref.iqr > 0 && d > ref.q3 + OUT.TUKEY_K * ref.iqr)
+    return `${R(d)} yd falls outside this club's normal spread (${R(ref.q1)}–${R(ref.q3)} yd)`;
+  // corroboration 2 — extra distance with no extra clubhead speed behind it.
+  // A career drive comes with a faster swing; a merged pair doesn't.
+  if (ref.n >= OUT.MIN_N_SPEED && ref.medSpeed != null
+      && x.club_mph != null && !x.clipped && +x.club_mph <= ref.medSpeed * 1.02)
+    return `${R(d)} yd off a ${R(x.club_mph)} mph swing — ${pctOver}% more distance with no more speed behind it`;
+  return null;
+}
+/* Shots the user has vouched for, by `${sessionId}:${seq}`. */
+function keepShots(){
+  try { return new Set(JSON.parse(localStorage.getItem("sc-keepshots")) || []); }
+  catch (e){ return new Set(); }
+}
+function setKeepShot(key, on){
+  const s = keepShots();
+  if (on) s.add(key); else s.delete(key);
+  try { localStorage.setItem("sc-keepshots", JSON.stringify([...s])); } catch (e) {}
+}
+/* Marks r.dists[i].suspect across every round. Two passes: the first judges
+   against a reference that may still contain artifacts, the second against one
+   rebuilt without them. Bounded at two so it can't cascade into trimming real
+   shots. Returns the set of flagged `${sessionId}:${seq}` keys. */
+function markOutliers(rounds){
+  const keep = keepShots();
+  for (const r of rounds || [])
+    for (const x of r.dists || []){
+      x.key = `${r.id}:${x.seq}`;
+      x.suspect = null;
+      x.kept = keep.has(x.key);
+    }
+  let refs = clubRefs(rounds, false);
+  // Flags only ever accumulate. Pass 1 judges against the full (contaminated,
+  // therefore generous) reference; pass 2 re-judges what survived against a
+  // reference rebuilt without the artifacts, which is what catches the rest
+  // when a club has been badly hit. Never the reverse: a cleaned reference has
+  // a lower median, so it could only ever flag MORE, and letting it un-flag
+  // would just mean a club with few clean shots left exonerates its own
+  // artifacts.
+  for (let pass = 0; pass < 2; pass++){
+    for (const r of rounds || [])
+      for (const x of r.dists || []){
+        if (x.kept || x.suspect) continue;   // vouched for, or already decided
+        const why = shotSuspect(x, refs.get(x.club));
+        if (why) x.suspect = why;
+      }
+    refs = clubRefs(rounds, true);
+  }
+  const set = new Set();
+  for (const r of rounds || [])
+    for (const x of r.dists || []) if (x.suspect) set.add(x.key);
+  return set;
+}
+/* Every held-out shot, newest first, for the review table. */
+function outlierList(rounds){
+  const out = [];
+  for (const r of rounds || [])
+    for (const x of r.dists || [])
+      if (x.suspect)
+        out.push({key: x.key, date: r.date, course: r.course, hole: x.hole,
+                  club: x.club, yd: x.flatYd != null ? x.flatYd : x.yd, why: x.suspect});
+  return out.sort((a, b) => new Date(b.date) - new Date(a.date) || a.hole - b.hole);
+}
+
+let showOutliers = false;   // "show held-out shots" toggle on the bag
 function bagGroupsFromRounds(rounds){
   const M = new Map();
   for (const r of rounds)
     for (const x of r.dists || []){
+      if (x.suspect && !showOutliers) continue;
       const def = CLUBS.find(c => c.id === x.club);
       const label = def ? (def.id === "custom" ? "Custom" : def.name) : (x.club || "Club");
       const inches = def && def.inches != null ? def.inches : 0;
@@ -6976,6 +7178,14 @@ function renderAnRounds(){
     return;
   }
   const use = bagWin ? all.slice(-bagWin) : all;
+  const held = use.reduce((n, r) => n + (r.dists || []).filter(x => x.suspect).length, 0);
+  if (held){
+    const t = document.createElement("button");
+    t.type = "button"; t.textContent = `Held out ${held}`;
+    if (showOutliers) t.classList.add("on");
+    t.addEventListener("click", () => { showOutliers = !showOutliers; bagOpen = null; renderAnRounds(); });
+    win.appendChild(t);
+  }
   const groups = bagGroupsFromRounds(use);
   chart.textContent = "";
   renderBagChart(chart, groups);
@@ -6986,6 +7196,10 @@ function renderAnRounds(){
     ? `${measured} GPS-measured shot${measured === 1 ? "" : "s"} across `
       + `${use.length} round${use.length === 1 ? "" : "s"}. `
       + (adjusted ? `${adjusted} restated as flat-ground carry using course terrain. ` : "")
+      + (held ? (showOutliers
+          ? `${held} likely missed-swing shot${held === 1 ? " is" : "s are"} currently INCLUDED — tap "Held out" to take them back out. `
+          : `${held} shot${held === 1 ? "" : "s"} held out as likely missed-swing artifacts. `)
+        : "")
       + `Distances are measured between where you played consecutive shots — never estimated from swing speed.`
     : "No GPS-measured shots yet — distances are captured as you play mapped holes.";
   // scoring across the same window
