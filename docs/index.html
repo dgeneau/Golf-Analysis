@@ -439,6 +439,8 @@
   .chip:hover { border-color: var(--baseline); }
   .chip:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
   .chip[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); border-color: var(--chip-on); }
+  .btn.radel { padding: 5px 11px; font-size: 12px; }
+  .btn.radel.armed { background: var(--serious); border-color: var(--serious); color: #fff; }
   .chip .clip { color: var(--serious); font-weight: 700; margin-left: 4px; }
   .chip[aria-pressed="true"] .clip { color: inherit; }
 
@@ -730,22 +732,21 @@
       <p class="note" id="progressGateMsg"></p>
     </div>
     <div id="progressBody" hidden>
-      <div class="grid2">
-        <div class="card">
-          <h2>Tempo by session</h2>
-          <p class="note">Average tempo ratio per synced session — band is the 2.5–3.5 target.</p>
-          <div id="progTempo"></div>
-        </div>
-        <div class="card">
-          <h2 id="progSpeedTitle">Club speed by session</h2>
-          <p class="note" id="progSpeedNote"></p>
-          <div id="progSpeed"></div>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Sessions</h2>
-        <div class="scroll-x"><table class="all" id="progTable"></table></div>
-        <button class="btn secondary" id="progMore" hidden style="margin-top:10px"></button>
+      <span class="seg" id="anTabsD" role="group" aria-label="Analytics section"
+            style="margin-bottom:14px">
+        <button id="dTabRounds" data-tab="rounds" aria-pressed="true">Rounds</button>
+        <button id="dTabRange" data-tab="range" aria-pressed="false">Range</button>
+      </span>
+
+      <div id="dPaneRounds">
+      <div class="card" style="margin-bottom:14px">
+        <h2>Your bag</h2>
+        <p class="note">Every club on one yardage axis — box is the middle half of your shots,
+          whisker the full range, tick the median. Gaps and overlaps in the set read straight off it.</p>
+        <div class="chips" id="dBagWin"></div>
+        <div id="dBagChart" style="margin-bottom:6px"></div>
+        <div class="scroll-x"><table class="all" id="dBagTable"></table></div>
+        <p class="note" id="dBagNote" style="margin-top:10px"></p>
       </div>
       <div class="card">
         <h2>Round analytics</h2>
@@ -777,7 +778,9 @@
           </div>
           <div class="card">
             <h2>Rounds</h2>
-            <p class="note">Click a round to replay its shots on the map below.</p>
+            <p class="note">Click a round to replay its shots on the map below.
+              Delete removes the round and every shot, hole and swing in it — permanently,
+              with no undo, so it asks twice.</p>
             <div class="scroll-x"><table class="all" id="raTable"></table></div>
             <p class="note">Honesty notes: putting SG is approximate (we track putt counts, not putt distances — baseline 1.9 expected putts per green); holes with penalty strokes count in scoring but are excluded from SG (the position chain has invisible strokes); holes without GPS positions or OSM geometry are excluded from position-based stats.</p>
           </div>
@@ -792,6 +795,33 @@
             <p class="note" id="raHoleInfo" style="margin-top:8px"></p>
           </div>
         </div>
+      </div>
+      </div>
+
+      <div id="dPaneRange" hidden>
+      <div class="card" id="dRangeGate" hidden style="margin-bottom:14px">
+        <h2>Range</h2>
+        <p class="note" id="dRangeNote"></p>
+      </div>
+      <div id="dRangeBody">
+      <div class="grid2">
+        <div class="card">
+          <h2>Tempo by session</h2>
+          <p class="note">Average tempo ratio per synced session — band is the 2.5–3.5 target.</p>
+          <div id="progTempo"></div>
+        </div>
+        <div class="card">
+          <h2 id="progSpeedTitle">Club speed by session</h2>
+          <p class="note" id="progSpeedNote"></p>
+          <div id="progSpeed"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Sessions</h2>
+        <div class="scroll-x"><table class="all" id="progTable"></table></div>
+        <button class="btn secondary" id="progMore" hidden style="margin-top:10px"></button>
+      </div>
+      </div>
       </div>
     </div>
   </div>
@@ -3984,6 +4014,8 @@ function initRoundControls(){
     renderHoleGrid();
   });
   on("progMore", () => { progShowAll = !progShowAll; renderProgressCharts(); });
+  for (const b of document.querySelectorAll("#anTabsD button"))
+    b.addEventListener("click", () => setDTab(b.dataset.tab));
   on("findCourseBtn", () => searchCourses(document.getElementById("courseSearch").value.trim() || null));
   on("nearbyCourseBtn", () => searchCourses(null));
   document.getElementById("courseSearch").addEventListener("input", courseAutocomplete);
@@ -4046,7 +4078,7 @@ async function loadProgress(){
   for (const r of swingsQ.data || []){
     if (!map.has(r.session_id)){
       const m = meta.get(r.session_id);
-      map.set(r.session_id, {date: r.ts, swings: [],
+      map.set(r.session_id, {id: r.session_id, date: r.ts, swings: [],
         kind: m && m.type === "round" ? ("Round" + (m.course_name ? " · " + m.course_name : ""))
                                       : "Range"});
     }
@@ -4089,71 +4121,157 @@ function lineChart(hostId, pts, opts){
       [["var(--s1)", p.y.toFixed(opts.dp ?? 1) + (opts.unit||""), opts.series]]);
   });
 }
+/* ---------- Desktop analytics: Rounds | Range ----------
+   Same split as the phone, and the same reason: a round and a range session
+   answer different questions. The range charts here use range sessions only —
+   swings logged during a round are shots, not practice. Tab choice is shared
+   with mobile via `anTab`, so the app doesn't argue with itself. */
+function setDTab(t){
+  anTab = t;
+  try { localStorage.setItem("sc-antab", t); } catch (e) {}
+  renderProgressCharts();
+}
 function renderProgressCharts(){
   const gate = document.getElementById("progressGate");
   const body = document.getElementById("progressBody");
   const msg = document.getElementById("progressGateMsg");
+  if (!gate || !body) return;
   if (!sbUser){
     gate.hidden = false; body.hidden = true;
     msg.textContent = "Sign in (toolbar above) to save sessions and see your trends.";
     return;
   }
-  if (progressData == null){
-    gate.hidden = false; body.hidden = true;
-    msg.textContent = "Loading your sessions…";
-    return;
-  }
-  if (progressData.error){
-    gate.hidden = false; body.hidden = true;
-    msg.textContent = "Couldn't load history: " + progressData.error;
-    return;
-  }
-  if (!progressData.length){
-    gate.hidden = false; body.hidden = true;
-    msg.textContent = "No synced sessions yet. While you're signed in, every swing syncs automatically — hit a session and come back.";
-    return;
-  }
   gate.hidden = true; body.hidden = false;
-  const avg = a => a.reduce((x,y)=>x+y,0)/a.length;
-  const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  const R = document.getElementById("dPaneRounds"), G = document.getElementById("dPaneRange");
+  if (R) R.hidden = anTab !== "rounds";
+  if (G) G.hidden = anTab !== "range";
+  for (const b of document.querySelectorAll("#anTabsD button"))
+    b.setAttribute("aria-pressed", b.dataset.tab === anTab ? "true" : "false");
+  // renderRoundAnalytics also refreshes the bag, so the Rounds tab needs only it
+  if (anTab === "range") renderRangePane(); else renderRoundAnalytics();
+}
+function renderRangePane(){
+  const gate = document.getElementById("dRangeGate");
+  const body = document.getElementById("dRangeBody");
+  const note = document.getElementById("dRangeNote");
+  if (!gate || !body) return;
+  const stop = text => { gate.hidden = false; body.hidden = true; note.textContent = text; };
+  if (progressData == null) return stop("Loading your sessions…");
+  if (progressData.error) return stop("Couldn't load history: " + progressData.error);
+  const rng = progressData.filter(s => s.kind === "Range");
+  if (!rng.length)
+    return stop(progressData.length
+      ? "No range sessions yet — every session synced so far was a round. These charts cover practice only; your round data is on the Rounds tab."
+      : "No synced sessions yet. While you're signed in, every swing syncs automatically — hit a session and come back.");
+  gate.hidden = true; body.hidden = false;
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"});
   lineChart("progTempo",
-    progressData.map(s => ({label: dlab(s.date), y: avg(s.swings.map(w=>+w.tempo))})),
-    {label:"Average tempo per session", series:"avg tempo", band:[2.5,3.5], minMax:4, dp:2});
+    rng.map(s => ({label: dlab(s.date), y: avg(s.swings.map(w => +w.tempo).filter(v => isFinite(v)))}))
+       .filter(p => p.y != null),
+    {label: "Average tempo per range session", series: "avg tempo", band: [2.5, 3.5], minMax: 4, dp: 2});
   const wantClub = clubId;
-  const clubPts = progressData
-    .map(s => ({label: dlab(s.date),
-                ws: s.swings.filter(w => w.club_id === wantClub)}))
+  const clubPts = rng
+    .map(s => ({label: dlab(s.date), ws: s.swings.filter(w => w.club_id === wantClub)}))
     .filter(p => p.ws.length)
-    .map(p => ({label: p.label, y: avg(p.ws.map(w=>+w.club_mph))}));
+    .map(p => ({label: p.label, y: avg(p.ws.map(w => +w.club_mph).filter(v => isFinite(v)))}))
+    .filter(p => p.y != null);
   document.getElementById("progSpeedTitle").textContent = `Club speed by session — ${clubLabel()}`;
-  document.getElementById("progSpeedNote").textContent =
-    clubPts.length ? "Average estimated club speed for sessions where this club was swung. Change the club selector to switch. Speed is a wrist-IMU estimate — the calculation was recalibrated over the project's life, so older synced sessions may sit on a slightly different scale; read the shape of the trend, not small step-changes. GPS-measured distances (below) are unaffected."
-                   : "No synced swings with this club yet — change the club selector above.";
+  document.getElementById("progSpeedNote").textContent = clubPts.length
+    ? "Average estimated club speed for range sessions where this club was swung. Change the club selector to switch. Speed is a wrist-IMU estimate — the calculation was recalibrated over the project's life, so older synced sessions may sit on a slightly different scale; read the shape of the trend, not small step-changes. GPS-measured distances (Rounds tab) are unaffected."
+    : "No synced range swings with this club yet — change the club selector above.";
   lineChart("progSpeed", clubPts,
-    {label:"Average club speed per session", series:"avg est. club", unit:" mph"});
+    {label: "Average club speed per range session", series: "avg est. club", unit: " mph"});
+  renderProgTable(rng);
+}
+/* ---------- Desktop bag ----------
+   Same numbers as the phone, but a desktop table can show every column at once
+   instead of hiding them behind a tap. */
+function renderDesktopBag(){
+  const chart = document.getElementById("dBagChart");
+  const table = document.getElementById("dBagTable");
+  const note = document.getElementById("dBagNote");
+  const win = document.getElementById("dBagWin");
+  if (!chart || !table) return;
+  win.textContent = "";
+  for (const [v, lab] of [[5, "Last 5"], [10, "Last 10"], [0, "All time"]]){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = lab;
+    b.setAttribute("aria-pressed", bagWin === v ? "true" : "false");
+    b.addEventListener("click", () => {
+      bagWin = v;
+      try { localStorage.setItem("sc-bagwin", String(v)); } catch (e) {}
+      renderDesktopBag();
+    });
+    win.appendChild(b);
+  }
+  const clear = t => { chart.textContent = ""; table.textContent = ""; note.textContent = t; };
+  if (raData == null) return clear("Loading your rounds…");
+  if (raData.error) return clear("Couldn't load rounds: " + raData.error);
+  const all = [...(raData.rounds || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!all.length)
+    return clear("No rounds synced yet — play a round while signed in and your bag builds itself.");
+  const use = bagWin ? all.slice(-bagWin) : all;
+  const groups = bagGroupsFromRounds(use);
+  if (!groups.length)
+    return clear("No GPS-measured shots in these rounds yet — distances are captured as you play mapped holes.");
+  chart.textContent = "";
+  renderBagChart(chart, groups, {W: 720, RH: 24, L: 62});
+  table.textContent = "";
+  const head = ["Club", "Median", "Middle half", "Range", "Longest", "Shots", "Rounds",
+                "Avg tempo", "Avg est. club (mph)"];
+  const tr = document.createElement("tr");
+  for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
+  table.appendChild(tr);
+  const r0 = v => v == null ? "—" : String(Math.round(v));
+  for (const g of groups){
+    const st = bagStats(g);
+    const row = document.createElement("tr");
+    [g.label, st.med != null ? r0(st.med) : "—",
+     st.shots >= 4 ? `${r0(st.p25)}–${r0(st.p75)}` : "—",
+     st.shots ? `${r0(st.min)}–${r0(st.max)}` : "—",
+     r0(st.max), String(st.shots), st.rounds != null ? String(st.rounds) : "—",
+     st.tempo != null ? st.tempo.toFixed(2) : "—",
+     st.speed != null ? r0(st.speed) : "—"]
+      .forEach((c, k) => { const td = document.createElement("td"); td.textContent = c;
+                           if (k === 0) td.style.textAlign = "left"; row.appendChild(td); });
+    if (st.shots && st.shots < 3) row.style.opacity = ".7";
+    table.appendChild(row);
+  }
+  const measured = groups.reduce((n, x) => n + x.d.length, 0);
+  const adjusted = groups.reduce((n, x) => n + (x.adj || 0), 0);
+  note.textContent = `${measured} GPS-measured shot${measured === 1 ? "" : "s"} across `
+    + `${use.length} round${use.length === 1 ? "" : "s"}. `
+    + (adjusted ? `${adjusted} restated as flat-ground carry using course terrain — a shot finishing above where it was struck covered less ground than the strike deserved, so without that a hilly course quietly rewrites your bag. ` : "")
+    + `Distances are measured between where you played consecutive shots, never estimated from swing speed. `
+    + `Clubs with fewer than 3 measured shots are dimmed — treat those as a first read.`;
+}
+function renderProgTable(rng){
   const t = document.getElementById("progTable");
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
   t.textContent = "";
-  const head = ["Date","Type","Swings","Avg tempo","Avg hand (mph)","Avg est. club (mph)","Best est. club"];
+  const head = ["Date","Swings","Avg tempo","Avg hand (mph)","Avg est. club (mph)","Best est. club"];
   const tr = document.createElement("tr");
   for (const h of head){ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); }
   t.appendChild(tr);
-  const all = [...progressData].reverse();
+  const all = [...rng].reverse();
   const shown = progShowAll ? all : all.slice(0, 8);
   for (const s of shown){
     const row = document.createElement("tr");
     const cl = s.swings.map(w=>+w.club_mph);
-    [new Date(s.date).toLocaleDateString(), s.kind || "Range", String(s.swings.length),
-     avg(s.swings.map(w=>+w.tempo)).toFixed(2),
-     avg(s.swings.map(w=>+w.hand_mph)).toFixed(1),
-     avg(cl).toFixed(1), Math.max(...cl).toFixed(1)]
+    const clean = cl.filter(v => isFinite(v) && v > 0);
+    [new Date(s.date).toLocaleDateString(), String(s.swings.length),
+     avg(s.swings.map(w=>+w.tempo).filter(v=>isFinite(v))).toFixed(2),
+     avg(s.swings.map(w=>+w.hand_mph).filter(v=>isFinite(v))).toFixed(1),
+     clean.length ? avg(clean).toFixed(1) : "—",
+     clean.length ? Math.max(...clean).toFixed(1) : "—"]
       .forEach((c,k)=>{ const td=document.createElement("td"); td.textContent=c;
-                        if(k<=1) td.style.textAlign="left"; row.appendChild(td); });
+                        if(k===0) td.style.textAlign="left"; row.appendChild(td); });
     t.appendChild(row);
   }
   const more = document.getElementById("progMore");
   more.hidden = all.length <= 8;
-  more.textContent = progShowAll ? "Show recent only" : `Show all ${all.length} sessions`;
-  renderRoundAnalytics();   // uses cached raData; distance chart follows the club selector
+  more.textContent = progShowAll ? "Show recent only" : `Show all ${all.length} range sessions`;
 }
 
 /* ---------- Round analytics: fairways, distances over time, strokes gained ----------
@@ -4452,9 +4570,11 @@ function raSGChart(rounds){
   });
 }
 function renderRoundAnalytics(){
-  // rounds load async — keep the mobile trends bag/list in step as raData fills
+  // rounds load async — keep the bag (both layouts) in step as raData fills
   if (typeof mobileEligible === "function" && mobileEligible() && mScreen === "trends")
     renderMTrends();
+  if (typeof renderDesktopBag === "function" && document.getElementById("dBagTable"))
+    renderDesktopBag();
   const note = document.getElementById("raNote");
   const body = document.getElementById("raBody");
   if (!note) return;
@@ -4485,7 +4605,7 @@ function renderRoundAnalytics(){
   const t = document.getElementById("raTable");
   t.textContent = "";
   const head = ["Date", "Course", "Holes", "Score", "Putts", "FIR", "GIR",
-                "SG tee", "SG appr", "SG short", "SG putt", "SG total"];
+                "SG tee", "SG appr", "SG short", "SG putt", "SG total", ""];
   const tr = document.createElement("tr");
   for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
   t.appendChild(tr);
@@ -4504,12 +4624,60 @@ function renderRoundAnalytics(){
      r.sgHoles ? fmtSg(total) : "—"]
       .forEach((c, k) => { const td = document.createElement("td"); td.textContent = c;
                            if (k <= 1) td.style.textAlign = "left"; row.appendChild(td); });
+    const dtd = document.createElement("td");
+    const del = document.createElement("button");
+    const armed = raPendingDelete === r.id;
+    del.type = "button";
+    del.className = "btn secondary radel" + (armed ? " armed" : "");
+    del.textContent = armed ? "Confirm delete" : "Delete";
+    del.title = "Delete this round and every shot in it — permanent";
+    del.addEventListener("click", ev => { ev.stopPropagation(); deleteRound(r, del); });
+    dtd.appendChild(del);
+    row.appendChild(dtd);
     row.dataset.round = r.id;
     row.addEventListener("click", () => openReplay(r, row));
     if (replayRound && replayRound.id === r.id) row.classList.add("sel");
     t.appendChild(row);
   }
   if (replayRound && !rounds.some(r => r.id === replayRound.id)) closeReplay();
+}
+
+/* ---------- Delete a round ----------
+   Deleting the session row is enough: shots, holes and swings all carry
+   `on delete cascade` on session_id in the schema. Two taps, and the second
+   one names the round, because this cannot be undone and there is no bin to
+   fish it back out of. */
+let raPendingDelete = null;   // round id awaiting its confirming second click
+async function deleteRound(r, btn){
+  if (raPendingDelete !== r.id){
+    raPendingDelete = r.id;
+    renderRoundAnalytics();
+    toast(`Delete ${r.course || "this round"} (${new Date(r.date).toLocaleDateString()})? Click again to confirm — this can't be undone.`);
+    // a pending delete shouldn't sit armed forever
+    setTimeout(() => {
+      if (raPendingDelete === r.id){ raPendingDelete = null; renderRoundAnalytics(); }
+    }, 8000);
+    return;
+  }
+  raPendingDelete = null;
+  if (!sb || !sbUser){ toast("Sign in to delete rounds."); return; }
+  if (btn){ btn.disabled = true; btn.textContent = "Deleting…"; }
+  try {
+    const {error} = await sb.from("sessions").delete().eq("id", r.id);
+    if (error) throw error;
+  } catch (e){
+    if (btn){ btn.disabled = false; btn.textContent = "Delete"; }
+    toast("Couldn't delete that round: " + (e.message || e));
+    return;
+  }
+  // drop it locally rather than refetching the whole history
+  if (raData && raData.rounds) raData.rounds = raData.rounds.filter(x => x.id !== r.id);
+  if (progressData && progressData.length)
+    progressData = progressData.filter(x => x.id !== r.id);
+  if (replayRound && replayRound.id === r.id) closeReplay();
+  toast(`Deleted ${r.course || "round"} · ${new Date(r.date).toLocaleDateString()}`);
+  renderRoundAnalytics();
+  if (typeof renderProgressCharts === "function") renderProgressCharts();
 }
 
 /* ---------- Round replay: shots per hole on the course map ---------- */
@@ -6628,11 +6796,14 @@ function bagGroupsFromRounds(rounds){
 /* Gapping picture: every club on one yardage axis, so overlaps and holes in
    the set are obvious at a glance. Box is the middle half of your shots,
    whisker the full range, tick the median. */
-function renderBagChart(host, groups){
+function renderBagChart(host, groups, opts){
   host.textContent = "";
   const rows = groups.map(g => ({g, st: bagStats(g)})).filter(r => r.st.shots >= 2);
   if (rows.length < 2) return;
-  const W = 320, RH = 21, PADT = 4, PADB = 18, L = 44, R = 8;
+  // viewBox width tracks the layout: a 320-wide box blown up to a desktop card
+  // would scale the type with it, so wide hosts get a wide box drawn 1:1.
+  const o = opts || {};
+  const W = o.W || 320, RH = o.RH || 21, PADT = 4, PADB = 18, L = o.L || 44, R = 8;
   const H = PADT + rows.length * RH + PADB;
   const lo = Math.min(...rows.map(r => r.st.min)), hi = Math.max(...rows.map(r => r.st.max));
   const span = Math.max(20, hi - lo);
@@ -6640,7 +6811,7 @@ function renderBagChart(host, groups){
   const X = v => L + (v - x0) / (x1 - x0) * (W - L - R);
   const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
     "aria-label": "Club distance gapping"}, host);
-  svg.style.cssText = "width:100%;height:auto;display:block;overflow:visible";
+  svg.style.cssText = `width:100%;max-width:${W}px;height:auto;display:block;overflow:visible`;
   rows.forEach((r, i) => {
     const y = PADT + i * RH + RH / 2;
     const t = el("text", {x: 0, y: y + 3.5, fill: "#23221c"}, svg);
