@@ -288,6 +288,8 @@
   .mprimary, .mghost, .mblue { white-space: nowrap; }
   .movl { position: absolute; background: #f8f6ee; color: #23221c; border: 1px solid #ddd7c4;
           border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15); z-index: 500; }
+  .mbackovl { top: calc(max(var(--sat), 16px) + 8px); left: 14px; padding: 10px 14px;
+              font: 600 13px "IBM Plex Sans", system-ui; cursor: pointer; }
   .mtl { top: calc(max(var(--sat), 16px) + 8px); left: 14px; padding: 10px 14px;
          display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
   .mholeN { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 28px; line-height: 1; }
@@ -497,7 +499,57 @@
   .build { display: block; color: var(--muted); font: 11px 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: .04em; margin-top: 14px; text-align: center; opacity: .8; }
   footer .build { text-align: left; }
   .scroll-x { overflow-x: auto; }
+  /* ---- boot splash: the logo's own shot, played ----
+     Inline in the markup and styled here in the head so it paints before the
+     app script is even parsed. The ball flies the dotted arc into the pin,
+     lighting each dot of the trace as it passes; at the end both reset while invisible, so the
+     loop reads as the next shot rather than a jump cut. */
+  .bootsplash { position: fixed; inset: 0; z-index: 9999; display: flex;
+    flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: #f0ede2; transition: opacity .38s ease; }
+  .bootsplash.gone { opacity: 0; pointer-events: none; }
+  .bootword { font: 400 30px/1 "Instrument Serif", Georgia, serif; color: #23221c;
+              letter-spacing: .01em; margin-top: 4px; }
+  .bootsub { font: 500 12.5px "IBM Plex Sans", system-ui; color: #8a8577; margin-top: 6px; }
+  .spinmark { display: inline-block; vertical-align: -3px; margin-right: 7px; }
+  @media (prefers-reduced-motion: reduce) { .bootsplash { transition: none; } }
 </style>
+
+<!-- Boot splash. Removed by hideSplash() once boot() settles. -->
+<div class="bootsplash" id="bootSplash" role="status" aria-label="Loading Downrange">
+  <svg viewBox="2 2 64 56" width="148" height="130" fill="none" aria-hidden="true">
+    <!-- the trace, unflown -->
+    <circle cx="10.89" cy="44.7" r="2.5" fill="#ddd7c4"/>
+    <circle cx="15.28" cy="38.48" r="2.5" fill="#ddd7c4"/>
+    <circle cx="19.72" cy="34.33" r="2.5" fill="#ddd7c4"/>
+    <circle cx="24.23" cy="32.26" r="2.5" fill="#ddd7c4"/>
+    <circle cx="28.79" cy="32.26" r="2.5" fill="#ddd7c4"/>
+    <circle cx="33.4" cy="34.33" r="2.5" fill="#ddd7c4"/>
+    <circle cx="38.08" cy="38.48" r="2.5" fill="#ddd7c4"/>
+    <circle cx="42.81" cy="44.7" r="2.5" fill="#ddd7c4"/>
+    <g>
+      <circle cx="10.89" cy="44.7" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.062;0.092;0.88;0.94;1"/></circle>
+      <circle cx="15.28" cy="38.48" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.156;0.186;0.88;0.94;1"/></circle>
+      <circle cx="19.72" cy="34.33" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.25;0.28;0.88;0.94;1"/></circle>
+      <circle cx="24.23" cy="32.26" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.343;0.373;0.88;0.94;1"/></circle>
+      <circle cx="28.79" cy="32.26" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.437;0.467;0.88;0.94;1"/></circle>
+      <circle cx="33.4" cy="34.33" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.53;0.56;0.88;0.94;1"/></circle>
+      <circle cx="38.08" cy="38.48" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.624;0.654;0.88;0.94;1"/></circle>
+      <circle cx="42.81" cy="44.7" r="2.5" fill="#8a9270" opacity="0"><animate attributeName="opacity" dur="2.2s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.718;0.748;0.88;0.94;1"/></circle>
+      <circle r="4.2" fill="#b4632f">
+        <animateMotion dur="2.2s" repeatCount="indefinite" calcMode="linear"
+                       path="M8 50 Q 26 14 46 50"
+                       keyPoints="0;1;1;0" keyTimes="0;0.78;0.93;0.931"/>
+        <animate attributeName="opacity" dur="2.2s" repeatCount="indefinite"
+                 values="1;1;0;0;1" keyTimes="0;0.82;0.90;0.95;1"/>
+      </circle>
+    </g>
+    <line x1="46" y1="8" x2="46" y2="52" stroke="#23221c" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"/>
+  </svg>
+  <div class="bootword">Downrange</div>
+  <div class="bootsub" id="bootSub">Warming up…</div>
+</div>
 
 <div class="wrap">
   <header class="top">
@@ -760,7 +812,7 @@
       </div>
       <div class="card">
         <h2>Round analytics</h2>
-        <p class="note" id="raNote">Loading rounds…</p>
+        <p class="note" id="raNote"></p>
         <div id="raBody" hidden>
           <div class="grid2">
             <div class="card">
@@ -1003,6 +1055,7 @@
   <!-- 1c · round, map-first -->
   <div class="mscreen" id="mRound" hidden>
     <div id="mMapSlot"></div>
+    <button class="movl mbackovl" id="mRoundBack" hidden>◂ Range</button>
     <div class="movl mtl" id="mHoleCard">
       <div class="mholeN" id="mHoleN">–</div>
       <div><div class="mlabel" id="mHoleMeta"></div><div class="mmeta" id="mHoleScore"></div></div>
@@ -4166,7 +4219,7 @@ function renderRangePane(){
   const note = document.getElementById("dRangeNote");
   if (!gate || !body) return;
   const stop = text => { gate.hidden = false; body.hidden = true; note.textContent = text; };
-  if (progressData == null) return stop("Loading your sessions…");
+  if (progressData == null){ stop(""); loadingLine(note, "Loading your sessions…"); return; }
   if (progressData.error) return stop("Couldn't load history: " + progressData.error);
   const rng = progressData.filter(s => s.kind === "Range");
   if (!rng.length)
@@ -4217,7 +4270,7 @@ function renderDesktopBag(){
   }
   const clear = t => { chart.textContent = ""; table.textContent = ""; note.textContent = t;
                        const hc = document.getElementById("dHeldCard"); if (hc) hc.hidden = true; };
-  if (raData == null) return clear("Loading your rounds…");
+  if (raData == null){ clear(""); loadingLine(note, "Loading your rounds…"); return; }
   if (raData.error) return clear("Couldn't load rounds: " + raData.error);
   const all = [...(raData.rounds || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (!all.length)
@@ -4658,7 +4711,7 @@ function renderRoundAnalytics(){
   if (!sbUser){ note.hidden = false; body.hidden = true;
     note.textContent = "Sign in to see round analytics."; return; }
   if (raData == null){ note.hidden = false; body.hidden = true;
-    note.textContent = "Loading rounds…"; return; }
+    loadingLine(note, "Loading rounds…"); return; }
   if (raData.error){ note.hidden = false; body.hidden = true;
     note.textContent = "Couldn't load rounds: " + raData.error; return; }
   const rounds = raData.rounds;
@@ -5823,6 +5876,58 @@ function renderAll(){
 }
 
 let APPMODE = "embedded";
+/* ---------- boot splash ----------
+   Hidden once boot() settles, whichever way it settles. A floor on how long it
+   shows stops a fast load looking like a flicker; the ceiling means a wedged
+   fetch can never leave someone staring at it. */
+const SPLASH_T0 = Date.now();
+let splashDone = false;
+function hideSplash(){
+  if (splashDone) return;
+  splashDone = true;
+  const s = document.getElementById("bootSplash");
+  if (!s) return;
+  setTimeout(() => {
+    s.classList.add("gone");
+    setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); }, 420);
+  }, Math.max(0, 600 - (Date.now() - SPLASH_T0)));
+}
+setTimeout(hideSplash, 7000);          // never trap anyone behind it
+try {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches){
+    const sv = document.querySelector("#bootSplash svg");
+    if (sv && sv.pauseAnimations) sv.pauseAnimations();
+  }
+} catch (e) {}
+/* The same mark at text size, for "loading…" lines. */
+function spinMark(size){
+  const n = size || 16;
+  const w = document.createElement("span");
+  w.className = "spinmark";
+  w.innerHTML = `<svg viewBox="2 2 64 56" width="${n}" height="${Math.round(n * 0.88)}" fill="none" aria-hidden="true">
+    <path d="M8 50 Q 26 14 46 50" stroke="#ddd7c4" stroke-width="5" stroke-dasharray="1 10" stroke-linecap="round"/>
+    <circle r="5" fill="#b4632f">
+      <animateMotion dur="1.5s" repeatCount="indefinite" calcMode="linear"
+                     path="M8 50 Q 26 14 46 50" keyPoints="0;1;1;0" keyTimes="0;0.72;0.9;0.901"/>
+      <animate attributeName="opacity" dur="1.5s" repeatCount="indefinite"
+               values="1;1;0;0;1" keyTimes="0;0.74;0.86;0.93;1"/>
+    </circle>
+    <line x1="46" y1="8" x2="46" y2="52" stroke="#23221c" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M46 10 L46 27 L64 18 Z" fill="#8a9270"/></svg>`;
+  return w;
+}
+/* Put a loading line carrying the mark into a host. A span, so it nests safely
+   inside the <p class="note"> elements these messages already live in. */
+function loadingLine(host, text, cls){
+  host.textContent = "";
+  const w = document.createElement("span");
+  if (cls) w.className = cls;
+  w.style.display = "block";
+  w.appendChild(spinMark(16));
+  w.appendChild(document.createTextNode(text));
+  host.appendChild(w);
+  return w;
+}
 async function boot(){
   if (DATA) {                       // embedded snapshot (published artifact)
     swings = DATA.swings; LEVER = DATA.lever_m;
@@ -6052,6 +6157,9 @@ function initMobile(){
     // Stop GPS/wake-lock but keep uiMode "round" so Share builds the round card.
     stopGps(); try { if (wakeLock) wakeLock.release(); } catch (e) {}
     mScreen = "roundsummary"; renderAll();
+  });
+  el("mRoundBack").addEventListener("click", () => {
+    mScreen = "range"; setMode("range");
   });
   el("mExitRoundBtn").addEventListener("click", () => {
     el("mSheet").hidden = true;
@@ -6550,6 +6658,9 @@ function renderMRound(){
   el("mRoundStart").hidden = !!active;
   el("mRoundActions").hidden = !active;
   el("mHoleCard").hidden = !active;
+  // Before a round starts there is nothing else in the top-left and no ⋯ menu,
+  // so this is the only way back out of a mis-tap.
+  el("mRoundBack").hidden = !!active;
   el("mClubRow").hidden = !active;
   if (!active){
     // don't stomp search results/notes while course chips are showing
@@ -7169,7 +7280,7 @@ function renderAnRounds(){
   const clear = () => { chart.textContent = ""; bagHost.textContent = "";
                         list.textContent = ""; grid.textContent = "";
                         note.textContent = ""; snote.textContent = ""; };
-  if (raData == null){ clear(); div("mfine", bagHost, "Loading your rounds…"); return; }
+  if (raData == null){ clear(); loadingLine(bagHost, "Loading your rounds…", "mfine"); return; }
   if (raData.error){ clear(); div("mfine", bagHost, "Couldn't load rounds: " + raData.error); return; }
   const all = [...(raData.rounds || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
   if (!all.length){
@@ -7241,7 +7352,7 @@ function renderAnRange(){
   const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"});
   if (progressData == null){
     g("mtTempo").textContent = ""; g("mtSpeed").textContent = ""; sess.textContent = "";
-    div("mfine", sess, "Loading your sessions…");
+    loadingLine(sess, "Loading your sessions…", "mfine");
     return;
   }
   if (progressData.error){
@@ -7708,7 +7819,7 @@ function renderDrillTrace(svgId, capId, m){
 }
 
 initClubFilter();
-boot();
+Promise.resolve().then(boot).catch(e => console.error("boot", e)).finally(hideSplash);
 // warm the card fonts early so the first Share tap builds synchronously
 try { ensureCardFonts().then(() => { window.__cardFontsReady = true; }); } catch (e) {}
 let rzT; addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(renderAll, 150); });
