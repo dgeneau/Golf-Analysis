@@ -294,6 +294,17 @@
          display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
   .mholeN { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 28px; line-height: 1; }
   .mmeta { font-size: 12.5px; color: #6b6558; }
+  .shotrow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #ddd7c4; }
+  .shotn { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; color: #8a8577; width: 18px; text-align: right; flex: none; }
+  .shotrow select.shotclub { flex: 1; min-width: 0; }
+  .shotdist { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30; min-width: 54px; text-align: right; flex: none; }
+  .shotrow.manual .shotdist { color: #8a8577; font-weight: 500; font-size: 11px; }
+  .shotact { flex: none; border: 1px solid #ddd7c4; background: #f8f6ee; color: #23221c; border-radius: 9px;
+             width: 34px; height: 34px; font: 600 17px "IBM Plex Sans", system-ui; line-height: 1; }
+  .shotact.del.armed { background: #b4632f; border-color: #b4632f; color: #f8f6ee; font-size: 11.5px; width: auto; padding: 0 10px; }
+  .shotadd { width: 100%; margin-top: 10px; border: 1px dashed #c9c2ab; background: transparent; color: #6b6558;
+             border-radius: 10px; padding: 10px; font: 600 12.5px "IBM Plex Sans", system-ui; }
+  .shottag { font: 500 10px "IBM Plex Sans", system-ui; color: #8a8577; text-transform: uppercase; letter-spacing: .06em; }
   .mtabs { display: flex; gap: 6px; padding: 0 16px 10px; }
   .mtab { flex: 1; padding: 9px 10px; border-radius: 10px; border: 1px solid #ddd7c4;
           background: #f8f6ee; color: #8a8577; font: 600 13px "IBM Plex Sans", system-ui; }
@@ -1095,6 +1106,8 @@
     <div class="msheet" id="mSheet" hidden>
       <div class="chips" id="mHoleGrid" style="margin-bottom:12px"></div>
       <button class="msheet-item" id="mSensorBtn">Reconnect sensor</button>
+      <button class="msheet-item" id="mAddHereBtn">Add shot here (sensor missed it)</button>
+      <button class="msheet-item" id="mEditShotsBtn">Edit shots</button>
       <button class="msheet-item" id="mUndoBtn">Undo shot</button>
       <button class="msheet-item" id="mPenaltyBtn">+1 penalty stroke</button>
       <button class="msheet-item" id="mSlopeBtn">Turn slope off</button>
@@ -1202,6 +1215,7 @@
         <button class="mprimary" id="mrsShareBtn" style="flex:1">Share image</button>
         <button class="mghost" id="mrsTrendsBtn" style="flex:1">Analytics ▸</button>
       </div>
+      <button class="mghost" id="mrsEditBtn" style="width:100%;margin-top:10px">Edit shots</button>
       <button class="mprimary" id="mrsDoneBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
     </div>
   </div>
@@ -1286,6 +1300,18 @@
         <div class="mdrillicon">🪃</div>
         <div class="mdrilltxt"><h3>Draw / fade <span class="msoon">soon</span></h3><p>Train your swing-path bias toward a draw or a fade.</p></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 1h · edit shots (club / remove / add a missed stroke) -->
+  <div class="mscreen msummary" id="mShots" hidden>
+    <div class="mtop" style="padding-bottom:10px">
+      <button class="mghost" id="mShotsBack" style="padding:10px 16px">◂ Back</button>
+      <div class="mtitle">Edit shots</div>
+    </div>
+    <div class="mcardwrap">
+      <p class="mfine" id="mShotsIntro" style="margin-top:0"></p>
+      <div id="mShotsList"></div>
     </div>
   </div>
 
@@ -1434,7 +1460,7 @@ for (const id of ["buildStamp", "mBuildStamp"]) {
 }
 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const fmt1 = x => x.toFixed(1);
+const fmt1 = x => (x == null || !isFinite(x)) ? "—" : x.toFixed(1);
 const NS = "http://www.w3.org/2000/svg";
 function el(name, attrs, parent) {
   const e = document.createElementNS(NS, name);
@@ -2777,6 +2803,195 @@ function undoShot(){
   }
   saveRound(); renderAll();
 }
+/* ---------- Editing shots after the fact ----------
+   The sensor misses swings, and the club chip is sometimes still on the last
+   club. Both leave the round record wrong, and every number downstream inherits
+   the error — this is where the 300-yard drives came from. These operations fix
+   the record and then re-derive everything that depends on order and position
+   (shot numbers, shot-to-shot distances) from scratch, so an edit can never
+   leave a stale distance behind.
+
+   Position honesty: a stroke added after the fact has no GPS fix. It gets a null
+   position, which makes the distance INTO it and OUT OF it unmeasurable. That
+   is the right answer — we know the stroke happened, not where — and it keeps
+   an invented midpoint out of the bag. "Add shot here" is the exception: taken
+   in the moment at your current fix, it has a real position like any other. */
+function rechainShots(){
+  if (!round) return;
+  const sh = round.shots;
+  for (let i = 0; i < sh.length; i++){
+    const s = sh[i], nx = sh[i + 1];
+    s.n = i + 1;
+    s.dist_m = (nx && nx.hole === s.hole && s.lat != null && nx.lat != null)
+      ? +haversineM(s, nx).toFixed(1) : null;
+  }
+}
+/* Re-upsert every shot from index i0 (numbers may have shifted) and delete any
+   trailing cloud rows the list no longer reaches. */
+function syncShotsFrom(i0, oldLen){
+  if (!cloudSession || cloudSession.type !== "round") return;
+  for (let i = Math.max(0, i0); i < round.shots.length; i++) cloudRecordShot(round.shots[i]);
+  if (oldLen > round.shots.length){
+    const q = loadQueue();
+    for (let seq = round.shots.length + 1; seq <= oldLen; seq++)
+      q.push({table: "shots", del: {session_id: cloudSession.id, seq}});
+    saveQueue(q); flushQueue();
+  }
+}
+function insertShot(at, fields){
+  if (!round) return null;
+  const oldLen = round.shots.length;
+  at = Math.max(0, Math.min(at, oldLen));
+  const prev = round.shots[at - 1] || null, next = round.shots[at] || null;
+  const shot = Object.assign({
+    hole: prev ? prev.hole : (next ? next.hole : round.currentHole),
+    club: currentClubTag(),
+    t: prev ? prev.t + 1 : (next ? next.t - 1 : Date.now()),
+    swingIndex: null, lat: null, lon: null, acc: null,
+    hand_mph: null, club_mph: null, tempo: null, clipped: false,
+    dist_m: null, manual: true,
+  }, fields || {});
+  round.shots.splice(at, 0, shot);
+  rechainShots();
+  syncShotsFrom(at, oldLen);
+  saveRound();
+  return shot;
+}
+function removeShot(i){
+  if (!round || i < 0 || i >= round.shots.length) return;
+  const oldLen = round.shots.length;
+  round.shots.splice(i, 1);
+  rechainShots();
+  syncShotsFrom(i, oldLen);
+  saveRound();
+}
+function setShotClub(i, id){
+  const s = round && round.shots[i];
+  const def = CLUBS.find(c => c.id === id);
+  if (!s || !def) return;
+  s.club = {id, inches: def.inches != null ? def.inches : customIn};
+  // Club speed is hand speed plus rotation times the lever, so it moves with
+  // the club. Recompute from the swing if we still have it.
+  const sw = s.swingIndex != null ? swings[s.swingIndex] : null;
+  if (sw && sw.metrics){
+    sw.club = {...s.club};
+    s.club_mph = +clubSpeedMph(sw).toFixed(1);
+    if (cloudSession && cloudSession.type === "round")
+      enqueue("swings", {session_id: cloudSession.id, seq: s.swingIndex,
+                         club_id: s.club.id, club_inches: s.club.inches, club_mph: s.club_mph},
+              "session_id,seq");
+  }
+  cloudRecordShot(s);
+  saveRound();
+}
+/* The in-the-moment fix: the sensor just missed a swing and you're standing
+   where you hit it. Logged at your current fix with the club on the chip. */
+function addShotHere(){
+  if (!round || round.endedAt) return;
+  const fix = currentFixOrNull();
+  const shot = insertShot(round.shots.length, {
+    hole: round.currentHole, club: currentClubTag(), t: Date.now(),
+    lat: fix ? fix.lat : null, lon: fix ? fix.lon : null,
+    acc: fix ? Math.round(fix.acc) : null,
+  });
+  round.holeBreakSincePrev = false;
+  toast(fix ? `Shot ${shot.n} added at your position`
+            : `Shot ${shot.n} added — no GPS fix, so it won't carry a distance`);
+  renderAll();
+}
+
+/* ---------- Edit shots screen ---------- */
+let mShotsFrom = "round";    // where Back returns to
+let shotDelArm = -1;         // index awaiting its confirming second tap
+let shotDelTimer = null;
+function openShots(from){
+  mShotsFrom = from || mScreen;
+  shotDelArm = -1;
+  mScreen = "shots";
+  renderAll();
+}
+function renderMShots(){
+  const host = document.getElementById("mShotsList");
+  const intro = document.getElementById("mShotsIntro");
+  host.textContent = "";
+  if (!round){ intro.textContent = "No round to edit."; return; }
+  intro.textContent = round.shots.length
+    ? "Change a club, remove a stroke that wasn't one, or add one the sensor missed. "
+      + "A stroke added here has no position, so the distances either side of it are left unmeasured rather than guessed."
+    : "No shots recorded yet. Add one if the sensor has already missed a swing.";
+  // holes in play, most recent first
+  const holes = [...new Set(round.shots.map(s => s.hole))];
+  if (!holes.includes(round.currentHole) && !round.endedAt) holes.push(round.currentHole);
+  holes.sort((a, b) => b - a);
+  for (const h of holes){
+    const card = div("mlight", host);
+    const ht = holeTotals(h), hm = holeMeta(h);
+    const head = document.createElement("h2");
+    head.textContent = `Hole ${h}`;
+    const meta = document.createElement("span");
+    meta.className = "shottag";
+    meta.style.cssText = "margin-left:10px;font-weight:500;text-transform:none;letter-spacing:0;font-size:12px";
+    meta.textContent = [hm && hm.par ? `par ${hm.par}` : null,
+      `${ht.shots} tracked`, ht.putts ? `${ht.putts} putt${ht.putts === 1 ? "" : "s"}` : null,
+      ht.penalties ? `${ht.penalties} pen` : null].filter(Boolean).join(" · ");
+    head.appendChild(meta);
+    card.appendChild(head);
+    const idxs = round.shots.map((s, i) => [s, i]).filter(([s]) => s.hole === h);
+    for (const [s, i] of idxs){
+      const row = div("shotrow" + (s.manual ? " manual" : ""), card);
+      div("shotn", row, String(s.n));
+      const sel = document.createElement("select");
+      sel.className = "mchip shotclub";
+      sel.setAttribute("aria-label", `Club for shot ${s.n}`);
+      for (const c of CLUBS){
+        if (c.id === "custom") continue;
+        const o = document.createElement("option");
+        o.value = c.id; o.textContent = c.name;
+        if (c.id === s.club.id) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener("change", () => { setShotClub(i, sel.value); renderAll(); toast(`Shot ${s.n} → ${CLUBS.find(c => c.id === sel.value).name}`); });
+      row.appendChild(sel);
+      const dist = div("shotdist", row, s.dist_m != null ? distDisp(s.dist_m) : (s.manual ? "added" : "—"));
+      if (s.manual) dist.title = "Added by you — no position, no distance";
+      const add = document.createElement("button");
+      add.type = "button"; add.className = "shotact"; add.textContent = "+";
+      add.title = "Add a stroke after this one";
+      add.addEventListener("click", () => {
+        const sh = insertShot(i + 1, {hole: h});
+        toast(`Stroke added after shot ${s.n} — pick its club`);
+        renderAll();
+      });
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "shotact del" + (shotDelArm === i ? " armed" : "");
+      del.textContent = shotDelArm === i ? "Remove?" : "×";
+      del.title = "Remove this stroke";
+      del.addEventListener("click", () => {
+        if (shotDelArm !== i){
+          shotDelArm = i; clearTimeout(shotDelTimer);
+          shotDelTimer = setTimeout(() => { shotDelArm = -1; renderAll(); }, 6000);
+          renderAll(); return;
+        }
+        shotDelArm = -1; clearTimeout(shotDelTimer);
+        removeShot(i);
+        toast(`Shot ${s.n} removed`);
+        renderAll();
+      });
+      row.append(add, del);
+    }
+    const addEnd = document.createElement("button");
+    addEnd.type = "button"; addEnd.className = "shotadd";
+    addEnd.textContent = idxs.length ? "+ Add a stroke the sensor missed" : `+ Add a stroke on hole ${h}`;
+    addEnd.addEventListener("click", () => {
+      const last = idxs.length ? idxs[idxs.length - 1][1] + 1 : round.shots.length;
+      insertShot(last, {hole: h});
+      toast(`Stroke added on hole ${h} — pick its club`);
+      renderAll();
+    });
+    card.appendChild(addEnd);
+  }
+}
+
 function setHole(n){
   round.currentHole = Math.min(18, Math.max(1, n));
   ensureHole(round.currentHole);
@@ -2908,8 +3123,10 @@ function shotTable(){
   t.appendChild(tr);
   for (const s of [...round.shots].reverse()){
     const row = document.createElement("tr");
-    const cells = [String(s.n), String(s.hole), swingClub(s).label, distDisp(s.dist_m),
-                   fmt1(s.club_mph) + (s.clipped ? " ⚠" : ""), fmt1(s.tempo),
+    const cells = [String(s.n), String(s.hole), swingClub(s).label + (s.manual ? " (added)" : ""),
+                   distDisp(s.dist_m),
+                   s.club_mph == null ? "—" : fmt1(s.club_mph) + (s.clipped ? " ⚠" : ""),
+                   s.tempo == null ? "—" : fmt1(s.tempo),
                    s.lat == null ? "—" : `±${s.acc} m`];
     cells.forEach((c, k) => {
       const td = document.createElement("td");
@@ -6166,6 +6383,10 @@ function initMobile(){
   el("mRoundBack").addEventListener("click", () => {
     mScreen = "range"; setMode("range");
   });
+  el("mAddHereBtn").addEventListener("click", () => { el("mSheet").hidden = true; addShotHere(); });
+  el("mEditShotsBtn").addEventListener("click", () => { el("mSheet").hidden = true; openShots("round"); });
+  el("mrsEditBtn").addEventListener("click", () => openShots("roundsummary"));
+  el("mShotsBack").addEventListener("click", () => { mScreen = mShotsFrom; renderAll(); });
   el("mExitRoundBtn").addEventListener("click", () => {
     el("mSheet").hidden = true;
     mScreen = "range"; setMode("range");
@@ -6347,6 +6568,7 @@ function renderMobile(){
   el("mDrills").hidden = mScreen !== "drills";
   el("mPutt").hidden = mScreen !== "putt";
   el("mChip").hidden = mScreen !== "chip";
+  el("mShots").hidden = mScreen !== "shots";
   // first run: onboarding fronts everything until completed/skipped
   const showOnboard = !onboarded() && mScreen === "range";
   el("mOnboard").hidden = !showOnboard;
@@ -6371,6 +6593,7 @@ function renderMobile(){
   else if (mScreen === "drills") renderMDrills();
   else if (mScreen === "putt") renderMPutt();
   else if (mScreen === "chip") renderMChip();
+  else if (mScreen === "shots") renderMShots();
 }
 function renderMRange(){
   const el = id => document.getElementById(id);
