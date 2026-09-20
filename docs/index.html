@@ -1482,7 +1482,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "/*__BUILD__*/";
+const BUILD = "53a32dc · 2026-09-20";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
