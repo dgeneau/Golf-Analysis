@@ -1195,6 +1195,18 @@
         <div class="msumgrid" id="mrsGrid"></div>
         <p class="mfine" id="mrsFine"></p>
       </div>
+      <div class="mlight" id="mrsMapCard" hidden>
+        <h2>Shot map</h2>
+        <div class="mbagwin" id="mrsHoleChips" style="margin-bottom:10px"></div>
+        <div id="mrsMap" style="height:300px;border-radius:12px;overflow:hidden;position:relative;z-index:0;background:#e6e2d4"></div>
+        <p class="mfine" id="mrsMapCap" style="margin:8px 0 0"></p>
+      </div>
+      <div class="mlight" id="mrsSGCard" hidden>
+        <h2>Strokes gained</h2>
+        <div class="msumgrid" id="mrsSG" style="grid-template-columns:repeat(2,1fr)"></div>
+        <div id="mrsSGWhere"></div>
+        <p class="mfine mtappable" id="mrsSGNote" data-explain="sg" style="margin:10px 0 0"></p>
+      </div>
       <div class="mlight" id="mrsHi" hidden>
         <h2>Highlights</h2>
         <div id="mrsHiBody"></div>
@@ -4087,7 +4099,9 @@ function localRoundAnalysis(){
                 course_name: round.courseName || (course && course.name) || null};
   const shots = round.shots.map(s => ({hole: s.hole, seq: s.n,
     club_id: s.club && s.club.id, club_inches: s.club && s.club.inches,
-    lat: s.lat, lon: s.lon, dist_m: s.dist_m}));
+    lat: s.lat, lon: s.lon, dist_m: s.dist_m, club_mph: s.club_mph,
+    swing_seq: s.swingIndex,
+    swing: s.tempo != null ? {tempo: s.tempo, club_mph: s.club_mph, clipped: !!s.clipped} : null}));
   const holeRows = Object.keys(round.holes).map(Number).map(h => {
     const hm = holeMeta(h), hr = round.holes[h];
     return {hole: h, putts: hr.putts || 0, penalties: hr.penalties || 0,
@@ -4716,11 +4730,12 @@ function analyzeRound(sess, shots, holeRows, geom, suspects){
       r.girElig++;
       if (hs.length <= par - 2) r.girHit++;
     }
-    r.holes.push({hole: holeNo, par, putts, pens, strokes: hs.length,
-                  completed,
+    const hrec = {hole: holeNo, par, putts, pens, strokes: hs.length,
+                  completed, sg: null,
                   shots: hs.map(s => ({seq: s.seq, club: s.club_id,
                                        lat: s.lat, lon: s.lon,
-                                       yd: s.dist_m != null ? s.dist_m * RA_YD : null}))});
+                                       yd: s.dist_m != null ? s.dist_m * RA_YD : null}))};
+    r.holes.push(hrec);
     const pos = hs.map(s => (s.lat != null ? [s.lat, s.lon] : null));
     // fairway hit: par 4/5, judged where the SECOND stroke was taken from
     if (par >= 4 && geom && (geom.fairways || []).length && pos[0]){
@@ -4742,16 +4757,19 @@ function analyzeRound(sess, shots, holeRows, geom, suspects){
       const d = pos.map(p => haversineM({lat: p[0], lon: p[1]},
         {lat: green.centroid[0], lon: green.centroid[1]}) * RA_YD);
       if (!d.some(v => v > 700)){    // a fix that far out is GPS junk, not golf
+        const hsg = {ott: 0, app: 0, short: 0, putt: 0};
         for (let i = 0; i < pos.length; i++){
           const lie = i === 0 ? (par >= 4 ? "tee" : "fairway") : raLie(pos[i], geom);
           const nextLie = i < pos.length - 1 ? raLie(pos[i + 1], geom) : "green";
           const eAfter = nextLie === "green" ? PUTT_BASE : expStrokes(nextLie, d[i + 1]);
           const sg = expStrokes(lie, d[i]) - eAfter - 1;
-          if (i === 0 && par >= 4) r.sg.ott += sg;
-          else if (d[i] > 33) r.sg.app += sg;
-          else r.sg.short += sg;
+          if (i === 0 && par >= 4) hsg.ott += sg;
+          else if (d[i] > 33) hsg.app += sg;
+          else hsg.short += sg;
         }
-        r.sg.putt += PUTT_BASE - putts;
+        hsg.putt = PUTT_BASE - putts;
+        for (const k in hsg) r.sg[k] += hsg[k];
+        hrec.sg = hsg;
         r.sgHoles++;
       }
     }
@@ -5086,22 +5104,28 @@ function drawReplay(){
   const chips = document.querySelectorAll("#raHoleChips .chip");
   chips.forEach(c => c.setAttribute("aria-pressed",
     String(String(replayHole) === c.textContent || (replayHole === "all" && c.textContent === "All"))));
-  replayLayer.clearLayers();
+  document.getElementById("raHoleInfo").textContent = paintRound(replayMap, replayLayer, r, replayHole);
+}
+/* Draw an analysed round onto a Leaflet layer: course geometry, this hole's line,
+   the shot trail and numbered pins. Shared by the desktop replay and the phone's
+   recap. Returns the caption for the hole(s) shown. */
+function paintRound(map, layer, r, holeKey){
+  layer.clearLayers();
   const geom = r.geom;
-  const showHoles = replayHole === "all" ? r.holes : r.holes.filter(h => h.hole === replayHole);
+  const showHoles = holeKey === "all" ? r.holes : r.holes.filter(h => h.hole === holeKey);
   // course geometry: fairways faint, greens, this hole's line dashed
   if (geom){
     for (const f of geom.fairways || [])
       L.polygon(f.poly, {color: "#c9d0ae", weight: 1, opacity: 0.5,
-                         fillColor: "#c9d0ae", fillOpacity: 0.12}).addTo(replayLayer);
+                         fillColor: "#c9d0ae", fillOpacity: 0.12}).addTo(layer);
     for (const g of geom.greens || [])
       L.polygon(g.poly, {color: "#6f8a4f", weight: 2,
-                         fillColor: "#6f8a4f", fillOpacity: 0.25}).addTo(replayLayer);
+                         fillColor: "#6f8a4f", fillOpacity: 0.25}).addTo(layer);
     for (const h of showHoles){
       const line = (geom.holes || []).find(x => x.ref === h.hole);
       if (line && line.line && line.line.length > 1)
         L.polyline(line.line, {color: "#f8f6ee", weight: 1.5, opacity: 0.7,
-                               dashArray: "6 6"}).addTo(replayLayer);
+                               dashArray: "6 6"}).addTo(layer);
     }
   }
   // shots: polyline through fixes + numbered pins
@@ -5109,31 +5133,31 @@ function drawReplay(){
   for (const h of showHoles){
     const fixes = h.shots.filter(s => s.lat != null).map(s => [s.lat, s.lon]);
     if (fixes.length > 1)
-      L.polyline(fixes, {color: "#3c4a30", weight: 3, opacity: 0.9}).addTo(replayLayer);
+      L.polyline(fixes, {color: "#3c4a30", weight: 3, opacity: 0.9}).addTo(layer);
     h.shots.forEach((s, i) => {
       if (s.lat == null) return;
       bounds.push([s.lat, s.lon]);
       const pin = L.marker([s.lat, s.lon], {icon: L.divIcon({
         className: "", html: `<div class="shotpin">${i + 1}</div>`,
-        iconSize: [22, 22], iconAnchor: [11, 11]})}).addTo(replayLayer);
+        iconSize: [22, 22], iconAnchor: [11, 11]})}).addTo(layer);
       pin.bindTooltip(`Hole ${h.hole} · shot ${i + 1}` +
         (s.club ? ` · ${replayClubName(s.club)}` : "") +
         (s.yd != null ? ` · ${Math.round(s.yd)} yd` : ""),
         {className: "distlabel", direction: "top", offset: [0, -10]});
     });
     // frame the mapped hole too, so tee/green context is visible
-    if (replayHole !== "all" && geom){
+    if (holeKey !== "all" && geom){
       const line = (geom.holes || []).find(x => x.ref === h.hole);
       if (line && line.line) bounds.push(...line.line);
     }
   }
-  if (bounds.length) replayMap.fitBounds(L.latLngBounds(bounds).pad(0.18));
-  // info line
-  const info = document.getElementById("raHoleInfo");
-  if (replayHole === "all"){
+  if (bounds.length) map.fitBounds(L.latLngBounds(bounds).pad(0.18));
+  // caption
+  let info = "";
+  if (holeKey === "all"){
     const tracked = r.holes.reduce((a, h) => a + h.strokes, 0);
     const pl = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-    info.textContent = `${pl(r.holesPlayed, "hole")} · ${pl(tracked, "tracked stroke")}` +
+    info = `${pl(r.holesPlayed, "hole")} · ${pl(tracked, "tracked stroke")}` +
       (r.putts ? ` + ${pl(r.putts, "putt")}` : "") +
       (r.parKnown ? ` · score ${r.score} (${r.toPar >= 0 ? "+" : ""}${r.toPar}) over ${pl(r.parKnown, "hole")} with par` : "");
   } else {
@@ -5147,9 +5171,10 @@ function drawReplay(){
       if (h.par && h.completed)
         bits.push(`total ${h.strokes + h.putts + h.pens} (${h.strokes + h.putts + h.pens - h.par >= 0 ? "+" : ""}${h.strokes + h.putts + h.pens - h.par})`);
       if (!h.completed) bits.push("no putts recorded — hole may be incomplete");
-      info.textContent = bits.join(" · ");
+      info = bits.join(" · ");
     }
   }
+  return info;
 }
 
 /* ---------- Web Bluetooth client (standalone hosted mode) ---------- */
@@ -6255,10 +6280,11 @@ function initMobile(){
     const t = e.target.closest("[data-explain]");
     if (t) showExplain(t.getAttribute("data-explain"));
   });
-  el("mTrends").addEventListener("click", e => {
-    const t = e.target.closest("[data-explain]");
-    if (t) showExplain(t.getAttribute("data-explain"));
-  });
+  for (const sid of ["mTrends", "mRoundSummary"])
+    el(sid).addEventListener("click", e => {
+      const t = e.target.closest("[data-explain]");
+      if (t) showExplain(t.getAttribute("data-explain"));
+    });
   el("mExplainClose").addEventListener("click", () => { el("mExplain").hidden = true; });
   el("mExplain").addEventListener("click", e => {
     if (e.target === el("mExplain")) el("mExplain").hidden = true;   // tap backdrop to close
@@ -6547,6 +6573,7 @@ const EXPLAIN = {
   puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
   chiplen: {t: "Stroke length", b: "How far your wrist rotates on the backswing — the main lever for chip distance. There's no single 'right' number; distance control is about repeating the SAME length for the same shot. The dots below show how tightly you're stacking your recent chips."},
   playslike: {t: "Plays like (slope)", b: "GPS gives the distance across the ground; \u201cplays like\u201d adds what the hill costs you. The ball comes down at an angle, so a green above you cuts the flight short and one below you stretches it. We add \u0394height \u00f7 tan(landing angle) \u2014 which is why the same 15 ft of rise costs your driver more than your wedge: the driver lands shallow. Two honest caveats: the terrain model is ~30 m resolution, so treat it as a nudge of a few yards rather than a survey, and it ignores wind and air density entirely. Slope-adjusted yardages are not legal for competition \u2014 tap the card to switch back to true distance."},
+  sg: {t: "Strokes gained", b: "For every stroke we look at where you were (tee, fairway, rough, sand, and how far out) and ask how many strokes a scratch player would expect to take from there. Your gain or loss on that stroke is the difference between the expected count before and after it, minus one. Add them up by category and you can see WHERE a round went right or wrong, not just the score. The baseline is PGA TOUR scratch, so amateurs read negative across the board \u2014 read the split and the round-to-round movement, not the absolute size. Two honesty notes: putting is approximate because we count putts rather than measure them (baseline 1.9 per green), and any hole with a penalty, a missing par, no putts recorded, no mapped green, or a stroke without a GPS fix is left out rather than guessed."},
   heldout: {t: "Held-out shots", b: "A shot's distance is measured to wherever you played the NEXT shot from. If the sensor misses a swing, that one segment quietly covers two strokes and the club gets credited with both — a 230 yd drive plus an 80 yd wedge becomes a 310 yd drive. The giveaway is usually a big jump in distance with no extra clubhead speed behind it, which is not what a career drive looks like. Those shots are held out of your bag, and only ever from the long end: a missed swing can only make a distance too big, while short shots are real golf and belong in your numbers. Nothing is deleted — the full dashboard lists every held-out shot and lets you put any of them back."},
   flatcarry: {t: "Flat-ground carry", b: "Your club distances are restated as what they would have been on level ground. A shot that finishes above you covered less ground than the strike deserved, and one that finishes below covered more \u2014 so without this correction a hilly course quietly rewrites your bag. Only shots where we know the terrain get adjusted; the rest are taken at face value, and the count is shown under the bag."},
   chiphinge: {t: "Wrist hinge", b: "How much your wrist cocks (sets) going back. Some chipping methods want it quiet, others hinge-and-hold — either works, the key is consistency. It's a tendency read from wrist orientation, not a measured shaft angle."},
@@ -7093,6 +7120,108 @@ function recapCoaching(rc){
   return {title: "Nice, steady round",
       body: `Nothing jumped out as a leak — keep banking reps at the range and watch the trends build.`};
 }
+/* ---------- Recap: shot map + strokes gained (phone) ----------
+   Both run off the local round, so they work at the 18th green with no signal.
+   The map reuses paintRound() from the desktop replay; strokes gained is the
+   same analyzeRound() the analytics use, with the same honesty rules — holes
+   without a mapped green, a known par, recorded putts or a fix for every stroke
+   simply aren't scored, and the card says how many were. */
+let recapMap = null, recapLayer = null, recapHole = "all", recapA = null;
+async function ensureRecapMap(){
+  if (recapMap) return recapMap;
+  await Promise.all([loadCss(LEAFLET_CSS),
+                     window.L ? Promise.resolve() : loadScript(LEAFLET_JS)]);
+  recapMap = L.map("mrsMap", {zoomControl: false, attributionControl: false});
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {maxZoom: 20}).addTo(recapMap);
+  recapLayer = L.layerGroup().addTo(recapMap);
+  return recapMap;
+}
+function renderRecapMap(a){
+  const card = document.getElementById("mrsMapCard");
+  const chips = document.getElementById("mrsHoleChips");
+  const cap = document.getElementById("mrsMapCap");
+  const anyFix = a && a.holes.some(h => h.shots.some(s => s.lat != null));
+  card.hidden = !anyFix;
+  if (!anyFix) return;
+  chips.textContent = "";
+  const mk = (label, key) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label;
+    if (recapHole === key) b.classList.add("on");
+    b.addEventListener("click", () => { recapHole = key; renderRecapMap(recapA); });
+    chips.appendChild(b);
+  };
+  mk("All", "all");
+  for (const h of a.holes) if (h.shots.some(s => s.lat != null)) mk(String(h.hole), h.hole);
+  if (recapHole !== "all" && !a.holes.some(h => h.hole === recapHole)) recapHole = "all";
+  ensureRecapMap().then(() => {
+    // the card may have just been unhidden — let layout settle before measuring
+    setTimeout(() => {
+      recapMap.invalidateSize();
+      cap.textContent = paintRound(recapMap, recapLayer, a, recapHole);
+    }, 80);
+  }).catch(() => { cap.textContent = "Map couldn't load — you're probably offline. Shots are still saved."; });
+}
+function fmtSG(v){
+  const t = Math.round(v * 10) / 10 + 0;     // +0 kills "-0.0"
+  return (t > 0 ? "+" : "") + t.toFixed(1);
+}
+function renderRecapSG(a){
+  const card = document.getElementById("mrsSGCard");
+  const grid = document.getElementById("mrsSG");
+  const note = document.getElementById("mrsSGNote");
+  const where = document.getElementById("mrsSGWhere");
+  const hasAny = a && a.holesPlayed > 0;
+  card.hidden = !hasAny;
+  if (!hasAny) return;
+  grid.textContent = ""; where.textContent = "";
+  if (!a.sgHoles){
+    note.textContent = "Strokes gained needs a mapped green, a known par, recorded putts, and a GPS fix for every stroke on a hole — none of these holes had all four. Map the course on OpenStreetMap and record putts as you go and this fills in.";
+    return;
+  }
+  const cats = [["ott", "Tee"], ["app", "Approach"], ["short", "Short"], ["putt", "Putting"]];
+  const total = cats.reduce((s, [k]) => s + a.sg[k], 0);
+  const cell = (k, v, hero) => {
+    const d = document.createElement("div");
+    div("mlabel", d, k);
+    const vv = div("v", d, fmtSG(v));
+    vv.style.color = v > 0.05 ? "#5f7a3a" : (v < -0.05 ? "#b4632f" : "#23221c");
+    if (hero) vv.style.fontSize = "26px";
+    grid.appendChild(d);
+  };
+  for (const [k, lab] of cats) cell(lab, a.sg[k]);
+  cell("Total", total, true);
+  const excluded = a.holesPlayed - a.sgHoles;
+  note.textContent = `Versus a PGA TOUR scratch baseline over ${a.sgHoles} of ${a.holesPlayed} holes`
+    + (excluded ? ` (${excluded} skipped: missing par, putts, a mapped green, or a fix for every stroke)` : "")
+    + `. Absolute numbers read low for amateurs — the split between categories is the signal. `
+    + `Putting is approximate: we count putts, not putt distances.`;
+  // where the strokes went: the holes that cost the most
+  const scored = a.holes.filter(h => h.sg).map(h => ({...h, tot: h.sg.ott + h.sg.app + h.sg.short + h.sg.putt}))
+                        .sort((x, y) => x.tot - y.tot);
+  if (scored.length >= 3){
+    const h2 = document.createElement("h3");
+    h2.style.cssText = "margin:12px 0 4px;font-size:13.5px;font-weight:650";
+    h2.textContent = "Where the strokes went";
+    where.appendChild(h2);
+    const worst = scored.filter(h => h.tot < -0.3).slice(0, 3);
+    if (!worst.length) div("mmeta", where, "No hole cost you more than a third of a stroke — a tidy round.").style.margin = "0";
+    for (const h of worst){
+      const k = Object.entries(h.sg).sort((x, y) => x[1] - y[1])[0];
+      const lab = {ott: "off the tee", app: "approach", short: "short game", putt: "putting"}[k[0]];
+      const p = div("mmeta", where,
+        `Hole ${h.hole}${h.par ? ` (par ${h.par})` : ""}: ${fmtSG(h.tot)} — mostly ${lab} (${fmtSG(k[1])}).`);
+      p.style.margin = "0 0 4px";
+    }
+    const best = scored[scored.length - 1];
+    if (best && best.tot > 0.3){
+      const p = div("mmeta", where, `Best hole: ${best.hole}${best.par ? ` (par ${best.par})` : ""}, ${fmtSG(best.tot)}.`);
+      p.style.cssText = "margin:4px 0 0;color:#5f7a3a";
+    }
+  }
+}
+
 function renderMRoundSummary(){
   const el = id => document.getElementById(id);
   if (!round){ el("mrsGrid").textContent = ""; return; }
@@ -7146,6 +7275,10 @@ function renderMRoundSummary(){
   wp.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#6b6558";
   wp.textContent = co.body;
   wb.append(h3, wp);
+  // shot map + strokes gained, from the local round
+  recapA = localRoundAnalysis();
+  renderRecapMap(recapA);
+  renderRecapSG(recapA);
   // per-club bag (this round)
   const withDist = rc.bag.filter(g => g.d.length);
   el("mrsBagCard").hidden = !rc.bag.length;
