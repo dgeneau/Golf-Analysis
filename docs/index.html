@@ -294,6 +294,17 @@
          display: flex; align-items: center; gap: 12px; max-width: 52%; box-sizing: border-box; }
   .mholeN { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 28px; line-height: 1; }
   .mmeta { font-size: 12.5px; color: #6b6558; }
+  .mfind { padding: 9px 0; border-bottom: 1px solid #ddd7c4; }
+  .mfind:last-child { border-bottom: 0; }
+  .mfind .tag { font: 600 9.5px "IBM Plex Sans", system-ui; color: #8a8577; text-transform: uppercase; letter-spacing: .08em; }
+  .mfind h3 { margin: 1px 0 2px; font-size: 13.5px; font-weight: 650; color: #23221c; }
+  .mfind p { margin: 0; font-size: 12.5px; color: #6b6558; line-height: 1.45; }
+  .mreaddrill { margin-top: 12px; padding: 12px 14px; background: #2b3522; color: #f0ede2; border-radius: 12px; }
+  .mreaddrill .tag { font: 600 9.5px "IBM Plex Sans", system-ui; color: #c9d0ae; text-transform: uppercase; letter-spacing: .08em; }
+  .mreaddrill h3 { margin: 2px 0 4px; font-size: 14px; font-weight: 650; color: #f8f6ee; }
+  .mreaddrill p { margin: 0; font-size: 12.5px; color: #ddd7c4; line-height: 1.45; }
+  .mreaddrill button { margin-top: 10px; width: 100%; border: 0; border-radius: 10px; padding: 10px;
+    background: #8a9270; color: #23221c; font: 600 13px "IBM Plex Sans", system-ui; }
   .shotrow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #ddd7c4; }
   .shotn { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; color: #8a8577; width: 18px; text-align: right; flex: none; }
   .shotrow select.shotclub { flex: 1; min-width: 0; }
@@ -1217,8 +1228,9 @@
         <div id="mrsHiBody"></div>
       </div>
       <div class="mlight" id="mrsWork" hidden>
-        <h2>One thing to take to the range</h2>
+        <h2>The read</h2>
         <div id="mrsWorkBody"></div>
+        <div class="mreaddrill" id="mrsDrill"></div>
       </div>
       <div class="mlight" id="mrsBagCard" hidden>
         <h2>Your clubs this round</h2>
@@ -5196,7 +5208,10 @@ function paintRound(map, layer, r, holeKey){
       if (line && line.line) bounds.push(...line.line);
     }
   }
-  if (bounds.length) map.fitBounds(L.latLngBounds(bounds).pad(0.18));
+  if (bounds.length){
+    try { map.fitBounds(L.latLngBounds(bounds).pad(0.18)); }
+    catch (e) { /* container not laid out yet — next paint frames it */ }
+  }
   // caption
   let info = "";
   if (holeKey === "all"){
@@ -7157,48 +7172,141 @@ function roundRecapLocal(){
     course: round.courseName || (course && course.name) || "—",
   };
 }
-function recapCoaching(rc){
-  // Pick the single most useful takeaway, in priority order, from real signals.
-  if (rc.played >= 3 && rc.putts > 0){
-    const pph = rc.putts / rc.played;
-    if (pph >= 2.2) return {title: "Sharpen the putting",
-      body: `${rc.putts} putts over ${rc.played} holes — ${pph.toFixed(1)} per hole. `
-          + `A few lag-putt reps focused on distance control take the most strokes off the fastest.`};
-  }
-  if (rc.medTempo != null && (rc.medTempo < 2.5 || rc.medTempo > 3.5))
-    return {title: rc.medTempo < 2.5 ? "Smooth out the transition" : "Don't get too slow",
-      body: `Median tempo this round was ${fmt1(rc.medTempo)}:1 `
-          + `(target 2.5–3.5). ${rc.medTempo < 2.5
-              ? "You're rushing from the top — feel a fuller backswing before you fire."
-              : "A touch quicker through the ball will tighten your strike."} `
-          + `Take a few range swings watching the tempo band.`};
-  if (rc.girElig >= 3 && rc.girHit / rc.girElig < 0.34)
-    return {title: "Build the approach game",
-      body: `You hit ${rc.girHit} of ${rc.girElig} greens in regulation. `
-          + `Dialling in your mid-iron distances (see Your bag) turns more of those into looks at birdie.`};
-  if (rc.clipped >= 3)
-    return {title: "A few swings maxed the sensor",
-      body: `${rc.clipped} of ${rc.shots} tracked swings clipped the wrist accelerometer at impact, `
-          + `so their path/speed is less certain. That's expected on your fastest swings — just read those numbers loosely.`};
-  return {title: "Nice, steady round",
-      body: `Nothing jumped out as a leak — keep banking reps at the range and watch the trends build.`};
+/* ---------- The read: coaching feedback on a round ----------
+   Everything here is derived from signals this round actually produced, and
+   every finding names its evidence ("over 14 scored holes", "from 31 swings").
+   Thin evidence means no finding, not a hedged one. The order is by how much
+   it costs you: scoring first, then the swing that produced it, then tempo,
+   then anything about the data itself. One drill at the end, chosen from the
+   strongest finding — a range session works best with a single job. */
+const SG_LABEL = {ott: "off the tee", app: "approach play", short: "short game", putt: "putting"};
+function halfTempo(shots, half){
+  const t = shots.filter(s => s.tempo != null && !s.manual).map(s => s.tempo);
+  if (t.length < 12) return null;
+  const cut = Math.floor(t.length / 2);
+  return median(half === 0 ? t.slice(0, cut) : t.slice(cut));
 }
+function roundRead(rc, a){
+  const F = [];
+  let drill = null;
+  const s1 = v => `${v > 0 ? "+" : ""}${(Math.round(v * 10) / 10).toFixed(1)}`;
+  const per = (v, n) => Math.abs(v / n);
+
+  // ---- 1. scoring: where the strokes went ----
+  if (a && a.sgHoles >= 3){
+    const cats = Object.entries(a.sg).sort((x, y) => x[1] - y[1]);
+    const [wk, wv] = cats[0], [bk, bv] = cats[cats.length - 1];
+    const total = cats.reduce((s, [, v]) => s + v, 0);
+    if (wv <= -1.0){
+      const perHole = per(wv, a.sgHoles);
+      F.push({tag: "Scoring",
+        title: `${SG_LABEL[wk][0].toUpperCase() + SG_LABEL[wk].slice(1)} cost the most`,
+        body: `${s1(wv)} strokes over ${a.sgHoles} scored holes — about ${perHole.toFixed(1)} a hole. `
+            + (bv > 0.3 ? `${SG_LABEL[bk][0].toUpperCase() + SG_LABEL[bk].slice(1)} was the bright spot at ${s1(bv)}. ` : "")
+            + `Total ${s1(total)} against a Tour-scratch baseline, which reads low for everyone — the split is what matters.`});
+      if (wk === "putt")
+        drill = {title: "Putting tempo, 20 strokes", act: "putt",
+          body: `You took ${rc.putts} putts over ${rc.played} holes. Open the Putting drill and run 20 guided strokes — the sensor can see stroke tempo and symmetry, which is what makes distance control repeatable.`};
+      else if (wk === "short")
+        drill = {title: "Chip length control", act: "chip",
+          body: `Inside 33 yards is where it leaked. Open the Chipping drill: 15 chips at one target, and watch how tightly the stroke-length dots stack. Same length, same shot — that's the whole game in there.`};
+      else if (wk === "app"){
+        const worst = rc.bag.filter(g => g.d.length >= 3)
+          .map(g => ({g, spread: (Math.max(...g.d) - Math.min(...g.d)) / median(g.d)}))
+          .sort((x, y) => y.spread - x.spread)[0];
+        drill = {title: "One iron, one target, tighten the spread", act: null,
+          body: worst && worst.spread > 0.25
+            ? `Your ${worst.g.label} went ${distDisp(Math.min(...worst.g.d))}–${distDisp(Math.max(...worst.g.d))} today. Hit 20 with it at one flag; the goal is a smaller spread, not a longer median.`
+            : `Take your most-used approach iron and hit 20 at one flag. Judge the session on spread, not distance — the bag shows both.`};
+      } else
+        drill = {title: "Driver: path first, then speed", act: null,
+          body: rc.medPath != null && Math.abs(rc.medPath) > 3
+            ? `Your driver path ran ${s1(rc.medPath)}° today. Set square, then 15 drives feeling the club exit toward ${rc.medPath > 0 ? "11" : "1"} o'clock. Direction before distance.`
+            : `Tee shots cost the most. 15 drives at the range with the tempo band on — a repeatable 3:1 is worth more than 5 mph.`};
+    }
+  }
+
+  // ---- 2. the swing: path tendency and consistency ----
+  if (rc.nPath >= 8 && rc.medPath != null){
+    const dir = Math.abs(rc.medPath) >= 3;
+    const wobbly = rc.pathSpread != null && rc.pathSpread >= 5;
+    if (dir || wobbly){
+      let body = "";
+      if (dir) body += `Median path ${s1(rc.medPath)}° (${pathWord(rc.medPath)}) from ${rc.nPath} swings — expect ${rc.medPath > 0 ? "draws and pushes" : "fades and pulls"}; if that's what you saw, the number is real. `;
+      if (wobbly) body += `${dir ? "More importantly, it" : "Path"} wandered ±${rc.pathSpread.toFixed(1)}° swing to swing — ${dir ? "repeating one path matters more than moving it. " : "direction was fine on average; repeating it is the job. "}`;
+      if (!window.__pathCal) body += "This is unsquared — set square at the range so the zero is yours, not the sensor's.";
+      F.push({tag: "Swing", title: dir && !wobbly ? "A consistent path tendency" : (wobbly && !dir ? "Path was inconsistent" : "Path drifted and wandered"), body: body.trim()});
+      if (!drill) drill = {title: "Set square, then 15 swings", act: null,
+        body: `${window.__pathCal ? "Re-check square at the range, then" : "Set square at the range, then"} hit 15 with one club watching the path readout. ${dir ? `Feel the club exit toward ${rc.medPath > 0 ? "11" : "1"} o'clock.` : "Aim for the same number every time — the value matters less than the repeat."}`};
+    }
+    // driver vs irons split
+    const drv = rc.bag.find(g => g.id === "driver" && g.path.length >= 3);
+    const irons = rc.bag.filter(g => /^[4-9]i$|^pw$/.test(g.id) && g.path.length).flatMap(g => g.path);
+    if (drv && irons.length >= 5){
+      const gap = median(drv.path) - median(irons);
+      if (Math.abs(gap) >= 4)
+        F.push({tag: "Swing", title: "Driver and irons are two different swings",
+          body: `Driver path ${s1(median(drv.path))}° vs irons ${s1(median(irons))}° — a ${Math.abs(gap).toFixed(0)}° gap. That's common and not always a problem, but it explains a ball flight that changes when you change clubs.`});
+    }
+  }
+
+  // ---- 3. tempo through the round ----
+  const t0 = halfTempo(round.shots, 0), t1 = halfTempo(round.shots, 1);
+  if (t0 != null && t1 != null && Math.abs(t1 - t0) >= 0.25)
+    F.push({tag: "Tempo", title: t1 < t0 ? "You quickened as the round went on" : "You slowed as the round went on",
+      body: `Median tempo ${t0.toFixed(2)}:1 over the first half of your swings, ${t1.toFixed(2)}:1 over the second. `
+          + (t1 < t0 ? "Getting faster from the top late in a round is the classic sign of pressing — one deliberate breath at address is the cheapest fix in golf."
+                     : "Slowing down late usually means tiring or over-thinking; a slightly brisker rehearsal swing brings it back.")});
+  else if (rc.medTempo != null && (rc.medTempo < 2.5 || rc.medTempo > 3.5) && rc.nPath >= 6)
+    F.push({tag: "Tempo", title: rc.medTempo < 2.5 ? "Quick from the top" : "A slow transition",
+      body: `Median tempo ${rc.medTempo.toFixed(2)}:1 for the round, against a 2.5–3.5 target. ${rc.medTempo < 2.5 ? "Feel a fuller backswing before you fire." : "A touch quicker through the ball will tighten the strike."}`});
+
+  // ---- 4. putting, if scoring didn't already cover it ----
+  if (!F.some(f => f.tag === "Scoring") && rc.played >= 6 && rc.putts / rc.played >= 2.2)
+    F.push({tag: "Scoring", title: "Putts added up",
+      body: `${rc.putts} putts over ${rc.played} holes — ${(rc.putts / rc.played).toFixed(1)} a hole. We count putts rather than measure them, so this can't say whether it's the first putt or the second; the Putting drill can.`});
+
+  // ---- 5. data quality, so the numbers above are read correctly ----
+  const noFix = round.shots.filter(s => s.lat == null && !s.manual).length;
+  if (rc.clipped >= 3 || noFix >= 3){
+    const bits = [];
+    if (rc.clipped >= 3) bits.push(`${rc.clipped} swings clipped the sensor at impact (left out of path and speed — expected on your fastest swings)`);
+    if (noFix >= 3) bits.push(`${noFix} shots had no GPS fix, so their distances are missing`);
+    F.push({tag: "Data", title: "Read a couple of numbers loosely", body: bits.join("; ") + "."});
+  }
+
+  if (!F.length)
+    F.push({tag: "Round", title: "Nothing leaked",
+      body: a && a.sgHoles ? `Strokes gained ${s1(Object.values(a.sg).reduce((x, y) => x + y, 0))} over ${a.sgHoles} holes with no category standing out, and the swing held its shape. Bank it.`
+                           : "No category stood out and the swing held its shape. Map the course on OpenStreetMap and record putts as you go, and strokes gained will show you more next time."});
+  if (!drill)
+    drill = {title: "Keep the tempo band honest", act: null,
+      body: "Nothing screamed for attention, so protect what's working: 20 range swings with the tempo band on, same club, same target."};
+  return {findings: F.slice(0, 4), drill};
+}
+
 /* ---------- Recap: shot map + strokes gained (phone) ----------
    Both run off the local round, so they work at the 18th green with no signal.
    The map reuses paintRound() from the desktop replay; strokes gained is the
    same analyzeRound() the analytics use, with the same honesty rules — holes
    without a mapped green, a known par, recorded putts or a fix for every stroke
    simply aren't scored, and the card says how many were. */
-let recapMap = null, recapLayer = null, recapHole = "all", recapA = null;
-async function ensureRecapMap(){
-  if (recapMap) return recapMap;
-  await Promise.all([loadCss(LEAFLET_CSS),
-                     window.L ? Promise.resolve() : loadScript(LEAFLET_JS)]);
-  recapMap = L.map("mrsMap", {zoomControl: false, attributionControl: false});
-  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    {maxZoom: 20}).addTo(recapMap);
-  recapLayer = L.layerGroup().addTo(recapMap);
-  return recapMap;
+let recapMap = null, recapLayer = null, recapHole = "all", recapA = null, recapMapP = null;
+/* Re-entrant: two renders inside the Leaflet load window share one promise
+   instead of each trying to initialise the same container. */
+function ensureRecapMap(){
+  if (recapMap) return Promise.resolve(recapMap);
+  if (recapMapP) return recapMapP;
+  recapMapP = (async () => {
+    await Promise.all([loadCss(LEAFLET_CSS),
+                       window.L ? Promise.resolve() : loadScript(LEAFLET_JS)]);
+    recapMap = L.map("mrsMap", {zoomControl: false, attributionControl: false});
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {maxZoom: 20}).addTo(recapMap);
+    recapLayer = L.layerGroup().addTo(recapMap);
+    return recapMap;
+  })().catch(e => { recapMapP = null; throw e; });
+  return recapMapP;
 }
 function renderRecapMap(a){
   const card = document.getElementById("mrsMapCard");
@@ -7221,6 +7329,7 @@ function renderRecapMap(a){
   ensureRecapMap().then(() => {
     // the card may have just been unhidden — let layout settle before measuring
     setTimeout(() => {
+      if (mScreen !== "roundsummary" || a !== recapA) return;   // moved on; a later render owns it
       recapMap.invalidateSize();
       cap.textContent = paintRound(recapMap, recapLayer, a, recapHole);
     }, 80);
@@ -7327,17 +7436,29 @@ function renderMRoundSummary(){
       p.textContent = line; b.appendChild(p);
     }
   }
-  // one thing to work on
-  const co = recapCoaching(rc);
+  // the read — needs the strokes-gained analysis, so compute that first
+  recapA = localRoundAnalysis();
+  const rd = roundRead(rc, recapA);
   el("mrsWork").hidden = false;
   const wb = el("mrsWorkBody"); wb.textContent = "";
-  const h3 = document.createElement("h3");
-  h3.style.cssText = "margin:0;font-size:13.5px;font-weight:650";
-  h3.textContent = co.title;
-  const wp = document.createElement("p");
-  wp.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#6b6558";
-  wp.textContent = co.body;
-  wb.append(h3, wp);
+  for (const f of rd.findings){
+    const d = div("mfind", wb);
+    div("tag", d, f.tag);
+    const h3 = document.createElement("h3"); h3.textContent = f.title;
+    const p = document.createElement("p"); p.textContent = f.body;
+    d.append(h3, p);
+  }
+  const dr = el("mrsDrill"); dr.textContent = "";
+  div("tag", dr, "Take this to the range");
+  const dh = document.createElement("h3"); dh.textContent = rd.drill.title;
+  const dp = document.createElement("p"); dp.textContent = rd.drill.body;
+  dr.append(dh, dp);
+  if (rd.drill.act){
+    const b = document.createElement("button"); b.type = "button";
+    b.textContent = rd.drill.act === "putt" ? "Open the Putting drill ▸" : "Open the Chipping drill ▸";
+    b.addEventListener("click", () => { uiMode = "range"; startDrill(rd.drill.act); });
+    dr.appendChild(b);
+  }
   // how you swung out there
   const sc = el("mrsSwingCard");
   sc.hidden = !(rc.nPath || rc.medTempo != null);
@@ -7364,8 +7485,7 @@ function renderMRoundSummary(){
     bits.push("Speed is a wrist estimate — track the trend, not the number.");
     el("mrsSwingNote").textContent = bits.join(" ");
   }
-  // shot map + strokes gained, from the local round
-  recapA = localRoundAnalysis();
+  // shot map + strokes gained, from the same analysis
   renderRecapMap(recapA);
   renderRecapSG(recapA);
   // per-club bag (this round)
