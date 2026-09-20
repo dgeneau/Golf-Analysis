@@ -1207,6 +1207,11 @@
         <div id="mrsSGWhere"></div>
         <p class="mfine mtappable" id="mrsSGNote" data-explain="sg" style="margin:10px 0 0"></p>
       </div>
+      <div class="mlight" id="mrsSwingCard" hidden>
+        <h2>Your swing today</h2>
+        <div class="msumgrid" id="mrsSwing" style="grid-template-columns:repeat(3,1fr)"></div>
+        <p class="mfine mtappable" id="mrsSwingNote" data-explain="roundpath" style="margin:10px 0 0"></p>
+      </div>
       <div class="mlight" id="mrsHi" hidden>
         <h2>Highlights</h2>
         <div id="mrsHiBody"></div>
@@ -2430,11 +2435,40 @@ function haversineM(a, b){
             Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.sqrt(s));
 }
+/* What the golfer was presumably aiming at when this swing happened: the
+   tapped target if there is a plausible one, else the hole's green. Logged
+   with the swing so alignment (address yaw vs this bearing) can be studied
+   later. Not shown to anyone yet — see EXPLAIN.roundpath for why. */
+function shotContext(){
+  const here = (lastFix && !lastFix.err) ? {lat: lastFix.lat, lon: lastFix.lon} : null;
+  const out = {conn: connEpoch, target_brg_deg: null, target_kind: null, target_m: null};
+  if (!here) return out;
+  let to = null, kind = null;
+  if (typeof target !== "undefined" && target){
+    const d = haversineM(here, {lat: target[0], lon: target[1]});
+    if (d > 15 && d < 350){ to = {lat: target[0], lon: target[1]}; kind = "target"; out.target_m = d; }
+  }
+  if (!to && typeof currentGreen === "function"){
+    const g = currentGreen();
+    if (g){ to = {lat: g.centroid[0], lon: g.centroid[1]}; kind = "green";
+            out.target_m = haversineM(here, to); }
+  }
+  if (to){ out.target_brg_deg = +bearingDeg([here.lat, here.lon], [to.lat, to.lon]).toFixed(1); out.target_kind = kind; }
+  return out;
+}
 function distDisp(m){
   if (m == null) return "—";
   const yd = round && round.unit === "m" ? false : true;
   return yd ? `${Math.round(m*1.09361)} yd` : `${Math.round(m)} m`;
 }
+
+/* Path for a stored shot: raw minus the current square calibration. */
+function shotPathDeg(s){
+  if (!s || s.path_raw_deg == null || s.clipped) return null;
+  return s.path_raw_deg - (window.__pathCal || 0);
+}
+function pathWord(d){ return d > 1 ? "in-to-out" : (d < -1 ? "out-to-in" : "square"); }
+function pathTxt(d){ return d == null ? "—" : `${d >= 0 ? "+" : ""}${fmt1(d)}° ${pathWord(d)}`; }
 
 /* ---------- Terrain elevation, offline-first ----------
    GPS distance is already HORIZONTAL (haversine ignores height), so the only
@@ -2762,6 +2796,16 @@ function addShot(sw, swingIndex, epImpact){
     club_mph: +clubSpeedMph(sw).toFixed(1),
     tempo: +sw.metrics.tempo_ratio.toFixed(2),
     clipped: !!(sw.metrics.acc_clipped || sw.metrics.gyro_clipped),
+    // Path is stored RAW and zeroed at display time with the current square
+    // calibration, same as range swings, so re-squaring later fixes history.
+    path_raw_deg: sw.metrics.path_angle_raw_deg != null ? +sw.metrics.path_angle_raw_deg.toFixed(1) : null,
+    attack_deg: sw.metrics.attack_angle_deg != null ? +sw.metrics.attack_angle_deg.toFixed(1) : null,
+    plane_deg: sw.metrics.swing_plane_tilt_deg != null ? +sw.metrics.swing_plane_tilt_deg.toFixed(1) : null,
+    addr_yaw_deg: sw.metrics.address_yaw_deg != null ? +sw.metrics.address_yaw_deg.toFixed(1) : null,
+    // alignment study inputs (logged, not shown)
+    target_brg_deg: sw.metrics.round_ctx ? sw.metrics.round_ctx.target_brg_deg : null,
+    target_kind: sw.metrics.round_ctx ? sw.metrics.round_ctx.target_kind : null,
+    conn: sw.metrics.round_ctx ? sw.metrics.round_ctx.conn : null,
     dist_m: null,
   };
   const prev = round.shots[round.shots.length - 1];
@@ -3129,7 +3173,7 @@ function renderRound(){
 function shotTable(){
   const t = document.getElementById("shotTable");
   t.textContent = "";
-  const head = ["#","Hole","Club","Dist","Est. club (mph)","Tempo","GPS"];
+  const head = ["#","Hole","Club","Dist","Est. club (mph)","Tempo","Path","GPS"];
   const tr = document.createElement("tr");
   for (const h of head){ const th = document.createElement("th"); th.textContent = h; tr.appendChild(th); }
   t.appendChild(tr);
@@ -3139,6 +3183,7 @@ function shotTable(){
                    distDisp(s.dist_m),
                    s.club_mph == null ? "—" : fmt1(s.club_mph) + (s.clipped ? " ⚠" : ""),
                    s.tempo == null ? "—" : fmt1(s.tempo),
+                   shotPathDeg(s) == null ? "—" : `${shotPathDeg(s) >= 0 ? "+" : ""}${fmt1(shotPathDeg(s))}°`,
                    s.lat == null ? "—" : `±${s.acc} m`];
     cells.forEach((c, k) => {
       const td = document.createElement("td");
@@ -5208,7 +5253,12 @@ function parseCustomMode1(dv, unwrap){
   return s;
 }
 
+/* Every (re)connect sends the DOT a heading reset, so yaw is magnetic heading
+   plus a constant that changes each connection. Anything that compares yaw
+   across shots has to know which connection each shot came from. */
+let connEpoch = 0;
 function setSensorStatus(state, detail, battery){
+  if (state === "ready" && STATUS.state !== "ready") connEpoch++;
   STATUS = {state, detail: detail || "",
             battery: battery != null ? battery : STATUS.battery};
   updateBadge();
@@ -5412,10 +5462,12 @@ function initBleMode(){
     if (rec){
       const sw = swingToJson(rec, leverMeters());
       sw.club = currentClubTag();
+      const onCourse = uiMode === "round" && round && !round.endedAt;
+      if (onCourse) sw.metrics.round_ctx = shotContext();   // rides along in swings.metrics
       swings.push(sw);
       selected = swings.length - 1;
       cloudRecordSwing(sw, swings.length - 1);
-      if (uiMode === "round" && round && !round.endedAt)
+      if (onCourse)
         addShot(sw, swings.length - 1, rec.samples[rec.iImpact].ep || Date.now());
       renderAll();
     }
@@ -6573,6 +6625,7 @@ const EXPLAIN = {
   puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
   chiplen: {t: "Stroke length", b: "How far your wrist rotates on the backswing — the main lever for chip distance. There's no single 'right' number; distance control is about repeating the SAME length for the same shot. The dots below show how tightly you're stacking your recent chips."},
   playslike: {t: "Plays like (slope)", b: "GPS gives the distance across the ground; \u201cplays like\u201d adds what the hill costs you. The ball comes down at an angle, so a green above you cuts the flight short and one below you stretches it. We add \u0394height \u00f7 tan(landing angle) \u2014 which is why the same 15 ft of rise costs your driver more than your wedge: the driver lands shallow. Two honest caveats: the terrain model is ~30 m resolution, so treat it as a nudge of a few yards rather than a survey, and it ignores wind and air density entirely. Slope-adjusted yardages are not legal for competition \u2014 tap the card to switch back to true distance."},
+  roundpath: {t: "Path on the course", b: "Path is the direction your hands travel through impact, relative to where you were set up at address \u2014 and it's measured that way for every single swing, from the still moment before takeaway. So it doesn't matter that every hole points a different way: each shot carries its own reference. The one thing it can't see is a constant offset between how your wrist sits and where you're actually aiming, which is exactly what \u201cSet square\u201d at the range measures; that calibration carries over here. What we are NOT showing yet is alignment \u2014 whether you were aimed where you meant to be. We log the ingredients for it (your setup heading and the bearing to your target) but the sensor's heading is only known up to a constant that changes every time it reconnects, so we won't put a number on it until we've seen enough rounds to know it's honest."},
   sg: {t: "Strokes gained", b: "For every stroke we look at where you were (tee, fairway, rough, sand, and how far out) and ask how many strokes a scratch player would expect to take from there. Your gain or loss on that stroke is the difference between the expected count before and after it, minus one. Add them up by category and you can see WHERE a round went right or wrong, not just the score. The baseline is PGA TOUR scratch, so amateurs read negative across the board \u2014 read the split and the round-to-round movement, not the absolute size. Two honesty notes: putting is approximate because we count putts rather than measure them (baseline 1.9 per green), and any hole with a penalty, a missing par, no putts recorded, no mapped green, or a stroke without a GPS fix is left out rather than guessed."},
   heldout: {t: "Held-out shots", b: "A shot's distance is measured to wherever you played the NEXT shot from. If the sensor misses a swing, that one segment quietly covers two strokes and the club gets credited with both — a 230 yd drive plus an 80 yd wedge becomes a 310 yd drive. The giveaway is usually a big jump in distance with no extra clubhead speed behind it, which is not what a career drive looks like. Those shots are held out of your bag, and only ever from the long end: a missed swing can only make a distance too big, while short shots are real golf and belong in your numbers. Nothing is deleted — the full dashboard lists every held-out shot and lets you put any of them back."},
   flatcarry: {t: "Flat-ground carry", b: "Your club distances are restated as what they would have been on level ground. A shot that finishes above you covered less ground than the strike deserved, and one that finishes below covered more \u2014 so without this correction a hilly course quietly rewrites your bag. Only shots where we know the terrain get adjusted; the rest are taken at face value, and the count is shown under the bag."},
@@ -6943,8 +6996,10 @@ function renderMRound(){
   el("mLastShot").hidden = !last;
   if (last){
     const measured = round.shots.filter(s => s.dist_m != null).pop();
+    const lp = shotPathDeg(last);
     el("mLastShotTxt").textContent =
       `${swingClub(last).label} · ${fmt1(last.tempo)}:1 · ${fmt1(last.club_mph)} mph est.` +
+      (lp != null ? ` · path ${pathTxt(lp)}` : (last.clipped ? " · path — (clipped)" : "")) +
       (measured ? ` · prev ${distDisp(measured.dist_m)}` : "");
   }
   el("mUnitBtn").textContent = round.unit === "yd" ? "Switch to meters" : "Switch to yards";
@@ -7067,10 +7122,12 @@ function roundRecapLocal(){
     const c = swingClub(sh);
     const key = `${c.id}|${c.inches}`;
     if (!bag.has(key)) bag.set(key, {id: c.id, label: c.label, inches: c.inches,
-                                     d: [], flat: [], tempo: [], speed: [], adj: 0, n: 0});
+                                     d: [], flat: [], tempo: [], speed: [], path: [], adj: 0, n: 0});
     const g = bag.get(key); g.n++;
     if (sh.tempo != null) g.tempo.push(sh.tempo);
-    if (sh.club_mph != null) g.speed.push(sh.club_mph);
+    if (sh.club_mph != null && !sh.clipped) g.speed.push(sh.club_mph);
+    const pd = shotPathDeg(sh);
+    if (pd != null) g.path.push(pd);
     if (sh.dist_m != null){
       g.d.push(sh.dist_m);
       // the shot ended where the next one was played from — that's the height
@@ -7084,7 +7141,13 @@ function roundRecapLocal(){
     }
   }
   const tempos = round.shots.map(s => s.tempo).filter(t => t != null);
+  const paths = round.shots.map(shotPathDeg).filter(v => v != null);
+  const speeds = round.shots.filter(s => s.club_mph != null && !s.clipped && !s.manual).map(s => s.club_mph);
   return {
+    medPath: paths.length ? median(paths) : null,
+    pathSpread: paths.length >= 4 ? (pct(paths, .75) - pct(paths, .25)) / 2 : null,
+    nPath: paths.length,
+    medSpeed: speeds.length ? median(speeds) : null,
     played, parKnown, strokes, putts, girHit, girElig, longest, best,
     toPar: parKnown ? strokes - parSum : null,
     shots: round.shots.length,
@@ -7275,6 +7338,32 @@ function renderMRoundSummary(){
   wp.style.cssText = "margin:2px 0 0;font-size:12.5px;color:#6b6558";
   wp.textContent = co.body;
   wb.append(h3, wp);
+  // how you swung out there
+  const sc = el("mrsSwingCard");
+  sc.hidden = !(rc.nPath || rc.medTempo != null);
+  if (!sc.hidden){
+    const grid = el("mrsSwing"); grid.textContent = "";
+    const tile = (k, v, u) => {
+      const d = document.createElement("div");
+      div("mlabel", d, k);
+      const vv = div("v", d, v);
+      if (u && v !== "—"){ const sm = document.createElement("small"); sm.textContent = u; vv.appendChild(sm); }
+      grid.appendChild(d);
+    };
+    tile("Path", rc.medPath != null ? `${rc.medPath >= 0 ? "+" : ""}${rc.medPath.toFixed(1)}` : "—", "°");
+    tile("Tempo", rc.medTempo != null ? rc.medTempo.toFixed(2) : "—", ":1");
+    tile("Club speed", rc.medSpeed != null ? String(Math.round(rc.medSpeed)) : "—", "mph");
+    const bits = [];
+    if (rc.medPath != null)
+      bits.push(`Median path ${pathWord(rc.medPath)}`
+        + (rc.pathSpread != null ? `, typically within ±${rc.pathSpread.toFixed(1)}° of it` : "")
+        + ` over ${rc.nPath} swing${rc.nPath === 1 ? "" : "s"}`
+        + (window.__pathCal ? " (zeroed with your range calibration)" : " (not yet squared — set square at the range for a true zero)")
+        + ".");
+    if (rc.clipped) bits.push(`${rc.clipped} swing${rc.clipped === 1 ? "" : "s"} clipped the sensor and ${rc.clipped === 1 ? "is" : "are"} left out of path and speed.`);
+    bits.push("Speed is a wrist estimate — track the trend, not the number.");
+    el("mrsSwingNote").textContent = bits.join(" ");
+  }
   // shot map + strokes gained, from the local round
   recapA = localRoundAnalysis();
   renderRecapMap(recapA);
@@ -7309,7 +7398,7 @@ function bagStats(g){
           min: a.length ? Math.min(...a) : null,
           max: a.length ? Math.max(...a) : null,
           all: a,
-          tempo: avg(g.tempo), speed: avg(g.speed),
+          tempo: avg(g.tempo), speed: avg(g.speed), path: avg(g.path),
           adj: g.adj || 0,
           rounds: g.rounds ? g.rounds.size : null};
 }
@@ -7558,12 +7647,15 @@ function renderBagRows(host, groups, mode){
       const val = div("bagv", d, v);
       if (u && v !== "—"){ const sm = document.createElement("small"); sm.textContent = u; val.appendChild(sm); }
     };
+    const mid = () => mode === "round"
+      ? cell("Path", st.path != null ? `${st.path >= 0 ? "+" : ""}${st.path.toFixed(1)}` : "—", "°")
+      : cell("Middle half", st.shots >= 4 ? `${Math.round(st.p25)}–${Math.round(st.p75)}` : "—", "yd");
     if (st.shots){
       cell("Median", ydT(st.med), "");
-      cell("Middle half", st.shots >= 4 ? `${Math.round(st.p25)}–${Math.round(st.p75)}` : "—", "yd");
+      mid();
       cell("Range", `${Math.round(st.min)}–${Math.round(st.max)}`, "yd");
     } else {
-      cell("Median", "—", ""); cell("Middle half", "—", ""); cell("Range", "—", "");
+      cell("Median", "—", ""); mid(); cell("Range", "—", "");
     }
     cell("Tempo", st.tempo != null ? st.tempo.toFixed(2) : "—", "");
     cell("Club speed", st.speed != null ? Math.round(st.speed) : "—", "mph");
