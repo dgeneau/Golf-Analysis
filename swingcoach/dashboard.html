@@ -1033,7 +1033,7 @@
           <div class="mgcap" id="mTraceCap"></div>
         </div>
         <div class="mpage" id="mPagePath" hidden>
-          <div class="mlabel">Hand path · target line up</div>
+          <div class="mlabel mtappable" data-explain="path">Hand path · target line up</div>
           <svg id="mPathSvg" width="100%" viewBox="0 0 340 148" style="margin-top:4px"></svg>
           <svg id="mPathBand" width="100%" viewBox="0 0 340 40" style="margin-top:2px"></svg>
           <div class="mgcap" id="mPathCap"></div>
@@ -1048,7 +1048,7 @@
       <div class="mdots" id="mDots" hidden><span class="on"></span><span></span><span></span></div>
       <div class="mstats" id="mStats" hidden>
         <div><div class="mlabel mtappable" data-explain="club">Est. club</div><div class="mmid" id="mClubMph">—</div></div>
-        <div><div class="mlabel mtappable" data-explain="path">Path</div><div class="mmid" id="mPath">—</div></div>
+        <div><div class="mlabel mtappable" data-explain="path">Path · session</div><div class="mmid" id="mPath">—</div></div>
       </div>
       <div class="mcue" id="mCue" hidden>
         <div class="mcue-h"><span class="mdot" id="mCueDot"></span><h3 id="mCueTitle"></h3></div>
@@ -1935,18 +1935,12 @@ function coachJS(m){
     C(2, "Stalling at the top", `You sat at the top for ${m.pause_top_s.toFixed(2)}s. A brief settle is good; a full stop kills the stretch-shorten cycle — feel the lower body start down as the arms finish going back.`);
   else if (m.tempo_ratio > 0 && m.tempo_ratio < 2.4 && m.pause_top_s < 0.04)
     C(2, "No pause at the top", "The club never settled before the downswing — transition is doing the rushing. Feel one beat of stillness at the top before you go.");
-  if (!m.acc_clipped && Math.abs(m.path_angle_deg) > 30){
-    // A wrist IMU can't know the target line by itself — an offset this
-    // big means the square calibration hasn't been done yet.
-    C(3, "Path not squared yet", "The path reference is off by a large constant — hit a few normal swings, then tap Set square on the path screen to zero it.");
-  } else if (Math.abs(m.path_angle_deg) > 0.1 && !m.acc_clipped){
-    if (m.path_angle_deg < -4)
-      C(1, `Out-to-in path (${Math.round(m.path_angle_deg)}°)`, "Hands are cutting across the ball — classic slice/pull pattern. Rehearse swinging toward 1 o'clock (right of target) through impact.");
-    else if (m.path_angle_deg > 6)
-      C(2, `Strongly in-to-out path (+${Math.round(m.path_angle_deg)}°)`, "Big in-to-out move — good for a draw, but this much can produce pushes and hooks. Feel the chest rotating through impact.");
-    else
-      C(3, `Path is neutral (${m.path_angle_deg>=0?"+":""}${Math.round(m.path_angle_deg)}°)`, "Hand path through impact is close to the target line.");
-  }
+  // No per-swing path cue. The hand-path direction slews ~677°/s through
+  // impact, so one 60 Hz sample of timing error moves it ~11° — a single
+  // swing cannot support "you cut across it". The session tendency can, and
+  // is coached from the path pane instead.
+  if (!window.__pathCal && !m.acc_clipped && Math.abs(m.path_angle_deg) > 30)
+    C(3, "Path not squared yet", "Path is measured against your own address, so it needs zeroing once: hit a few normal swings at a target, then tap Set square on the path screen.");
   // Backswing-rotation cues removed: the 140°/320° bounds were invented, and
   // wrist travel is confounded by strap position, flexibility and club length.
   // The number is still reported; we just no longer coach off it.
@@ -6720,7 +6714,7 @@ function setDetail(on){
 const EXPLAIN = {
   tempo: {t: "Tempo", b: "The rhythm of your swing — how long the backswing takes compared with the downswing. Tour players sit around 3-to-1. Smooth and repeatable matters more than fast."},
   club:  {t: "Club speed (est.)", b: "An estimate of clubhead speed at impact, worked out from your wrist motion. It's labelled “est.” because a wrist sensor infers it rather than measuring the clubhead directly — best used to track your own trend over time."},
-  path:  {t: "Swing path", b: "The direction the club is travelling through impact, relative to your target line. In-to-out (a plus number) tends to draw the ball; out-to-in (a minus) tends to fade or slice. Tap “Set square” once you're aimed at a target so it reads against your real aim."},
+  path:  {t: "Hand path", b: "This is the direction your HANDS travel through impact, measured against where you set up. It is not club path: at impact the clubhead is moving three to four times faster than your hands and in a different direction, because it is swinging on the end of a shaft. \n\nA single swing's number is not trustworthy. We measured it on 22 real swings — the hand's direction is turning at about 677°/s right at impact, so one 60 Hz sample of timing error shifts the angle by roughly 11°, and the swing-to-swing scatter after zeroing is about 15°. Real club path varies a few degrees. That is why the tile shows your SESSION median instead: averaging 20 swings brings the uncertainty down to about ±3°, which is a tendency worth working on. The faint tick on the scale is the swing you are looking at; the solid mark and the shaded bar are the session median and its range. \n\nThe drawing itself is real — it is the path your hands actually traced, and the loop shape is worth looking at."},
   puttsym: {t: "Back / through", b: "How far the wrist rotates on the backstroke versus the follow-through. 1.0 means they're even — a common putting cue is a follow-through as long as (or a touch longer than) the backstroke. This is wrist rotation, a strong proxy for stroke length, not putter-head distance."},
   puttface: {t: "Wrist roll", b: "How much your wrist rolls through the stroke. The sensor can't see the clubface itself — face angle is what actually sends a putt off line — so treat this as a tendency, not a face-angle reading. The useful thing is keeping it small and, above all, the same every time."},
   puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
@@ -6839,10 +6833,20 @@ function renderMRange(){
   el("mClubMph").textContent = "";
   el("mClubMph").append(fmt1(clubSpeedMph(sw)));
   const u1 = document.createElement("small"); u1.textContent = "mph"; el("mClubMph").appendChild(u1);
+  // Session tendency, not this swing: a single swing's path carries ~±11° of
+  // timing noise alone, while the median over a session resolves to ~±3°.
+  const sp = sessionPath(sw.club && sw.club.id);
   el("mPath").textContent = "";
-  el("mPath").append(m.acc_clipped ? "—" : `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}`);
-  const u2 = document.createElement("small"); u2.textContent = m.acc_clipped ? " clipped" : "°";
-  el("mPath").appendChild(u2);
+  if (sp.med != null){
+    el("mPath").append(`${sp.med >= 0 ? "+" : ""}${fmt1(sp.med)}`);
+    const u2 = document.createElement("small"); u2.textContent = `° · ${sp.n} swings`;
+    el("mPath").appendChild(u2);
+  } else {
+    el("mPath").append("—");
+    const u2 = document.createElement("small");
+    u2.textContent = ` ${sp.n}/${PATH_MIN_N} swings`;
+    el("mPath").appendChild(u2);
+  }
   // always render the cue box (placeholder when clean) so the layout height
   // never changes between swings — no vertical jumping
   const cue = sw.cues && sw.cues[0];
@@ -7022,9 +7026,40 @@ function renderMTrace(sw){
   document.getElementById("mTraceCap").textContent = cap.join(" · ");
 }
 /* hand path from above, rotated into the address frame so the target line is
-   straight up the screen — the arrow's lean off that line IS the path angle */
-const PATH_TGT = {lo: -4, hi: 6};   // must match the coaching-cue thresholds
+   straight up the screen — the arrow's lean off that line is the hand-path
+   direction. The drawing is real: it is the trajectory the hands traced. What
+   it is NOT is club path — at impact the clubhead is 3-4x faster than the
+   hands and going a different way, on the end of the shaft. */
+const PATH_TGT = {lo: -4, hi: 6};
+/* ---------- Path: what this sensor can and cannot resolve ----------
+   Measured on 22 real swings (Toptracer session, 2026-09-06): the direction of
+   the hand's velocity is slewing at a median 677 deg/s at the instant of
+   impact, so one 60 Hz sample of impact-timing error moves the angle by ~11
+   deg. Verified directly — shifting impact by +-1 sample moves it ~11 deg.
+   After removing the mount offset the per-swing residual is sd 15 deg over a
+   62 deg range, against a real club path that varies maybe +-3-5 deg.
+
+   So a single swing's path is noise. The SESSION MEDIAN is not: sd 15 / sqrt(n)
+   gives ~3 deg of standard error over 20 swings, which is a real tendency worth
+   coaching. That asymmetry drives everything below — per swing we show the
+   number with its uncertainty and never coach off it; across a session we show
+   the tendency and do. */
+const PATH_SD_DEG = 15;      // measured per-swing residual sd, after squaring
+const PATH_MIN_N = 6;        // swings before a session tendency means anything
+function sessionPath(club){
+  const cal = window.__pathCal || 0;
+  const v = swings.filter(w => w && w.metrics && !w.metrics.acc_clipped
+      && w.metrics.path_angle_raw_deg != null
+      && (!club || (w.club && w.club.id === club)))
+    .map(w => w.metrics.path_angle_raw_deg - cal);
+  if (v.length < PATH_MIN_N) return {n: v.length, med: null};
+  const med = median(v);
+  const se = PATH_SD_DEG / Math.sqrt(v.length);
+  return {n: v.length, med, se, lo: med - 1.96 * se, hi: med + 1.96 * se,
+          spread: pct(v, .75) - pct(v, .25)};
+}
 function renderMPath(sw){
+  window.__lastPathClub = sw.club && sw.club.id;
   const svg = document.getElementById("mPathSvg");
   svg.textContent = "";
   const P = sw.path, m = sw.metrics;
@@ -7044,8 +7079,11 @@ function renderMPath(sw){
                      (W - 2*pad) / Math.max(1e-3, maxy - miny));
   const SX = i => W/2 - (yr[i] - (miny + maxy)/2) * s;   // left of target → screen left
   const SY = i => H/2 - (xr[i] - (minx + maxx)/2) * s;   // target direction → up
-  const iT = Math.max(0, Math.min(P.i_top, xr.length - 1));
-  const iI = Math.max(iT, Math.min(P.i_impact, xr.length - 1));
+  // A record missing its event indices must not NaN the whole pane.
+  const clampIdx = (v, dflt) => Number.isFinite(v)
+    ? Math.max(0, Math.min(Math.round(v), xr.length - 1)) : dflt;
+  const iT = clampIdx(P.i_top, 0);
+  const iI = Math.max(iT, clampIdx(P.i_impact, xr.length - 1));
   const ix = SX(iI), iy = SY(iI);
   // target line through impact, straight up the screen
   mkSvg(svg, "line", {x1: ix, y1: 6, x2: ix, y2: H - 6,
@@ -7075,10 +7113,10 @@ function renderMPath(sw){
                         stroke: "#b4632f", "stroke-width": 2.5});
     mkSvg(svg, "polygon", {points: `${ex},${ey} ${bx+px},${by+py} ${bx-px},${by-py}`,
                            fill: "#b4632f"});
-    mkSvg(svg, "text", {x: ex + (m.path_angle_deg >= 0 ? 6 : -6), y: ey - 2,
-                        "text-anchor": m.path_angle_deg >= 0 ? "start" : "end",
-                        fill: "#b4632f", style: "font:600 12px system-ui"})
-      .textContent = `${m.path_angle_deg >= 0 ? "+" : ""}${fmt1(m.path_angle_deg)}°`;
+    // No degree readout on the arrow. It would put a number on a single
+    // swing's direction, which is the one thing this measurement cannot
+    // resolve; the arrow shows which way the hands went, the scale below
+    // carries the session tendency and its uncertainty.
   }
   renderPathBand(m);
 }
@@ -7105,30 +7143,42 @@ function renderPathBand(m){
   const sq = document.getElementById("mSquareBtn");
   sq.textContent = cal ? "Re-square path" : "Set square from last swings";
   document.getElementById("mSquareClr").hidden = !cal;
-  const p = m.path_angle_deg;
-  if (m.acc_clipped || p == null){
-    cap.textContent = "accelerometer clipped at impact — path isn't reliable for this swing";
+  const pSwing = m.path_angle_deg;
+  const sp = sessionPath(window.__lastPathClub || null);
+  // this swing: a faint tick, because on its own it is mostly timing noise
+  if (!m.acc_clipped && pSwing != null)
+    mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 3, x(pSwing) - 1.5)), y: 10, width: 3,
+                        height: 16, rx: 1.5, fill: "#c9c2ab"});
+  if (!cal){
+    cap.textContent = sp.med != null
+      ? `Not squared yet — these are raw angles. Hit a few normal swings at a target, then tap Set square.`
+      : `${pSwing == null || m.acc_clipped ? "—" : (pSwing >= 0 ? "+" : "") + fmt1(pSwing) + "°"} raw — not squared yet. Hit a few normal swings at a target, then tap Set square.`;
     cap.style.color = "#8a8577";
     return;
   }
-  if (!cal && Math.abs(p) > 12){
-    mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
-                        height: 24, rx: 2.5, fill: "#8a8577"});
-    cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° raw — not squared yet. Hit a few normal swings at a target, then tap Set square.`;
+  if (sp.med == null){
+    cap.textContent = `Path needs ${PATH_MIN_N} squared swings with a club before it means anything — `
+      + `${sp.n} so far. A single swing carries about ±${Math.round(PATH_SD_DEG * 0.75)}° of timing noise, so we wait for the session tendency.`;
     cap.style.color = "#8a8577";
     return;
   }
-  const inBand = p >= PATH_TGT.lo && p <= PATH_TGT.hi;
-  mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(p) - 2.5)), y: 6, width: 5,
+  // the session tendency: median with its 95% interval
+  const lo = Math.max(0, x(sp.lo)), hi = Math.min(W, x(sp.hi));
+  mkSvg(svg, "rect", {x: lo, y: 15, width: Math.max(2, hi - lo), height: 6, rx: 3,
+                      fill: "rgba(60,74,48,0.35)"});
+  const inBand = sp.med >= PATH_TGT.lo && sp.med <= PATH_TGT.hi;
+  mkSvg(svg, "rect", {x: Math.max(0, Math.min(W - 5, x(sp.med) - 2.5)), y: 6, width: 5,
                       height: 24, rx: 2.5, fill: inBand ? "#3c4a30" : "#a8442e"});
+  const p = sp.med;
+  const tail = ` (median of ${sp.n} swings, ±${Math.round(1.96 * sp.se)}°)`;
   if (p < PATH_TGT.lo){
-    cap.textContent = `${fmt1(p)}° out-to-in — cutting across it. Rehearse swinging toward 1 o'clock through impact.`;
+    cap.textContent = `Session tendency ${fmt1(p)}° out-to-in${tail} — hands cutting across it. Rehearse swinging toward 1 o'clock through impact.`;
     cap.style.color = "#a8442e";
   } else if (p > PATH_TGT.hi){
-    cap.textContent = `+${fmt1(p)}° strongly in-to-out — draw territory, but this much invites pushes and hooks.`;
+    cap.textContent = `Session tendency +${fmt1(p)}° in-to-out${tail} — draw shape, but this much invites pushes and hooks.`;
     cap.style.color = "#a3782a";
   } else {
-    cap.textContent = `${p >= 0 ? "+" : ""}${fmt1(p)}° — inside the target window (${PATH_TGT.lo}° to +${PATH_TGT.hi}°).`;
+    cap.textContent = `Session tendency ${p >= 0 ? "+" : ""}${fmt1(p)}°${tail} — inside the target window (${PATH_TGT.lo}° to +${PATH_TGT.hi}°).`;
     cap.style.color = "#3c4a30";
   }
 }
