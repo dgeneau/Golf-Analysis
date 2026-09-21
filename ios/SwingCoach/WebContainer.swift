@@ -51,6 +51,7 @@ struct WebContainer: UIViewRepresentable {
         WatchLink.shared.evaluator = evaluate
         WatchLink.shared.start()
         LocationTrail.shared.evaluator = evaluate
+        SwingAudio.shared.evaluator = evaluate   // the strike channel: see SwingAudio.swift
 
         webView.load(URLRequest(url: WebContainer.appURL))
         return webView
@@ -74,9 +75,12 @@ struct WebContainer: UIViewRepresentable {
                 ble.connect(choose: choose)
                 LocationTrail.shared.start()   // native GPS trail: places
             case "pick": ble.pick(id: body["id"] as? String ?? "")   // locked-phone swings
+            case "micOn": SwingAudio.shared.start()
+            case "micOff": SwingAudio.shared.stop()
             case "disconnect":
                 ble.disconnect()
                 LocationTrail.shared.stop()
+                SwingAudio.shared.stop()
             default: break
             }
         }

@@ -1,4 +1,5 @@
 import CoreBluetooth
+import QuartzCore
 import Foundation
 import UIKit
 
@@ -241,10 +242,17 @@ final class DotBluetoothManager: NSObject, ObservableObject {
         // Keys must match the web pipeline's Sample fields exactly.
         // "ep" (wall-clock epoch ms) rides along so the page can place swings
         // captured while the phone was locked at the right time and position.
+        // "mt" is the phone's monotonic media clock, read the moment this
+        // notification was parsed. It is the ONLY link between the DOT's own
+        // clock and anything else the phone measures — the microphone's
+        // 48 kHz timestamps are on this same clock. A single "mt" is worth
+        // little (BLE delivers notifications late and in bursts, tens of ms),
+        // so the page never reads one: it fits a line through hundreds of
+        // them and takes the lower envelope, which lands within ~1 ms.
         let json = String(
-            format: "{\"t\":%.6f,\"roll\":%.3f,\"pitch\":%.3f,\"yaw\":%.3f,\"ax\":%.4f,\"ay\":%.4f,\"az\":%.4f,\"gx\":%.3f,\"gy\":%.3f,\"gz\":%.3f,\"ep\":%.0f}",
+            format: "{\"t\":%.6f,\"roll\":%.3f,\"pitch\":%.3f,\"yaw\":%.3f,\"ax\":%.4f,\"ay\":%.4f,\"az\":%.4f,\"gx\":%.3f,\"gy\":%.3f,\"gz\":%.3f,\"ep\":%.0f,\"mt\":%.6f}",
             t, f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8],
-            Date().timeIntervalSince1970 * 1000)
+            Date().timeIntervalSince1970 * 1000, CACurrentMediaTime())
         sampleBuf.append(json)
         if sampleBuf.count > bufCap { sampleBuf.removeFirst(sampleBuf.count - bufCap) }
         lastSampleAt = Date()

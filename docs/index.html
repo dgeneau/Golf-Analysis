@@ -1005,6 +1005,7 @@
     <div class="mtop" style="padding-top:10px">
       <span class="mstatus" id="mStatus"><span class="mdot" id="mDot"></span><span id="mStatusTxt">Not connected</span></span>
       <span style="flex:1"></span>
+      <button class="mchip" id="mStrikeChip" aria-pressed="false" hidden>Strike</button>
       <button class="mchip" id="mDetailToggle" aria-pressed="false" hidden>Simple</button>
     </div>
     <div class="mhero" id="mHero">
@@ -1062,6 +1063,31 @@
         <button class="mghost" id="mRoundBtn">Round</button>
         <button class="mghost" id="mDrillsBtn">Drills</button>
       </div>
+    </div>
+  </div>
+
+  <!-- strike channel: the microphone times impact 800x finer than the sensor -->
+  <div class="mexplain" id="mStrike" hidden>
+    <div class="mexplain-card">
+      <h3>Strike channel</h3>
+      <p id="mStrikeLede">The microphone hears the ball 800&times; more precisely than the wrist sensor can feel it. With it on, impact is timed from the strike itself.</p>
+      <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px">
+        <button class="mprimary" id="mStrikeToggle" style="flex:1">Turn on</button>
+        <div id="mStrikeMeter" style="width:78px;height:8px;border-radius:4px;background:#ddd7c4;overflow:hidden">
+          <div id="mStrikeMeterFill" style="height:100%;width:0;background:#8a9270"></div>
+        </div>
+      </div>
+      <p class="tgt" id="mStrikeState"></p>
+      <label style="display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-size:14px;color:#52514e">
+        Phone is
+        <input id="mStrikeDist" type="number" min="0.3" max="10" step="0.1"
+               style="width:66px;padding:6px 8px;border:1px solid #ddd7c4;border-radius:8px;background:#f0ede2;font:inherit">
+        m from the ball
+      </label>
+      <p style="font-size:12.5px;color:#8a8577;margin:0 0 12px">Sound covers a metre in 2.9&nbsp;ms — a fifth of a sensor sample — so this distance matters.</p>
+      <button class="mghost" id="mStrikeTap" style="width:100%;border:1px solid #ddd7c4;border-radius:10px;padding:11px">Sync tap</button>
+      <p class="tgt" id="mStrikeTapMsg" style="margin-top:8px"></p>
+      <button class="mprimary" id="mStrikeClose" style="width:100%;margin-top:14px">Done</button>
     </div>
   </div>
 
@@ -1484,7 +1510,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "3aeec2c · 2026-09-21";
+const BUILD = "2106c9e · 2026-09-21";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1635,6 +1661,314 @@ const EFF_LEVER_K = 1.40;
 const gmag = s => Math.hypot(s.gx, s.gy, s.gz);
 const amag = s => Math.hypot(s.ax, s.ay, s.az);
 
+/* ---------- The strike channel ----------
+   The wrist sensor runs at 60 Hz, so it can only say which 16.7 ms sample the
+   ball-strike landed in. That is the single largest error in this app: the
+   hand's velocity direction slews about 11° in one sample, which is most of
+   the ±15° swing-to-swing scatter in path. A microphone samples 800× finer,
+   and every phone already has one.
+
+   Three things have to be true for a 21 µs audio timestamp to be worth
+   anything on a 60 Hz sensor's timeline:
+
+   1. The two clocks must be tied together. The DOT free-runs on its own
+      crystal; the phone stamps each BLE notification with CACurrentMediaTime
+      ("mt"), the same clock the audio engine uses. But BLE delivers late and
+      in bursts — a stalled link flushes its backlog all at once — so a single
+      pair is worthless and a least-squares line through all of them is worse
+      than useless (simulation: 25 ms out, more than a whole IMU sample).
+      What works is the lower envelope: bin the window, keep the least-delayed
+      pair in each bin, fit through those. That holds ~1 ms through backlog
+      flushes, which is 0.06 of a sample.
+
+   2. The fixed offsets must be removed. Audio capture latency, the BLE
+      transport floor and the flight time of the sound from ball to phone are
+      all constants for a given setup. The sync tap measures the first two at
+      arm's length; the third is distance ÷ 343 m/s, which is why the setup
+      asks how far the phone is from the ball. Until the tap is done we still
+      report the offset, but self-referenced to the session's own median —
+      honest about jitter, silent about absolute.
+
+   3. It must fail quietly. A strike that isn't heard, a clock that hasn't
+      converged, an uncalibrated lag: each degrades the feature to what it can
+      still support, and none of them may corrupt a swing. */
+
+const STRIKE = {
+  WIN: 20,          // s of (t, mt) pairs behind the fit
+  BINS: 12,
+  REFIT: 30,        // samples between refits (0.5 s)
+  MIN_PAIRS: 60,    // 1 s of stream before the clock model means anything
+  MIN_SPAN: 1.0,    // s
+  MATCH: 0.15,      // s either side of the IMU impact to look for the strike
+  RING: 12,         // s of acoustic events kept
+  SOUND_MPS: 343,   // 20 °C; ±5 °C is ±0.6 %, i.e. ±0.02 ms at 2 m
+  MIN_SNR: 12,      // dB over the running background to count as a strike
+  AUTO_MIN: 8,      // swings before a self-referenced zero is offered
+  TAP_MIN: 3,       // taps needed for a calibration
+  TAP_SPREAD: 0.005,// s — taps must agree this well or the calibration is void
+  TAP_WIN: 20,      // s the tap routine stays armed
+  MAX_SHIFT: 6,     // samples the acoustic impact may move the detector's call
+};
+
+let micState = "off", micDetail = "", micLevelDb = null;
+let strikeLagS = null;     // calibrated fixed lag (s), from the sync tap
+let ballDistM = 1.5;       // phone-to-ball distance the user sets
+let strikeSeen = 0, strikeMissed = 0;
+const strikeOffsets = [];  // recent (audio − IMU) offsets, for the self-reference
+
+try {
+  const raw = localStorage.getItem("dr_strike");
+  if (raw){
+    const o = JSON.parse(raw);
+    if (isFinite(o.lag)) strikeLagS = +o.lag;
+    if (isFinite(o.dist) && o.dist > 0) ballDistM = +o.dist;
+  }
+} catch (e) {}
+function strikeSave(){
+  try {
+    localStorage.setItem("dr_strike", JSON.stringify({lag: strikeLagS, dist: ballDistM}));
+  } catch (e) {}
+}
+
+/* --- DOT clock → phone media clock ------------------------------------- */
+const clockPairs = [];
+let clockFit = null;       // {a, b, n, span, resid}
+let clockSince = 0;
+let lastSampleT = 0;       // newest DOT timestamp seen, for the tap window
+function clockFeed(s){
+  lastSampleT = s.t;
+  if (s.mt == null || !isFinite(s.mt)) return;
+  clockPairs.push({t: s.t, mt: s.mt});
+  const cut = s.t - STRIKE.WIN;
+  while (clockPairs.length && clockPairs[0].t < cut) clockPairs.shift();
+  if (++clockSince >= STRIKE.REFIT){ clockSince = 0; clockRefit(); }
+}
+function clockRefit(){
+  const pr = clockPairs, n = pr.length;
+  if (n < STRIKE.MIN_PAIRS){ clockFit = null; return; }
+  const t0 = pr[0].t, t1 = pr[n-1].t, span = t1 - t0;
+  if (span < STRIKE.MIN_SPAN){ clockFit = null; return; }
+  // lower envelope: least-delayed pair per bin
+  const w = span / STRIKE.BINS, best = new Array(STRIKE.BINS).fill(null);
+  for (const p of pr){
+    let b = Math.floor((p.t - t0) / w);
+    if (b < 0) b = 0; else if (b >= STRIKE.BINS) b = STRIKE.BINS - 1;
+    if (!best[b] || p.mt - p.t < best[b].mt - best[b].t) best[b] = p;
+  }
+  // A corrupt or re-based timestamp would look like the least-delayed pair in
+  // its bin and drag the whole line with it, so drop bins whose implied
+  // transport delay is not physically possible next to the others'.
+  const kept = best.filter(Boolean);
+  if (kept.length < 4){ clockFit = null; return; }
+  const dly = kept.map(p => p.mt - p.t);
+  const dm = median(dly);
+  const xs = [], ys = [];
+  for (const p of kept){
+    const d = p.mt - p.t;
+    if (d < dm - 0.25 || d > dm + 2.0) continue;
+    xs.push(p.t); ys.push(p.mt);
+  }
+  if (xs.length < 4){ clockFit = null; return; }
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  const k = xs.length;
+  for (let i = 0; i < k; i++){ sx += xs[i]; sy += ys[i]; sxx += xs[i]*xs[i]; sxy += xs[i]*ys[i]; }
+  const den = k*sxx - sx*sx;
+  if (!(Math.abs(den) > 1e-9)){ clockFit = null; return; }
+  const a = (k*sxy - sx*sy) / den, b = (sy - a*sx) / k;
+  // A sane fit runs at 1:1 within a few hundred ppm. Anything else is a
+  // reconnect re-basing the DOT clock mid-window, not a real drift rate.
+  if (!isFinite(a) || Math.abs(a - 1) > 5e-3){ clockFit = null; return; }
+  let ss = 0;
+  for (let i = 0; i < k; i++){ const e = ys[i] - (a*xs[i] + b); ss += e*e; }
+  clockFit = {a, b, n, span, resid: Math.sqrt(ss / k)};
+}
+function dotTimeOf(mt){
+  return clockFit ? (mt - clockFit.b) / clockFit.a : null;
+}
+function clockReset(){ clockPairs.length = 0; clockFit = null; clockSince = 0; }
+
+/* --- acoustic events ---------------------------------------------------- */
+const strikes = [];
+window._nativeStrike = ev => {
+  if (!ev || ev.mt == null || !isFinite(ev.mt)) return;
+  const st = {mt: +ev.mt, peak: +ev.peak, base: +ev.base,
+              bright: +ev.bright || 0, used: false};
+  st.snr = st.peak - st.base;
+  if (!(st.snr >= STRIKE.MIN_SNR)) return;
+  strikes.push(st);
+  const cut = st.mt - STRIKE.RING;
+  while (strikes.length && strikes[0].mt < cut) strikes.shift();
+  if (tapCal.armed) tapStrike(st);
+};
+window._nativeMic = (state, detail, level) => {
+  if (state === "level"){ micLevelDb = (level == null ? null : +level); }
+  else { micState = state; micDetail = detail || ""; if (state !== "on") micLevelDb = null; }
+  if (typeof renderStrikeUI === "function") renderStrikeUI();
+};
+function micArmed(){ return micState === "on"; }
+function micSend(cmd){
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.swingcoach)
+    window.webkit.messageHandlers.swingcoach.postMessage({cmd});
+}
+
+/* --- the fixed lag ------------------------------------------------------ */
+function strikeLag(){
+  // Sync-tap constant (BLE transport floor + audio capture latency), plus the
+  // sound's flight time from ball to phone.
+  const cal = strikeLagS == null ? 0 : strikeLagS;
+  return cal + ballDistM / STRIKE.SOUND_MPS;
+}
+function strikeCalibrated(){ return strikeLagS != null; }
+function strikeAutoZero(){
+  // Fallback when there is no sync tap: the session's own median offset. It
+  // cannot reveal a constant bias in the impact detector (it defines that bias
+  // as zero), but it makes the per-swing scatter readable, which is the part
+  // that costs path its precision.
+  if (strikeOffsets.length < STRIKE.AUTO_MIN) return null;
+  return median(strikeOffsets.slice(-40));
+}
+
+/* --- matching ----------------------------------------------------------- */
+function matchStrike(rec){
+  if (!clockFit || !strikes.length) return null;
+  const tI = rec.samples[rec.iImpact].t;
+  const lag = strikeLag();
+  let best = null;
+  for (const st of strikes){
+    if (st.used) continue;
+    const td = dotTimeOf(st.mt);
+    if (td == null) continue;
+    const at = td - lag;
+    if (Math.abs(at - tI) > STRIKE.MATCH) continue;
+    // A range is a noisy place. Where two events land in the window, the
+    // loudest one is the ball you just hit, not the bay next door.
+    if (!best || st.peak > best.st.peak) best = {st, at, imuT: tI};
+  }
+  if (best) best.st.used = true;
+  return best;
+}
+
+/* Move the impact call onto the instant the microphone heard, when we know
+   the fixed lag well enough to do that honestly. Everything downstream —
+   tempo, path, club speed — is read at this index. */
+function seatImpact(rec, hit){
+  rec.imuImpactT = rec.samples[rec.iImpact].t;
+  rec.impactShift = 0; rec.impactFrac = 0;
+  const zero = strikeCalibrated() ? 0 : strikeAutoZero();
+  if (zero == null) return false;          // relative-only: report, don't move
+  const target = hit.at - zero;
+  const t = rec.samples.map(x => x.t), n = t.length;
+  const lo = Math.max(rec.iTop + 1, rec.iImpact - STRIKE.MAX_SHIFT);
+  const hi = Math.min(n - 2, rec.iImpact + STRIKE.MAX_SHIFT);
+  if (!(lo <= hi)) return false;
+  let j = rec.iImpact, bd = Math.abs(t[j] - target);
+  for (let k = lo; k <= hi; k++){
+    const d = Math.abs(t[k] - target);
+    if (d < bd){ bd = d; j = k; }
+  }
+  const dt = (t[j+1] != null ? t[j+1] - t[j] : t[j] - t[j-1]) || (1/60);
+  rec.impactShift = j - rec.iImpact;
+  rec.iImpact = j;
+  rec.impactFrac = Math.max(-0.999, Math.min(0.999, (target - t[j]) / dt));
+  return true;
+}
+
+function noteStrike(m, rec, hit){
+  const off = hit.at - rec.imuImpactT;
+  strikeOffsets.push(off);
+  if (strikeOffsets.length > 80) strikeOffsets.shift();
+  strikeSeen++;
+  m.strike_heard = true;
+  m.strike_offset_s = off;
+  m.strike_offset_samples = off * 60;
+  m.strike_snr_db = hit.st.snr;
+  m.strike_bright = hit.st.bright;
+  m.strike_ref = strikeCalibrated() ? "tap" : (strikeAutoZero() == null ? "none" : "self");
+  m.impact_shift_samples = rec.impactShift || 0;
+  m.impact_frac = rec.impactFrac || 0;
+  m.clock_resid_ms = clockFit ? clockFit.resid * 1000 : null;
+  if (Math.abs(m.impact_shift_samples) >= 2)
+    m.notes.push(`Impact moved ${m.impact_shift_samples > 0 ? "later" : "earlier"} by `
+      + `${Math.abs(m.impact_shift_samples)} samples to match the strike the microphone heard.`);
+}
+function noteNoStrike(m){
+  if (!micArmed() || !clockFit) return;
+  strikeMissed++;
+  m.strike_heard = false;
+  // A full-speed "swing" that made no noise is usually not a shot: a practice
+  // pass, a waggle, or the sensor being handled. This is the cleanest artifact
+  // signal the app has — it observes the ball rather than inferring it from a
+  // silly distance after the fact.
+  m.notes.push("No ball strike heard — this looks like a practice swing.");
+}
+
+/* --- sync tap ----------------------------------------------------------- */
+/* Hold the sensor next to the phone and tap it firmly. Each tap makes a sound
+   and a shock at the same instant (20 cm of air is 0.6 ms), so the gap between
+   the two timestamps is the fixed lag we need to remove: BLE transport floor
+   plus audio capture latency. */
+const tapCal = {armed: false, until: 0, jerks: [], pairs: [], msg: "", done: false};
+function tapStart(){
+  if (!micArmed()){ tapCal.msg = "Turn the strike channel on first."; renderStrikeUI(); return; }
+  tapCal.armed = true; tapCal.jerks = []; tapCal.pairs = []; tapCal.done = false;
+  tapCal.until = lastSampleT + STRIKE.TAP_WIN;
+  tapCal.msg = "Hold the sensor beside the phone and tap it firmly — 5 times.";
+  renderStrikeUI();
+}
+function tapStop(){ tapCal.armed = false; renderStrikeUI(); }
+function tapFeed(s, prev){
+  if (!tapCal.armed) return;
+  if (s.t > tapCal.until){ tapFinish(); return; }
+  if (!prev) return;
+  const j = Math.hypot(s.ax - prev.ax, s.ay - prev.ay, s.az - prev.az);
+  if (j < 25) return;                                   // m/s² per sample
+  const last = tapCal.jerks[tapCal.jerks.length - 1];
+  if (last && s.t - last.t < 0.25){
+    if (j > last.j){ last.t = s.t; last.j = j; }         // keep the sharpest
+    return;
+  }
+  tapCal.jerks.push({t: s.t, j});
+}
+function tapStrike(st){
+  const td = dotTimeOf(st.mt);
+  if (td == null) return;
+  // pair with the nearest wrist shock
+  let best = null, bd = 0.15;
+  for (const k of tapCal.jerks){
+    const d = Math.abs(td - k.t);
+    if (d < bd){ bd = d; best = k; }
+  }
+  if (!best) return;          // a sound with no matching shock is just noise
+  if (best.paired) return;
+  best.paired = true;
+  tapCal.pairs.push(td - best.t);
+  tapCal.msg = `${tapCal.pairs.length} tap${tapCal.pairs.length === 1 ? "" : "s"} caught — keep going.`;
+  if (tapCal.pairs.length >= 5) tapFinish();
+  else renderStrikeUI();
+}
+function tapFinish(){
+  tapCal.armed = false; tapCal.done = true;
+  const p = tapCal.pairs;
+  if (p.length < STRIKE.TAP_MIN){
+    tapCal.msg = `Only ${p.length} tap${p.length === 1 ? "" : "s"} landed. `
+      + "Tap harder, and keep the sensor within a hand's width of the phone.";
+    renderStrikeUI(); return;
+  }
+  const spread = pct(p, 0.75) - pct(p, 0.25);
+  if (spread > STRIKE.TAP_SPREAD){
+    tapCal.msg = `Those taps disagreed by ${(spread*1000).toFixed(0)} ms — too much to trust. `
+      + "Try again somewhere quieter.";
+    renderStrikeUI(); return;
+  }
+  // The tap happens at arm's length, so take its own flight time back out;
+  // what is left is transport plus capture latency, which does not move.
+  strikeLagS = median(p) - 0.2 / STRIKE.SOUND_MPS;
+  strikeSave();
+  tapCal.msg = `Calibrated from ${p.length} taps: ${(strikeLagS*1000).toFixed(1)} ms of fixed lag, `
+    + `agreeing to ${(spread*1000).toFixed(1)} ms.`;
+  renderStrikeUI();
+}
+
 class SwingDetector {
   constructor(){ this.buf = []; this.inSwing = false; this.burstT = 0; this.quietSince = null; }
   feed(s){
@@ -1733,8 +2067,19 @@ function computeMetricsJS(rec, leverM){
   const s = rec.samples, i0 = rec.iTakeaway, i1 = rec.iTop, i2 = rec.iImpact;
   const t = s.map(x => x.t), gyro = s.map(gmag);
   const m = {notes: []};
+  // Where the microphone heard the strike between two samples. Zero unless the
+  // strike channel is running and calibrated; see "The strike channel" above.
+  const fI = Math.max(-0.999, Math.min(0.999, +rec.impactFrac || 0));
+  const jI = fI >= 0 ? Math.min(s.length - 1, i2 + 1) : Math.max(0, i2 - 1);
+  const uI = Math.abs(fI);
+  const atImpact = arr => {              // linear blend toward the next sample
+    const a = arr[i2], b = arr[jI];
+    if (a == null || b == null) return a;
+    return Array.isArray(a) ? a.map((v, d) => v*(1-uI) + b[d]*uI) : a*(1-uI) + b*uI;
+  };
+  const tI = atImpact(t);
   m.backswing_s = t[i1] - t[i0];
-  m.downswing_s = t[i2] - t[i1];
+  m.downswing_s = tI - t[i1];
   m.tempo_ratio = m.downswing_s > 0 ? m.backswing_s / m.downswing_s : 0;
 
   m.gyro_clipped = false; m.acc_clipped = false;
@@ -1763,7 +2108,7 @@ function computeMetricsJS(rec, leverM){
     const dt = t[i] - t[i-1];
     for (let d = 0; d < 3; d++) vel[i][d] = vel[i-1][d] + accI[i][d]*dt;
   }
-  const vI = vel[i2];
+  const vI = atImpact(vel);
   m.hand_speed_mps = Math.hypot(...vI);
   m.hand_speed_mph = m.hand_speed_mps * 2.23694;
 
@@ -1834,10 +2179,10 @@ function computeMetricsJS(rec, leverM){
   if (m.path_angle_raw_deg == null) m.path_angle_raw_deg = 0;
 
   m.release_fraction = 0;
-  if (i2 > i1 && t[i2] > t[i1]){
+  if (i2 > i1 && tI > t[i1]){
     let iPk = i1;
     for (let i = i1; i <= i2; i++) if (gyro[i] > gyro[iPk]) iPk = i;
-    m.release_fraction = (t[iPk]-t[i1]) / (t[i2]-t[i1]);
+    m.release_fraction = (t[iPk]-t[i1]) / (tI-t[i1]);
   }
 
   m.pause_top_s = 0;
@@ -1862,7 +2207,7 @@ function computeMetricsJS(rec, leverM){
   let rx = 0;
   for (let i = i1+1; i <= i2; i++) rx += s[i].gx*(t[i]-t[i-1]);
   m.forearm_rotation_deg = rx;
-  m.forearm_rate_impact_dps = s[i2].gx;
+  m.forearm_rate_impact_dps = s[i2].gx*(1-uI) + s[jI].gx*uI;
   return m;
 }
 
@@ -5520,17 +5865,22 @@ function initBleMode(){
   // Timestamp continuity: every sensor (re)connect resets the DOT clock to 0,
   // corrupting the stream's time axis (4 resets in one real round). Re-base
   // here so the detector, rawLog, and CSV exports stay monotonic.
-  let contOff = 0, contLast = -Infinity;
+  let contOff = 0, contLast = -Infinity, prevSample = null;
   const onSample = raw => {
     let t = raw.t + contOff;
     if (t < contLast - 0.5){
       contOff = contLast + 2.0 - raw.t;
       t = raw.t + contOff;
+      clockReset();    // the DOT clock just re-based; the old fit is meaningless
+      prevSample = null;
     }
     contLast = t;
     const s = t === raw.t ? raw : Object.assign({}, raw, {t});
     s.club = clubId;   // tag every sample with the selected club, so range
     rawLog.push(s);    // CSVs pair themselves in future calibration sessions
+    clockFeed(s);      // keeps the DOT↔phone clock model current
+    tapFeed(s, prevSample);
+    prevSample = s;
     if (rawLog.length === 1) setConnectButton();  // reveal CSV button
     if (drillMode){
       // rawLog above still captures everything for the CSV regardless.
@@ -5554,7 +5904,17 @@ function initBleMode(){
     }
     const rec = det.feed(s);
     if (rec){
+      // The microphone gets the last word on when impact happened; everything
+      // below reads the swing at that instant instead of the nearest 60 Hz
+      // sample. See "The strike channel" above for why this is worth doing.
+      const hit = matchStrike(rec);
+      if (hit) seatImpact(rec, hit);
       const sw = swingToJson(rec, leverMeters());
+      if (hit) noteStrike(sw.metrics, rec, hit); else noteNoStrike(sw.metrics);
+      if (sw.metrics.strike_heard === false && Array.isArray(sw.cues))
+        sw.cues.unshift({priority: 1, title: "No strike heard",
+          detail: "The microphone picked up the swing but not a ball. If you did hit one, "
+                + "move the phone closer or check the distance in the strike settings."});
       sw.club = currentClubTag();
       const onCourse = uiMode === "round" && round && !round.endedAt;
       if (onCourse) sw.metrics.round_ctx = shotContext();   // rides along in swings.metrics
@@ -6431,6 +6791,25 @@ function initMobile(){
       const t = e.target.closest("[data-explain]");
       if (t) showExplain(t.getAttribute("data-explain"));
     });
+  // strike channel sheet
+  el("mStrikeChip").addEventListener("click", () => {
+    el("mStrike").hidden = false; renderStrikeUI();
+  });
+  el("mStrikeClose").addEventListener("click", () => { el("mStrike").hidden = true; });
+  el("mStrike").addEventListener("click", e => {
+    if (e.target === el("mStrike")) el("mStrike").hidden = true;
+  });
+  el("mStrikeToggle").addEventListener("click", () => {
+    if (micArmed()){ micSend("micOff"); micState = "off"; micLevelDb = null; }
+    else { micState = "starting"; micDetail = "asking for the microphone…"; micSend("micOn"); }
+    renderStrikeUI();
+  });
+  el("mStrikeDist").addEventListener("change", e => {
+    const v = parseFloat(e.target.value);
+    if (isFinite(v) && v >= 0.3 && v <= 10){ ballDistM = v; strikeSave(); }
+    renderStrikeUI();
+  });
+  el("mStrikeTap").addEventListener("click", () => { tapCal.armed ? tapStop() : tapStart(); });
   el("mExplainClose").addEventListener("click", () => { el("mExplain").hidden = true; });
   el("mExplain").addEventListener("click", e => {
     if (e.target === el("mExplain")) el("mExplain").hidden = true;   // tap backdrop to close
@@ -6780,6 +7159,57 @@ function renderMobile(){
   else if (mScreen === "chip") renderMChip();
   else if (mScreen === "shots") renderMShots();
 }
+/* The strike channel's controls. The chip only appears inside the iOS shell,
+   where there is a microphone bridge to talk to; on the desktop page the whole
+   feature is simply absent rather than present and broken. */
+function renderStrikeUI(){
+  const el = id => document.getElementById(id);
+  const chip = el("mStrikeChip");
+  if (!chip) return;
+  chip.hidden = !NATIVE_BLE;
+  if (NATIVE_BLE){
+    const on = micArmed();
+    chip.setAttribute("aria-pressed", String(on));
+    chip.textContent = on ? "Strike \u25CF" : "Strike";
+    chip.style.color = on ? "#3c4a30" : "";
+  }
+  const sheet = el("mStrike");
+  if (!sheet || sheet.hidden) return;
+
+  el("mStrikeToggle").textContent = micArmed() ? "Turn off" : "Turn on";
+  el("mStrikeDist").value = ballDistM;
+
+  // level meter: -60 dB floor, -10 dB full
+  const fill = el("mStrikeMeterFill");
+  const frac = micLevelDb == null ? 0 : Math.max(0, Math.min(1, (micLevelDb + 60) / 50));
+  fill.style.width = (frac * 100).toFixed(0) + "%";
+
+  const lines = [];
+  if (micState === "denied" || micState === "error") lines.push(micDetail);
+  else if (!micArmed()) lines.push(micState === "starting" ? micDetail : "Off — impact is timed from the sensor alone.");
+  else {
+    lines.push(micDetail || "Listening.");
+    if (!clockFit) lines.push("Waiting on the sensor clock — a second or two of streaming.");
+    else lines.push(`Sensor clock pinned to \u00b1${(clockFit.resid*1000).toFixed(1)} ms over ${clockFit.span.toFixed(0)} s.`);
+    if (strikeSeen + strikeMissed > 0){
+      const off = strikeOffsets.length
+        ? strikeOffsets.slice(-20).map(v => Math.abs(v - (strikeCalibrated() ? 0 : (strikeAutoZero() || 0))))
+        : [];
+      const jit = off.length >= 4 ? median(off) * 1000 : null;
+      lines.push(`${strikeSeen} of ${strikeSeen + strikeMissed} swings heard`
+        + (jit != null ? ` \u00b7 impact landing within ${jit.toFixed(1)} ms of the sensor's call` : ""));
+    }
+  }
+  el("mStrikeState").textContent = lines.join("  \u00b7  ");
+
+  el("mStrikeTap").textContent = tapCal.armed ? "Stop" : (strikeCalibrated() ? "Sync tap again" : "Sync tap");
+  const tapLine = tapCal.msg
+    || (strikeCalibrated()
+        ? `Fixed lag calibrated at ${(strikeLagS*1000).toFixed(1)} ms.`
+        : "Not calibrated yet. Without it the offsets below are measured against the session's own median, which shows the scatter but not a constant bias.");
+  el("mStrikeTapMsg").textContent = tapLine;
+}
+
 function renderMRange(){
   const el = id => document.getElementById(id);
   const has = swings.length > 0;
@@ -6792,6 +7222,7 @@ function renderMRange(){
   // Simple mode leads with one number + the cue; Detailed adds trace/path
   // pages and the club/path stat row.
   el("mDetailToggle").hidden = !has;
+  renderStrikeUI();
   el("mDetailToggle").textContent = mDetail ? "Detailed" : "Simple";
   el("mDetailToggle").setAttribute("aria-pressed", String(mDetail));
   el("mStats").hidden = !has || !mDetail;

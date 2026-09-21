@@ -282,6 +282,7 @@
 				INFOPLIST_FILE = SwingCoachSupport/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "SwingCoach connects to your Movella DOT swing sensor over Bluetooth.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Round mode stamps each shot with GPS to measure real shot distances.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Range mode listens for the ball strike to time impact far more precisely than the wrist sensor can on its own. Audio is analysed on the phone and never recorded or sent anywhere.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -310,6 +311,7 @@
 				INFOPLIST_FILE = SwingCoachSupport/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "SwingCoach connects to your Movella DOT swing sensor over Bluetooth.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Round mode stamps each shot with GPS to measure real shot distances.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Range mode listens for the ball strike to time impact far more precisely than the wrist sensor can on its own. Audio is analysed on the phone and never recorded or sent anywhere.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
