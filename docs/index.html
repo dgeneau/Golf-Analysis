@@ -1246,6 +1246,7 @@
       </div>
       <button class="mghost" id="mrsEditBtn" style="width:100%;margin-top:10px">Edit shots</button>
       <button class="mprimary" id="mrsDoneBtn" style="width:100%;margin-top:10px">◂ Back to range</button>
+      <button class="mghost" id="mrsPastBack" hidden style="width:100%;margin-top:8px">◂ Back to analytics</button>
     </div>
   </div>
 
@@ -1279,6 +1280,7 @@
           </div>
           <div class="mlight">
             <h2>Recent rounds</h2>
+            <p class="mfine" style="margin-top:0">Tap a round to reopen its full recap — map, strokes gained, the read — and edit its shots.</p>
             <div id="mtRoundList"></div>
           </div>
           <p class="mfine">Strokes-gained, fairways and the shot-by-shot replay map live on the full dashboard.</p>
@@ -1482,7 +1484,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "53a32dc · 2026-09-20";
+const BUILD = "163ff26 · 2026-09-21";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -2394,11 +2396,19 @@ function cloudRecordSwing(sw, seq){
     clipped: !!(m.acc_clipped || m.gyro_clipped), metrics: m,
   }, "session_id,seq");
 }
+/* Which session a round-mode write belongs to. Normally the live cloud session;
+   while a past round is open for editing, that round's session instead — so an
+   edit lands on the round you are looking at, not the one you last played. */
+function roundSessionId(){
+  if (round && round.pastSession) return round.pastSession;
+  return (cloudSession && cloudSession.type === "round") ? cloudSession.id : null;
+}
 function cloudRecordShot(shot){
-  if (!cloudSession || cloudSession.type !== "round") return;
+  const sid = roundSessionId();
+  if (!sid) return;
   cloudEnsureHoleRow(shot.hole);
   enqueue("shots", {
-    session_id: cloudSession.id, seq: shot.n, hole: shot.hole,
+    session_id: sid, seq: shot.n, hole: shot.hole,
     hit_at: new Date(shot.t).toISOString(),
     club_id: shot.club.id, club_inches: shot.club.inches,
     lat: shot.lat, lon: shot.lon, acc_m: shot.acc, dist_m: shot.dist_m,
@@ -2407,22 +2417,24 @@ function cloudRecordShot(shot){
   }, "session_id,seq");
 }
 function cloudRecordPutts(hole, putts){
-  if (!cloudSession || cloudSession.type !== "round") return;
+  const sid = roundSessionId();
+  if (!sid) return;
   const hm = typeof holeMeta === "function" ? holeMeta(hole) : null;
-  enqueue("holes", {session_id: cloudSession.id, hole, putts,
+  enqueue("holes", {session_id: sid, hole, putts,
                     penalties: (round && round.holes[hole] && round.holes[hole].penalties) || 0,
                     par: (hm && hm.par) || null}, "session_id,hole");
 }
 // A holes row per played hole (even before any putt) so analytics knows the
 // hole was played and what par it is.
 function cloudEnsureHoleRow(hole){
-  if (!cloudSession || cloudSession.type !== "round") return;
+  const sid = roundSessionId();
+  if (!sid) return;
   cloudEnsureHoleRow._done = cloudEnsureHoleRow._done || new Set();
-  const key = cloudSession.id + ":" + hole;
+  const key = sid + ":" + hole;
   if (cloudEnsureHoleRow._done.has(key)) return;
   cloudEnsureHoleRow._done.add(key);
   const hm = typeof holeMeta === "function" ? holeMeta(hole) : null;
-  enqueue("holes", {session_id: cloudSession.id, hole,
+  enqueue("holes", {session_id: sid, hole,
                     putts: (round && round.holes[hole] && round.holes[hole].putts) || 0,
                     penalties: (round && round.holes[hole] && round.holes[hole].penalties) || 0,
                     par: (hm && hm.par) || null}, "session_id,hole");
@@ -2768,7 +2780,18 @@ document.addEventListener("visibilitychange", async () => {
 });
 
 function saveRound(){
+  // A past round opened for review is cloud-backed; persisting it here would
+  // clobber the live round parked in localStorage.
+  if (round && round.pastSession) return;
   try { localStorage.setItem("swingcoach-round", JSON.stringify(round)); } catch (e) {}
+}
+/* The swing behind a shot: a live round indexes the session's swings array, a
+   rehydrated past round carries its own metrics on the shot. */
+function shotSwing(s){
+  if (!s) return null;
+  if (s._swing) return s._swing;
+  if (round && round.pastSession) return null;
+  return s.swingIndex != null ? swings[s.swingIndex] : null;
 }
 function loadSavedRound(){
   try {
@@ -2864,9 +2887,9 @@ function undoShot(){
     last.dist_m = null;   // its distance was measured to the removed shot
     cloudRecordShot(last);
   }
-  if (cloudSession && cloudSession.type === "round"){
+  if (roundSessionId()){
     const q = loadQueue();
-    q.push({table: "shots", del: {session_id: cloudSession.id, seq: popped.n}});
+    q.push({table: "shots", del: {session_id: roundSessionId(), seq: popped.n}});
     saveQueue(q); flushQueue();
   }
   saveRound(); renderAll();
@@ -2896,13 +2919,16 @@ function rechainShots(){
 }
 /* Re-upsert every shot from index i0 (numbers may have shifted) and delete any
    trailing cloud rows the list no longer reaches. */
+let pastRoundDirty = false;
 function syncShotsFrom(i0, oldLen){
-  if (!cloudSession || cloudSession.type !== "round") return;
+  const sid = roundSessionId();
+  if (!sid) return;
+  if (round && round.pastSession) pastRoundDirty = true;
   for (let i = Math.max(0, i0); i < round.shots.length; i++) cloudRecordShot(round.shots[i]);
   if (oldLen > round.shots.length){
     const q = loadQueue();
     for (let seq = round.shots.length + 1; seq <= oldLen; seq++)
-      q.push({table: "shots", del: {session_id: cloudSession.id, seq}});
+      q.push({table: "shots", del: {session_id: sid, seq}});
     saveQueue(q); flushQueue();
   }
 }
@@ -2940,16 +2966,18 @@ function setShotClub(i, id){
   s.club = {id, inches: def.inches != null ? def.inches : customIn};
   // Club speed is hand speed plus rotation times the lever, so it moves with
   // the club. Recompute from the swing if we still have it.
-  const sw = s.swingIndex != null ? swings[s.swingIndex] : null;
-  if (sw && sw.metrics){
+  const sw = shotSwing(s);
+  if (sw && sw.metrics && sw.metrics.omega_impact_dps != null){
     sw.club = {...s.club};
     s.club_mph = +clubSpeedMph(sw).toFixed(1);
-    if (cloudSession && cloudSession.type === "round")
-      enqueue("swings", {session_id: cloudSession.id, seq: s.swingIndex,
+    const sid = roundSessionId();
+    if (sid && s.swingIndex != null)
+      enqueue("swings", {session_id: sid, seq: s.swingIndex,
                          club_id: s.club.id, club_inches: s.club.inches, club_mph: s.club_mph},
               "session_id,seq");
   }
   cloudRecordShot(s);
+  if (round && round.pastSession) pastRoundDirty = true;
   saveRound();
 }
 /* The in-the-moment fix: the sensor just missed a swing and you're standing
@@ -3091,8 +3119,11 @@ function lineLengthM(line){
   return d;
 }
 function holeMeta(n){
-  if (!course || !course.holes) return null;
-  return course.holes.find(x => x.ref === n) || null;
+  const live = course && course.holes ? course.holes.find(x => x.ref === n) : null;
+  if (live) return live;
+  // Reviewing a past round away from its course: par was recorded with the hole.
+  const hr = round && round.holes && round.holes[n];
+  return (hr && hr.par) ? {ref: n, par: hr.par, line: null} : null;
 }
 
 /* GPS auto-advance: standing on the next hole's tee switches the app there. */
@@ -4164,7 +4195,8 @@ function localRoundAnalysis(){
     return {hole: h, putts: hr.putts || 0, penalties: hr.penalties || 0,
             par: hm && hm.par ? hm.par : null};
   });
-  try { return analyzeRound(sess, shots, holeRows, course || null); }
+  try { return analyzeRound(sess, shots, holeRows,
+                            (round && round.pastGeom) || course || null); }
   catch (e){ return null; }
 }
 /* Round shot-map card: clean GPS map of the round + score + strokes gained. */
@@ -6395,6 +6427,7 @@ function initMobile(){
   el("mrsTrendsBtn").addEventListener("click", () => { anTab = "rounds"; openTrends(); });
   el("mrsShareBtn").addEventListener("click", () => shareSelected("round"));
   el("mrsDoneBtn").addEventListener("click", () => { mScreen = "range"; setMode("range"); });
+  el("mrsPastBack").addEventListener("click", closePastRound);
   el("mClassicBtn").addEventListener("click", () => { mScreen = "classic"; setMode("range"); });
   el("classicBack").addEventListener("click", () => {
     mScreen = "range";
@@ -6655,6 +6688,15 @@ function showExplain(key){
 function renderMobile(){
   initMobile();
   const el = id => document.getElementById(id);
+  // A past round may only be open on its recap or the shot editor. Navigating
+  // anywhere else — a drill from the read, Analytics, starting a new round —
+  // hands the live round back before it can be overwritten.
+  if (round && round.pastSession && mScreen !== "roundsummary" && mScreen !== "shots"){
+    round = liveRoundStash;
+    liveRoundStash = null;
+    uiMode = round && !round.endedAt ? "round" : "range";
+    if (pastRoundDirty && sb && sbUser){ pastRoundDirty = false; loadRoundAnalytics(); }
+  }
   el("mRange").hidden = mScreen !== "range";
   el("mRound").hidden = mScreen !== "round";
   el("mSummary").hidden = mScreen !== "summary";
@@ -7398,6 +7440,10 @@ function renderMRoundSummary(){
   const el = id => document.getElementById(id);
   if (!round){ el("mrsGrid").textContent = ""; return; }
   const rc = roundRecapLocal();
+  const past = !!round.pastSession;
+  document.querySelector("#mRoundSummary .mtitle").textContent = past ? "Round" : "Round recap";
+  el("mrsPastBack").hidden = !past;
+  el("mrsDoneBtn").hidden = past;
   el("mrsMeta").textContent =
     `${rc.course} · ${new Date(round.endedAt || Date.now()).toLocaleDateString(undefined, {day: "numeric", month: "short"})}`;
   const grid = el("mrsGrid");
@@ -7791,6 +7837,101 @@ function renderBagRows(host, groups, mode){
   }
 }
 
+/* ---------- Opening a past round ----------
+   Tapping a round in Analytics rebuilds it into the same `round` object the
+   live recap works from, so the map, strokes gained, the read, the bag and the
+   Edit shots screen are literally the same code — no second, thinner version of
+   the round view to drift out of sync.
+
+   Two things keep that safe. Writes go to the round's OWN session
+   (roundSessionId), so editing a round from July doesn't append to the one you
+   played today. And saveRound() is a no-op while a past round is open, so the
+   live round parked in localStorage survives being reviewed over. */
+let liveRoundStash = null;      // the in-progress round, parked while reviewing
+let pastRoundBusy = false;
+async function openPastRound(r){
+  if (pastRoundBusy) return;
+  if (!sb || !sbUser){ toast("Sign in to open past rounds."); return; }
+  pastRoundBusy = true;
+  toast("Opening round…");
+  let shots, holes, sws;
+  try {
+    // Fetched per round rather than kept from the bulk analytics query: this
+    // needs the full metrics jsonb, which is far too heavy to hold for 500.
+    const [q1, q2, q3] = await Promise.all([
+      sb.from("shots").select("seq,hole,club_id,club_inches,lat,lon,acc_m,dist_m,club_mph,swing_seq,hit_at")
+        .eq("session_id", r.id).order("seq", {ascending: true}),
+      sb.from("holes").select("hole,putts,penalties,par").eq("session_id", r.id),
+      sb.from("swings").select("seq,tempo,club_mph,clipped,metrics").eq("session_id", r.id),
+    ]);
+    if (q1.error || q2.error) throw (q1.error || q2.error);
+    shots = q1.data || []; holes = q2.data || []; sws = q3.data || [];
+  } catch (e){
+    pastRoundBusy = false;
+    toast("Couldn't load that round: " + (e.message || e));
+    return;
+  }
+  if (!shots.length){
+    pastRoundBusy = false;
+    toast("That round has no tracked shots to show.");
+    return;
+  }
+  const swBySeq = new Map(sws.map(w => [w.seq, w]));
+  const holeRec = {};
+  for (const h of holes) holeRec[h.hole] = {putts: h.putts || 0, penalties: h.penalties || 0, par: h.par || null};
+  const clubOf = (id, inches) => {
+    const def = CLUBS.find(c => c.id === id);
+    return {id: id || "custom", inches: inches != null ? +inches : (def && def.inches != null ? def.inches : customIn)};
+  };
+  if (!liveRoundStash && round && !round.pastSession) liveRoundStash = round;
+  round = {
+    startedAt: new Date(r.date).getTime(), endedAt: new Date(r.date).getTime(),
+    currentHole: shots[shots.length - 1].hole, unit: (liveRoundStash && liveRoundStash.unit) || "yd",
+    holes: holeRec, holeBreakSincePrev: false, courseName: r.course,
+    pastSession: r.id, pastGeom: r.geom || null,
+    shots: shots.map((x, i) => {
+      const w = x.swing_seq != null ? swBySeq.get(x.swing_seq) : null;
+      const m = w && w.metrics ? w.metrics : null;
+      return {
+        n: i + 1, hole: x.hole, club: clubOf(x.club_id, x.club_inches),
+        t: x.hit_at ? new Date(x.hit_at).getTime() : Date.now() + i,
+        swingIndex: x.swing_seq != null ? x.swing_seq : null,
+        _swing: m ? {metrics: m, club: clubOf(x.club_id, x.club_inches)} : null,
+        lat: x.lat, lon: x.lon, acc: x.acc_m != null ? Math.round(x.acc_m) : null,
+        hand_mph: m && m.hand_speed_mph != null ? +m.hand_speed_mph : null,
+        club_mph: x.club_mph != null ? +x.club_mph : (w && w.club_mph != null ? +w.club_mph : null),
+        tempo: w && w.tempo != null ? +w.tempo : null,
+        clipped: !!(w && w.clipped),
+        path_raw_deg: m && m.path_angle_raw_deg != null ? +m.path_angle_raw_deg : null,
+        attack_deg: m && m.attack_angle_deg != null ? +m.attack_angle_deg : null,
+        plane_deg: m && m.swing_plane_tilt_deg != null ? +m.swing_plane_tilt_deg : null,
+        addr_yaw_deg: m && m.address_yaw_deg != null ? +m.address_yaw_deg : null,
+        // a shot with no recorded position was added by hand at the time
+        manual: x.lat == null,
+        dist_m: x.dist_m != null ? +x.dist_m : null,
+      };
+    }),
+  };
+  rechainShots();          // distances re-derived from positions, never trusted from the row
+  recapHole = "all";
+  uiMode = "round";
+  mScreen = "roundsummary";
+  pastRoundBusy = false;
+  renderAll();
+}
+/* Leaving review: put the live round back exactly as it was and let the
+   analytics pick up anything that was edited. */
+function closePastRound(){
+  const edited = pastRoundDirty;
+  round = liveRoundStash;
+  liveRoundStash = null;
+  pastRoundDirty = false;
+  uiMode = round && !round.endedAt ? "round" : "range";
+  mScreen = "trends"; anTab = "rounds";
+  if (edited && sb && sbUser) loadRoundAnalytics();
+  renderAll();
+}
+
 /* ---------- Analytics: Rounds (what you shot) | Range (how you swung) ----------
    The two halves answer different questions and mix badly on one screen: a
    round tells you about your bag and your scoring, a range session tells you
@@ -7935,7 +8076,12 @@ function renderAnRounds(){
       ? `${r.score} (${r.toPar > 0 ? "+" : ""}${r.toPar === 0 ? "E" : r.toPar})`
       : (r.girElig ? `${r.girHit}/${r.girElig} GIR` : "—"));
     score.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
-    row.append(left, score);
+    const go = div("", null, "▸");
+    go.style.cssText = "color:#8a8577;font-size:12px;padding-left:8px";
+    row.style.cursor = "pointer";
+    row.setAttribute("role", "button");
+    row.addEventListener("click", () => openPastRound(r));
+    row.append(left, score, go);
     list.appendChild(row);
   }
 }
