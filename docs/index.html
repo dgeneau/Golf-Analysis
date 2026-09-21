@@ -1028,7 +1028,7 @@
           <svg id="mBand" width="100%" viewBox="0 0 340 34" style="display:none;margin:20px 0 22px"></svg>
         </div>
         <div class="mpage" id="mPageTrace" hidden>
-          <div class="mlabel">Swing trace</div>
+          <div class="mlabel mtappable" data-explain="refband">Swing trace</div>
           <svg id="mTraceSvg" width="100%" viewBox="0 0 340 150" style="margin-top:10px"></svg>
           <div class="mgcap" id="mTraceCap"></div>
         </div>
@@ -1484,7 +1484,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "163ff26 · 2026-09-21";
+const BUILD = "c08b272 · 2026-09-21";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1846,6 +1846,12 @@ function computeMetricsJS(rec, leverM){
     let j1 = i1; while (j1+1 < i2 && gyro[j1+1] < P.PAUSE_THRESH) j1++;
     m.pause_top_s = t[j1] - t[j0];
   }
+  // Release fraction says WHEN you spent your speed; this says what it cost.
+  // 1.0 = peak angular velocity arrived at impact. Physics gives the direction
+  // (you want the peak at the ball), so we report the fraction rather than
+  // assert an optimum.
+  m.speed_retained = (m.peak_gyro_dps > 0 && m.omega_impact_dps != null)
+    ? Math.min(1.5, m.omega_impact_dps / m.peak_gyro_dps) : null;
   m.transition_build_dps2 = 0;
   {
     const peakDs = Math.max(...gyro.slice(i1, i2+1));
@@ -1860,21 +1866,71 @@ function computeMetricsJS(rec, leverM){
   return m;
 }
 
+/* ---------- Personal reference bands ----------
+   The population numbers we quote are means, not optima — Dan's own tempo sits
+   at 2.68 while the cue says "tour average ~3:1". Where there is enough of a
+   player's own history for a club, their band is better information; where
+   there isn't, we fall back and label the number as a population average. */
+const PBAND_MIN = 12;        // swings needed before a personal band means anything
+function pbandSwings(clubId){
+  const out = [];
+  // this session first — it needs no sign-in
+  for (const w of (typeof swings !== "undefined" ? swings : []))
+    if (w && w.metrics && (!clubId || (w.club && w.club.id === clubId))
+        && !w.metrics.acc_clipped) out.push(w.metrics);
+  // then synced history (tempo + speed columns; enough for the bands we use)
+  if (Array.isArray(progressData))
+    for (const sess of progressData)
+      for (const w of sess.swings || [])
+        if (!clubId || w.club_id === clubId) out.push(w);
+  return out;
+}
+function personalBand(clubId, key){
+  const vals = pbandSwings(clubId).map(x => +x[key]).filter(v => isFinite(v) && v > 0);
+  if (vals.length < PBAND_MIN) return null;
+  return {n: vals.length, med: median(vals), p25: pct(vals, .25), p75: pct(vals, .75)};
+}
 function coachJS(m){
   const cues = [];
   const C = (p, t, d) => cues.push({priority: p, title: t, detail: d});
   if (m.tempo_ratio > 0){
-    if (m.tempo_ratio < 2.2)
-      C(1, "Backswing is rushed", `Your tempo ratio is ${m.tempo_ratio.toFixed(1)}:1 (tour average ~3:1). Feel like the backswing takes twice as long — try counting '1-2-3' back, '1' down.`);
-    else if (m.tempo_ratio > 4.0)
-      C(2, "Backswing is sluggish", `Tempo ratio ${m.tempo_ratio.toFixed(1)}:1 is slower than the ~3:1 ideal. A slightly brisker takeaway keeps the swing connected and athletic.`);
-    else
-      C(3, "Tempo is in the good zone", `${m.tempo_ratio.toFixed(1)}:1 backswing-to-downswing — close to the 3:1 tour benchmark. Keep that rhythm.`);
+    const club = (typeof clubId !== "undefined") ? clubId : null;
+    const pb = (typeof personalBand === "function") ? personalBand(club, "tempo_ratio") : null;
+    const r = m.tempo_ratio.toFixed(1);
+    if (pb){
+      // judged against this player's own tempo for this club
+      if (m.tempo_ratio < pb.p25 * 0.92)
+        C(1, "Quicker than your own tempo", `${r}:1 against your usual ${pb.med.toFixed(1)}:1 with this club (${pb.p25.toFixed(1)}–${pb.p75.toFixed(1)} over ${pb.n} swings). Rushing the transition is the usual cause — feel the backswing finish before you go.`);
+      else if (m.tempo_ratio > pb.p75 * 1.08)
+        C(2, "Slower than your own tempo", `${r}:1 against your usual ${pb.med.toFixed(1)}:1 with this club. Not wrong in itself, but a change this size usually means the transition is drifting.`);
+      else
+        C(3, "Tempo on your own norm", `${r}:1 — right on your ${pb.med.toFixed(1)}:1 for this club. Repeating your own rhythm beats chasing anyone else's number.`);
+    } else {
+      // not enough of this player's history yet — population average, labelled
+      if (m.tempo_ratio < 2.2)
+        C(1, "Backswing is rushed", `Tempo ${r}:1. Tour players average around 3:1 — that's a population average, not a target, but this far under it usually means the transition is rushed. Feel the backswing finish before you go.`);
+      else if (m.tempo_ratio > 4.0)
+        C(2, "Backswing is sluggish", `Tempo ${r}:1, well over the ~3:1 tour average (a population average, not a target). A slightly brisker takeaway keeps the swing connected.`);
+      else
+        C(3, "Tempo looks settled", `${r}:1 backswing-to-downswing, in the range tour players occupy. Once you've hit a dozen with this club we'll read this against your own norm instead.`);
+    }
   }
   if (m.release_fraction > 0 && m.release_fraction < 0.55)
     C(1, "Early release (casting)", `Peak wrist speed arrived only ${Math.round(m.release_fraction*100)}% of the way into the downswing. You're spending speed before impact — feel the wrists stay 'set' until your hands reach hip height.`);
   else if (m.release_fraction >= 0.75)
     C(3, "Nice late release", `Peak wrist speed at ${Math.round(m.release_fraction*100)}% of the downswing — speed is being delivered at the ball, not wasted early.`);
+  if (m.speed_retained != null && m.speed_retained < 0.85 && !m.acc_clipped && !m.gyro_clipped)
+    C(1, "Speed spent before the ball", `You reached peak wrist speed ${Math.round((1 - m.release_fraction) * 100)}% of the downswing before impact and arrived with ${Math.round(m.speed_retained * 100)}% of it. The peak wants to be AT the ball — hold the wrists and let them fire through it, not at it.`);
+  else if (m.speed_retained != null && m.speed_retained >= 0.97 && !m.acc_clipped && !m.gyro_clipped)
+    C(3, "Speed delivered at the ball", `Peak wrist speed landed on impact (${Math.round(m.speed_retained * 100)}% retained) — nothing wasted early.`);
+  {
+    // Transition build has no published optimum, so it is only ever read
+    // against this player's own distribution for the club.
+    const club = (typeof clubId !== "undefined") ? clubId : null;
+    const tb = (typeof personalBand === "function") ? personalBand(club, "transition_build_dps2") : null;
+    if (tb && m.transition_build_dps2 > tb.p75 * 1.35 && m.tempo_ratio > 0 && m.tempo_ratio < 2.6)
+      C(2, "Hitting from the top", `Wrist speed built at ${Math.round(m.transition_build_dps2).toLocaleString()}°/s², well above your usual ${Math.round(tb.p75).toLocaleString()} for this club, with a quick tempo behind it. That's effort spent in the first third of the downswing — start down with the body and let the arms follow.`);
+  }
   if (m.pause_top_s > 0.35)
     C(2, "Stalling at the top", `You sat at the top for ${m.pause_top_s.toFixed(2)}s. A brief settle is good; a full stop kills the stretch-shorten cycle — feel the lower body start down as the arms finish going back.`);
   else if (m.tempo_ratio > 0 && m.tempo_ratio < 2.4 && m.pause_top_s < 0.04)
@@ -1891,12 +1947,9 @@ function coachJS(m){
     else
       C(3, `Path is neutral (${m.path_angle_deg>=0?"+":""}${Math.round(m.path_angle_deg)}°)`, "Hand path through impact is close to the target line.");
   }
-  if (m.backswing_rotation_deg > 0){
-    if (m.backswing_rotation_deg < 140)
-      C(2, "Short backswing", `Limited rotation going back (${Math.round(m.backswing_rotation_deg)}° of wrist travel). A fuller turn stores more speed — check hip and shoulder rotation.`);
-    else if (m.backswing_rotation_deg > 320)
-      C(2, "Possible over-swing", `Very long backswing (${Math.round(m.backswing_rotation_deg)}° of wrist travel) can cost control. Feel 'loaded' at the top rather than stretched.`);
-  }
+  // Backswing-rotation cues removed: the 140°/320° bounds were invented, and
+  // wrist travel is confounded by strap position, flexibility and club length.
+  // The number is still reported; we just no longer coach off it.
   for (const note of m.notes) C(3, "Data note", note);
   cues.sort((a,b) => a.priority - b.priority);
   return cues;
@@ -6672,6 +6725,7 @@ const EXPLAIN = {
   puttface: {t: "Wrist roll", b: "How much your wrist rolls through the stroke. The sensor can't see the clubface itself — face angle is what actually sends a putt off line — so treat this as a tendency, not a face-angle reading. The useful thing is keeping it small and, above all, the same every time."},
   puttplane: {t: "On plane", b: "How much of your stroke stays on a single plane — 100% is a pure pendulum, lower means the wrist is wobbling off the stroke plane (a loop or a dip). Important honesty note: this measures the SHAPE and repeatability of your stroke, not the clubface or the ball's start line, which a wrist sensor can't see. A repeatable, on-plane stroke is what rolls putts consistently on your intended line."},
   chiplen: {t: "Stroke length", b: "How far your wrist rotates on the backswing — the main lever for chip distance. There's no single 'right' number; distance control is about repeating the SAME length for the same shot. The dots below show how tightly you're stacking your recent chips."},
+  refband: {t: "The reference band", b: "Wrist speed through the swing, lined up on IMPACT and drawn in real seconds \u2014 so the width of the backswing and downswing IS your tempo, and the height is real speed. The shaded band is the middle half of your own most repeatable swings with this club, and the dashed line their median. It is deliberately YOUR swing and not a tour benchmark: we have no population of golfers to draw one from, so an \u201coptimal\u201d curve would be a drawing rather than data. Matching your own best group is also the more useful skill \u2014 repeatability is the thing a wrist sensor measures well. What to look for: the peak sitting at the impact line rather than before it, one smooth rise instead of two humps, and your curve living inside the band."},
   playslike: {t: "Plays like (slope)", b: "GPS gives the distance across the ground; \u201cplays like\u201d adds what the hill costs you. The ball comes down at an angle, so a green above you cuts the flight short and one below you stretches it. We add \u0394height \u00f7 tan(landing angle) \u2014 which is why the same 15 ft of rise costs your driver more than your wedge: the driver lands shallow. Two honest caveats: the terrain model is ~30 m resolution, so treat it as a nudge of a few yards rather than a survey, and it ignores wind and air density entirely. Slope-adjusted yardages are not legal for competition \u2014 tap the card to switch back to true distance."},
   roundpath: {t: "Path on the course", b: "Path is the direction your hands travel through impact, relative to where you were set up at address \u2014 and it's measured that way for every single swing, from the still moment before takeaway. So it doesn't matter that every hole points a different way: each shot carries its own reference. The one thing it can't see is a constant offset between how your wrist sits and where you're actually aiming, which is exactly what \u201cSet square\u201d at the range measures; that calibration carries over here. What we are NOT showing yet is alignment \u2014 whether you were aimed where you meant to be. We log the ingredients for it (your setup heading and the bearing to your target) but the sensor's heading is only known up to a constant that changes every time it reconnects, so we won't put a number on it until we've seen enough rounds to know it's honest."},
   sg: {t: "Strokes gained", b: "For every stroke we look at where you were (tee, fairway, rough, sand, and how far out) and ask how many strokes a scratch player would expect to take from there. Your gain or loss on that stroke is the difference between the expected count before and after it, minus one. Add them up by category and you can see WHERE a round went right or wrong, not just the score. The baseline is PGA TOUR scratch, so amateurs read negative across the board \u2014 read the split and the round-to-round movement, not the absolute size. Two honesty notes: putting is approximate because we count putts rather than measure them (baseline 1.9 per green), and any hole with a penalty, a missing par, no putts recorded, no mapped green, or a stroke without a GPS fix is left out rather than guessed."},
@@ -6822,32 +6876,150 @@ function mkSvg(svg, n, at){
   svg.appendChild(e);
   return e;
 }
-/* wrist-speed + accel over the swing, with top/impact markers */
+/* ---------- Reference trace: your own tightest swings ----------
+   The target to aim at is the player's own most repeatable group with this
+   club, not an invented "optimal" curve. We have no population and no skill
+   labels, so a tour benchmark would be a drawing rather than data.
+
+   Aligned at IMPACT and kept in real seconds, deliberately. normTrace() (used
+   by the similarity score) resamples takeaway→impact and divides by peak,
+   which is right for comparing SHAPE but throws away tempo and speed — the two
+   properties with the most behind them. Impact-aligned real time keeps all
+   three visible, and it is what the OpenCap validation already does. */
+const REF_T0 = -1.6, REF_T1 = 0.35, REF_DT = 1 / 60;   // seconds about impact
+const REF_MIN = 5;        // swings needed before a band is drawn
+let refBandCache = {key: "", band: null};
+
+function refSwingPool(club){
+  return swings.filter(w => w && w.trace && w.events && w.events.impact > 0
+    && !w.metrics.acc_clipped && (!club || (w.club && w.club.id === club)));
+}
+/* Sample one swing's |ω| at a time offset from its own impact. */
+function gyroAtOffset(sw, off){
+  const T = sw.trace, tt = sw.events.impact + off;
+  const t = T.t;
+  if (tt < t[0] || tt > t[t.length - 1]) return null;
+  let j = 0;
+  while (j < t.length - 2 && t[j + 1] < tt) j++;
+  const u = t[j + 1] > t[j] ? (tt - t[j]) / (t[j + 1] - t[j]) : 0;
+  return T.gyro[j] + (T.gyro[j + 1] - T.gyro[j]) * u;
+}
+/* The tightest cluster: rank by mean DTW shape-similarity to the others and
+   keep the better half (at least REF_MIN). Repeatability is the thing a wrist
+   IMU measures well, so "your best" is defined as "your most consistent". */
+function refBand(club){
+  const key = (club || "-") + ":" + swings.length;
+  if (refBandCache.key === key) return refBandCache.band;
+  const pool = refSwingPool(club);
+  let band = null;
+  if (pool.length >= REF_MIN){
+    const norms = pool.map(w => normTrace(w));
+    const score = pool.map((_, i) => {
+      let sum = 0, n = 0;
+      for (let j = 0; j < pool.length; j++){
+        if (i === j || !norms[i] || !norms[j]) continue;
+        sum += Math.exp(-6 * dtwDist(norms[i], norms[j])); n++;
+      }
+      return n ? sum / n : 0;
+    });
+    const order = pool.map((w, i) => [score[i], w]).sort((a, b) => b[0] - a[0]);
+    const keep = order.slice(0, Math.max(REF_MIN, Math.round(pool.length * 0.6))).map(x => x[1]);
+    const ts = [], med = [], lo = [], hi = [];
+    for (let off = REF_T0; off <= REF_T1 + 1e-9; off += REF_DT){
+      const vals = keep.map(w => gyroAtOffset(w, off)).filter(v => v != null);
+      ts.push(+off.toFixed(4));
+      if (vals.length >= Math.max(3, Math.ceil(keep.length * 0.6))){
+        med.push(median(vals)); lo.push(pct(vals, .25)); hi.push(pct(vals, .75));
+      } else { med.push(null); lo.push(null); hi.push(null); }
+    }
+    if (med.some(v => v != null))
+      band = {t: ts, med, lo, hi, n: keep.length, pool: pool.length, club,
+              peak: Math.max(...hi.filter(v => v != null))};
+  }
+  refBandCache = {key, band};
+  return band;
+}
+/* A stable y-scale for the club, so the ribbon and the swing on top of it are
+   drawn at the same height every time. A per-swing autoscale made the curve's
+   height meaningless — and makes any target impossible to read. */
+function refScale(band, swPeak){
+  const base = Math.max(band ? band.peak : 0, swPeak || 0, 400);
+  return Math.ceil(base * 1.18 / 250) * 250;
+}
+
+/* Wrist speed over the swing, impact-aligned, against your own reference band. */
 function renderMTrace(sw){
   const svg = document.getElementById("mTraceSvg");
   svg.textContent = "";
   const T = sw.trace, ev = sw.events;
-  if (!T || T.t.length < 3) return;
-  const W = 340, H = 150, padT = 8, padB = 18;
-  const t0 = T.t[0], t1 = T.t[T.t.length - 1];
-  const xs = t => W * (t - t0) / Math.max(1e-6, t1 - t0);
-  const gmax = Math.max(1, ...T.gyro), amax = Math.max(1, ...T.acc);
-  const y = (v, vmax) => padT + (H - padT - padB) * (1 - v / vmax);
-  for (const [tt, lbl] of [[ev.top, "top"], [ev.impact, "impact"]]){
-    const x = xs(tt);
+  if (!T || T.t.length < 3 || !(ev.impact > 0)) return;
+  const W = 340, H = 150, padT = 8, padB = 20, padL = 4;
+  const band = refBand(sw.club && sw.club.id);
+  const swPeak = Math.max(...T.gyro);
+  const vmax = refScale(band, swPeak);
+  const xs = off => padL + (W - padL) * (off - REF_T0) / (REF_T1 - REF_T0);
+  const y = v => padT + (H - padT - padB) * (1 - Math.min(1, v / vmax));
+  const impOff = t => t - ev.impact;          // trace time → seconds about impact
+
+  // time gridlines every 0.5 s before impact, so real tempo is readable
+  for (let g = -1.5; g <= 0; g += 0.5){
+    const x = xs(g);
+    if (x < padL) continue;
     mkSvg(svg, "line", {x1: x, y1: padT, x2: x, y2: H - padB,
-                        stroke: "#cfc8b2", "stroke-width": 1, "stroke-dasharray": "3 4"});
-    mkSvg(svg, "text", {x: x + 3, y: H - 5, fill: "#8a8577",
-                        style: "font:9.5px system-ui"}).textContent = lbl;
+      stroke: "#e6e1d2", "stroke-width": 1});
+    mkSvg(svg, "text", {x: x + 2, y: H - 6, fill: "#b0a892",
+      style: "font:8.5px 'IBM Plex Mono',monospace"}).textContent = g === 0 ? "0" : g.toFixed(1);
   }
-  const line = (arr, vmax, color, w) =>
-    mkSvg(svg, "polyline", {fill: "none", stroke: color, "stroke-width": w,
-      points: arr.map((v, i) => `${xs(T.t[i]).toFixed(1)},${y(v, vmax).toFixed(1)}`).join(" ")});
-  line(T.acc, amax, "rgba(180,99,47,0.65)", 1.5);
-  line(T.gyro, gmax, "#3c4a30", 2);
-  document.getElementById("mTraceCap").textContent =
-    `wrist speed (green) peak ${Math.round(gmax)}°/s · accel (clay) peak ${(amax / 9.81).toFixed(1)} g` +
-    (sw.metrics.acc_clipped ? " · clipped at impact" : "");
+  // the band: middle half of your tightest swings with this club
+  if (band){
+    const pts = [];
+    for (let i = 0; i < band.t.length; i++)
+      if (band.hi[i] != null) pts.push(`${xs(band.t[i]).toFixed(1)},${y(band.hi[i]).toFixed(1)}`);
+    for (let i = band.t.length - 1; i >= 0; i--)
+      if (band.lo[i] != null) pts.push(`${xs(band.t[i]).toFixed(1)},${y(band.lo[i]).toFixed(1)}`);
+    if (pts.length > 4)
+      mkSvg(svg, "polygon", {points: pts.join(" "), fill: "#8a9270", "fill-opacity": 0.3, stroke: "none"});
+    const mp = band.t.map((tt, i) => band.med[i] == null ? null
+      : `${xs(tt).toFixed(1)},${y(band.med[i]).toFixed(1)}`).filter(Boolean);
+    if (mp.length > 2)
+      mkSvg(svg, "polyline", {fill: "none", stroke: "#8a9270", "stroke-width": 1.5,
+        "stroke-dasharray": "5 4", points: mp.join(" ")});
+  }
+  // impact marker + top of backswing
+  for (const [off, lbl, col] of [[impOff(ev.top), "top", "#cfc8b2"], [0, "impact", "#b4632f"]]){
+    const x = xs(off);
+    if (x < padL || x > W) continue;
+    mkSvg(svg, "line", {x1: x, y1: padT, x2: x, y2: H - padB, stroke: col,
+      "stroke-width": 1, "stroke-dasharray": "3 4"});
+    mkSvg(svg, "text", {x: Math.min(W - 26, x + 3), y: padT + 8, fill: col === "#b4632f" ? "#b4632f" : "#8a8577",
+      style: "font:9px system-ui"}).textContent = lbl;
+  }
+  // this swing
+  const pts = [];
+  for (let i = 0; i < T.t.length; i++){
+    const off = impOff(T.t[i]);
+    if (off < REF_T0 || off > REF_T1) continue;
+    pts.push(`${xs(off).toFixed(1)},${y(T.gyro[i]).toFixed(1)}`);
+  }
+  mkSvg(svg, "polyline", {fill: "none", stroke: "#3c4a30", "stroke-width": 2,
+    "stroke-linejoin": "round", points: pts.join(" ")});
+  // y-axis ceiling, so the height means something
+  mkSvg(svg, "text", {x: padL + 1, y: padT + 8, fill: "#b0a892",
+    style: "font:8.5px 'IBM Plex Mono',monospace"}).textContent = vmax + "°/s";
+
+  const m = sw.metrics;
+  const cap = [`peak ${Math.round(swPeak)}°/s`];
+  // Retained-at-impact needs a trustworthy peak AND a trustworthy impact time.
+  // Gyro clipping makes the peak a floor; accel clipping is what impact
+  // detection leans on, so a saturated strike blurs the denominator's timing.
+  if (m.speed_retained != null && !m.acc_clipped && !m.gyro_clipped)
+    cap.push(`${Math.round(m.speed_retained * 100)}% retained at impact`);
+  cap.push(band
+    ? `band = middle half of your ${band.n} most repeatable ${band.club ? "swings with this club" : "swings"}`
+    : `hit ${REF_MIN} clean swings with one club for your reference band`);
+  if (m.gyro_clipped) cap.push("wrist speed maxed the gyro — peak is a floor");
+  else if (m.acc_clipped) cap.push("accel clipped at impact — impact timing is less certain here");
+  document.getElementById("mTraceCap").textContent = cap.join(" · ");
 }
 /* hand path from above, rotated into the address frame so the target line is
    straight up the screen — the arrow's lean off that line IS the path angle */
