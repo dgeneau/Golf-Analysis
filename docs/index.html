@@ -1084,7 +1084,7 @@
                style="width:66px;padding:6px 8px;border:1px solid #ddd7c4;border-radius:8px;background:#f0ede2;font:inherit">
         m from the ball
       </label>
-      <p style="font-size:12.5px;color:#8a8577;margin:0 0 12px">Sound covers a metre in 2.9&nbsp;ms — a fifth of a sensor sample — so this distance matters.</p>
+      <p style="font-size:12.5px;color:#8a8577;margin:0 0 12px">Lay the phone on the ground about half a metre behind the ball, screen up, clear of your swing and the divot. Close is what separates your ball from the next bay along: at half a metre yours lands about 9&nbsp;dB louder than their driver, at a metre and a half theirs wins.</p>
       <button class="mghost" id="mStrikeTap" style="width:100%;border:1px solid #ddd7c4;border-radius:10px;padding:11px">Sync tap</button>
       <p class="tgt" id="mStrikeTapMsg" style="margin-top:8px"></p>
       <button class="mprimary" id="mStrikeClose" style="width:100%;margin-top:14px">Done</button>
@@ -1510,7 +1510,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "2106c9e · 2026-09-21";
+const BUILD = "934955b · 2026-09-22";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1704,6 +1704,8 @@ const STRIKE = {
   SOUND_MPS: 343,   // 20 °C; ±5 °C is ±0.6 %, i.e. ±0.02 ms at 2 m
   MIN_SNR: 12,      // dB over the running background to count as a strike
   AUTO_MIN: 8,      // swings before a self-referenced zero is offered
+  LVL_MIN_N: 4,     // strikes with a club before its own level is a reference
+  LVL_DROP: 7,      // dB below that club's median before a strike is somebody else's
   TAP_MIN: 3,       // taps needed for a calibration
   TAP_SPREAD: 0.005,// s — taps must agree this well or the calibration is void
   TAP_WIN: 20,      // s the tap routine stays armed
@@ -1712,7 +1714,11 @@ const STRIKE = {
 
 let micState = "off", micDetail = "", micLevelDb = null;
 let strikeLagS = null;     // calibrated fixed lag (s), from the sync tap
-let ballDistM = 1.5;       // phone-to-ball distance the user sets
+// Close matters more than it looks. A neighbouring bay is 3-4 m away, and
+// sound falls 6 dB per doubling of distance: at 1.5 m their driver arrives
+// LOUDER than your own wedge, at 0.5 m yours wins by about 9 dB. The delay
+// correction also gets easier the closer you are, so there is no trade-off.
+let ballDistM = 0.5;       // phone-to-ball distance the user sets
 let strikeSeen = 0, strikeMissed = 0;
 const strikeOffsets = [];  // recent (audio − IMU) offsets, for the self-reference
 
@@ -1828,23 +1834,47 @@ function strikeAutoZero(){
   return median(strikeOffsets.slice(-40));
 }
 
-/* --- matching ----------------------------------------------------------- */
+/* --- telling your ball from the bay next door ----------------------------
+   Two separate jobs, and it matters that they stay separate. The match window
+   is deliberately wide (±150 ms) because one of the things this feature is for
+   is catching an impact call that is badly wrong — a narrow window would agree
+   with the detector by construction and never catch it. So the window cannot
+   also be what rejects a neighbour.
+
+   That job goes to level. Your ball at 0.5 m against a bay at 3.5 m is about
+   9 dB in your favour even when they are hitting driver and you are hitting a
+   wedge. Within one club your own strikes vary by only a few dB, so a floor
+   set below that club's own median separates the two cleanly — and it keeps
+   working in the case that actually bites, where your strike is missed
+   entirely and theirs is the only sound in the window. */
+const strikeLevels = {};        // club id -> accepted peak levels, this session
+function strikeFloor(clubKey){
+  const v = strikeLevels[clubKey];
+  if (!v || v.length < STRIKE.LVL_MIN_N) return null;
+  return median(v) - STRIKE.LVL_DROP;
+}
+function strikeClubKey(){
+  return (typeof clubId !== "undefined" && clubId) ? clubId : "_";
+}
+
 function matchStrike(rec){
   if (!clockFit || !strikes.length) return null;
   const tI = rec.samples[rec.iImpact].t;
   const lag = strikeLag();
-  let best = null;
+  const floor = strikeFloor(strikeClubKey());
+  let best = null, rejected = 0;
   for (const st of strikes){
     if (st.used) continue;
     const td = dotTimeOf(st.mt);
     if (td == null) continue;
     const at = td - lag;
     if (Math.abs(at - tI) > STRIKE.MATCH) continue;
-    // A range is a noisy place. Where two events land in the window, the
-    // loudest one is the ball you just hit, not the bay next door.
+    if (floor != null && st.peak < floor){ rejected++; continue; }
+    // Where two survive, the loudest is the ball you just hit.
     if (!best || st.peak > best.st.peak) best = {st, at, imuT: tI};
   }
-  if (best) best.st.used = true;
+  if (best){ best.st.used = true; best.rejected = rejected; }
+  else if (rejected) return {tooQuiet: rejected};
   return best;
 }
 
@@ -1874,6 +1904,9 @@ function seatImpact(rec, hit){
 }
 
 function noteStrike(m, rec, hit){
+  const key = strikeClubKey();
+  (strikeLevels[key] = strikeLevels[key] || []).push(hit.st.peak);
+  if (strikeLevels[key].length > 60) strikeLevels[key].shift();
   const off = hit.at - rec.imuImpactT;
   strikeOffsets.push(off);
   if (strikeOffsets.length > 80) strikeOffsets.shift();
@@ -1891,10 +1924,16 @@ function noteStrike(m, rec, hit){
     m.notes.push(`Impact moved ${m.impact_shift_samples > 0 ? "later" : "earlier"} by `
       + `${Math.abs(m.impact_shift_samples)} samples to match the strike the microphone heard.`);
 }
-function noteNoStrike(m){
+function noteNoStrike(m, why){
   if (!micArmed() || !clockFit) return;
   strikeMissed++;
   m.strike_heard = false;
+  if (why && why.tooQuiet){
+    m.strike_rejected = why.tooQuiet;
+    m.notes.push("Heard something at the right moment but too quiet to be your ball "
+      + "\u2014 most likely the next bay along.");
+    return;
+  }
   // A full-speed "swing" that made no noise is usually not a shot: a practice
   // pass, a waggle, or the sensor being handled. This is the cleanest artifact
   // signal the app has — it observes the ball rather than inferring it from a
@@ -5907,14 +5946,20 @@ function initBleMode(){
       // The microphone gets the last word on when impact happened; everything
       // below reads the swing at that instant instead of the nearest 60 Hz
       // sample. See "The strike channel" above for why this is worth doing.
-      const hit = matchStrike(rec);
+      const found = matchStrike(rec);
+      const hit = (found && !found.tooQuiet) ? found : null;
       if (hit) seatImpact(rec, hit);
       const sw = swingToJson(rec, leverMeters());
-      if (hit) noteStrike(sw.metrics, rec, hit); else noteNoStrike(sw.metrics);
+      if (hit) noteStrike(sw.metrics, rec, hit); else noteNoStrike(sw.metrics, found);
       if (sw.metrics.strike_heard === false && Array.isArray(sw.cues))
-        sw.cues.unshift({priority: 1, title: "No strike heard",
-          detail: "The microphone picked up the swing but not a ball. If you did hit one, "
-                + "move the phone closer or check the distance in the strike settings."});
+        sw.cues.unshift(sw.metrics.strike_rejected
+          ? {priority: 2, title: "That sound wasn't yours",
+             detail: "Something landed at the right moment but far too quiet to be your ball. "
+                   + "If you did hit one, the phone is too far away — half a metre from the ball "
+                   + "is what keeps the next bay out."}
+          : {priority: 1, title: "No strike heard",
+             detail: "The microphone picked up the swing but not a ball. If you did hit one, "
+                   + "move the phone closer or check the distance in the strike settings."});
       sw.club = currentClubTag();
       const onCourse = uiMode === "round" && round && !round.endedAt;
       if (onCourse) sw.metrics.round_ctx = shotContext();   // rides along in swings.metrics
