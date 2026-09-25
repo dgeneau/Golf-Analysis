@@ -889,12 +889,24 @@
       </div>
       <div id="dRangeBody">
       <div class="card">
-        <h2 id="dRangeLastTitle">Last session</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2 id="dRangeLastTitle" style="margin:0">Last session</h2>
+          <span style="flex:1"></span>
+          <button class="chip" id="dRangePrev">‹ Earlier</button>
+          <span class="note" id="dRangeSessPos" style="margin:0"></span>
+          <button class="chip" id="dRangeNext">Later ›</button>
+        </div>
         <p class="note" id="dRangeLastNote"></p>
         <div id="dRangeClubs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
         <div id="dRangeLast"></div>
       </div>
       <div class="grid2">
+        <div class="card">
+          <h2>Average swing shape</h2>
+          <p class="note">Where your forearm points through the swing, averaged over this session, with each swing faint behind it. This is the sensor's own orientation — nothing is integrated, so nothing drifts. Drag to turn it.</p>
+          <div id="dRangeTrack"></div>
+          <p class="note" id="dRangeTrackNote"></p>
+        </div>
         <div class="card">
           <h2>Tempo consistency</h2>
           <p class="note">Spread of tempo within each session. Lower is better — the mean barely moves for an adult golfer, the scatter around it is what practice changes.</p>
@@ -1324,12 +1336,23 @@
 
         <!-- ---- RANGE ---- -->
         <div id="mPaneRange" hidden>
-          <div id="mrClubs" class="seg" role="group" aria-label="Club"
+          <div id="mrClubs" role="group" aria-label="Club"
                style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
           <div class="mlight">
-            <h2 id="mrLastTitle">Last session</h2>
-            <p class="mfine" style="margin-top:0" id="mrLastNote"></p>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="mchip" id="mrPrev" aria-label="Earlier session" style="padding:6px 12px">‹</button>
+              <h2 id="mrLastTitle" style="flex:1;text-align:center;margin:0">Last session</h2>
+              <button class="mchip" id="mrNext" aria-label="Later session" style="padding:6px 12px">›</button>
+            </div>
+            <p class="mfine" id="mrSessPos" style="text-align:center;margin:4px 0 0"></p>
+            <p class="mfine" style="margin-top:8px" id="mrLastNote"></p>
             <div id="mrLast"></div>
+          </div>
+          <div class="mlight">
+            <h2>Average swing shape</h2>
+            <p class="mfine" style="margin-top:0">Where your forearm points through the swing, averaged over this session. Read off the sensor's orientation, not integrated from acceleration — so there is no drift in it.</p>
+            <div id="mrTrack"></div>
+            <p class="mfine" id="mrTrackNote" style="margin-bottom:0"></p>
           </div>
           <div class="mlight">
             <h2>Tempo consistency</h2>
@@ -1529,7 +1552,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "a9bba11 · 2026-09-25";
+const BUILD = "5968194 · 2026-09-25";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -2235,6 +2258,42 @@ function computeMetricsJS(rec, leverM){
     }
   }
   if (m.path_angle_raw_deg == null) m.path_angle_raw_deg = 0;
+
+  /* ---- orientation track: the 3D view's raw material ----
+     Where the forearm POINTS through the swing, sampled on a fixed real-time
+     grid about impact and referenced to the same still-address yaw that path
+     uses. Orientation, deliberately, not position: integrating this sensor's
+     free acceleration twice puts the wrist 1-2 m from where it started by the
+     finish — 36% of the path's own length — because a small tilt error leaves
+     a residual gravity component that integrates quadratically. A zero-velocity
+     update at both ends makes it worse, not better (40.8%), since the error is
+     not a velocity ramp. Orientation needs no integration at all and lands at
+     8.3 deg of swing-to-swing scatter against a 141 deg sweep.
+     Layout per step: [x, y, z, roll]. 40 steps, ~600 bytes, rides along in the
+     metrics jsonb so no schema change and history accumulates from here. */
+  m.track = (function(){
+    const N = TRACK_N, out = new Array(N * 4);
+    const at = (arr, want) => {           // linear interp on t, clamped at both ends
+      if (want <= t[0]) return arr(0);
+      if (want >= t[t.length - 1]) return arr(t.length - 1);
+      let lo = 0, hi = t.length - 1;
+      while (hi - lo > 1){ const mid = (lo + hi) >> 1; if (t[mid] <= want) lo = mid; else hi = mid; }
+      const u = (want - t[lo]) / Math.max(1e-9, t[hi] - t[lo]);
+      return arr(lo) * (1 - u) + arr(hi) * u;
+    };
+    const c = Math.cos, sn = Math.sin, D = Math.PI / 180;
+    for (let k = 0; k < N; k++){
+      const want = tI + TRACK_T0 + (TRACK_T1 - TRACK_T0) * k / (N - 1);
+      const pit = at(i => s[i].pitch, want) * D;
+      const yaw = at(i => s[i].yaw, want) * D - psi;
+      const rol = at(i => s[i].roll, want);
+      out[k*4]   = +(c(pit) * c(yaw)).toFixed(4);
+      out[k*4+1] = +(c(pit) * sn(yaw)).toFixed(4);
+      out[k*4+2] = +(-sn(pit)).toFixed(4);
+      out[k*4+3] = +rol.toFixed(1);
+    }
+    return out;
+  })();
 
   m.release_fraction = 0;
   if (i2 > i1 && tI > t[i1]){
@@ -5026,6 +5085,28 @@ const RMETRICS = [
   {key: "release_fraction", label: "Release",     dp: 3, unit: ""},
 ];
 let anClub = null;      // which club the range analytics is looking at
+let anSessId = null;    // and which session; null means the most recent one with that club
+
+/* Sessions that actually contain the selected club, oldest first. Picking a
+   club whose last outing was three weeks ago used to land on the newest
+   session regardless and report "0 of 5 balls" for everything, which reads as
+   a broken screen rather than as "you have not hit this club lately". */
+function rsSessionsWith(sessions, clubId){
+  return sessions.filter(s => rsVals(s.swings, clubId, "tempo").length > 0);
+}
+function rsPickSession(sessions){
+  const list = rsSessionsWith(sessions, anClub);
+  if (!list.length) return null;
+  const found = anSessId ? list.find(s => s.id === anSessId) : null;
+  if (!found) anSessId = list[list.length - 1].id;
+  return list.find(s => s.id === anSessId) || list[list.length - 1];
+}
+function rsStepSession(sessions, dir){
+  const list = rsSessionsWith(sessions, anClub);
+  const i = list.findIndex(s => s.id === anSessId);
+  const j = Math.max(0, Math.min(list.length - 1, (i < 0 ? list.length - 1 : i) + dir));
+  anSessId = list[j] ? list[j].id : null;
+}
 
 function rangeSessions(){
   return (Array.isArray(progressData) ? progressData : []).filter(s => s.kind === "Range");
@@ -5114,7 +5195,7 @@ function rsClubLabel(id){
 function rsEnsureClub(sessions){
   const clubs = rsClubs(sessions);
   if (!clubs.length){ anClub = null; return null; }
-  if (!anClub || !clubs.some(c => c.id === anClub)) anClub = clubs[0].id;
+  if (!anClub || !clubs.some(c => c.id === anClub)){ anClub = clubs[0].id; anSessId = null; }
   return anClub;
 }
 /* Is the spread itself trending? Reported only as a direction with its own
@@ -5146,7 +5227,7 @@ function rsClubChips(host, sessions, onPick){
     b.type = "button"; b.className = "chip";
     b.textContent = `${rsClubLabel(c.id)} · ${c.n}`;
     b.setAttribute("aria-pressed", c.id === anClub ? "true" : "false");
-    b.addEventListener("click", () => { anClub = c.id; onPick(); });
+    b.addEventListener("click", () => { anClub = c.id; anSessId = null; onPick(); });
     host.appendChild(b);
   }
 }
@@ -5155,8 +5236,11 @@ function rsClubChips(host, sessions, onPick){
    repeatable enough to carry a number. */
 function rsRenderCompare(host, sessions, opts){
   host.textContent = "";
-  const last = sessions[sessions.length - 1];
-  if (!last){ div("mfine", host, "No range sessions yet."); return null; }
+  const last = rsPickSession(sessions);
+  if (!last){
+    div("mfine", host, `No synced range swings with ${rsClubLabel(anClub)} yet.`);
+    return null;
+  }
   const rows = [];
   for (const m of RMETRICS){
     const cur = rsStat(rsVals(last.swings, anClub, m.key));
@@ -5220,6 +5304,241 @@ function rsRenderSpread(chartId, noteId, sessions, m){
       + `these ${series.length} sessions bounce around on their own.`;
 }
 
+/* ---------- The average swing, in three dimensions ----------
+   What is drawn is where the forearm POINTS through the swing — an orientation
+   track, read straight off the sensor's fusion — not where the wrist WAS.
+   That distinction is the whole design. Integrating this sensor's free
+   acceleration twice leaves the wrist 1–2 m from its own starting point by the
+   finish, 36% of the path's own length, because a small tilt error leaves a
+   residual gravity component that integrates quadratically; a zero-velocity
+   update at both ends makes it worse rather than better. A position plot would
+   have looked like anatomy and been mostly drift. Orientation needs no
+   integration, and on real swings it repeats to 8.3° against a 141° sweep.
+
+   So the curve is a path on the unit sphere. The mean track is the average of
+   the individual tracks at each time step, renormalised; the faint curves
+   behind it are the swings themselves, which is a more honest picture of
+   spread than any envelope drawn around a mean. */
+const TRK = {MIN_SWINGS: 3, MAX_DRAW: 24};
+const trackCache = {};        // session id -> [{club_id, track}] | "loading" | "error"
+
+/* The tracks live in the metrics jsonb, which the history query deliberately
+   does not pull — it would be megabytes. Fetch them for one session, on demand. */
+async function rsLoadTracks(sessionId, after){
+  if (!sb || !sbUser || !sessionId) return;
+  if (trackCache[sessionId] !== undefined) return;
+  trackCache[sessionId] = "loading";
+  try {
+    const q = await sb.from("swings").select("club_id,clipped,metrics")
+      .eq("session_id", sessionId).limit(400);
+    if (q.error){ trackCache[sessionId] = "error"; }
+    else {
+      trackCache[sessionId] = (q.data || [])
+        .filter(r => r && r.metrics && Array.isArray(r.metrics.track)
+                     && r.metrics.track.length === TRACK_N * 4)
+        .map(r => ({club_id: r.club_id, clipped: !!r.clipped, track: r.metrics.track}));
+    }
+  } catch (e){ trackCache[sessionId] = "error"; }
+  if (after) after();
+}
+/* The live session is already in memory and has not synced yet. */
+function rsLocalTracks(clubId){
+  const out = [];
+  for (const w of (typeof swings !== "undefined" ? swings : [])){
+    const m = w && w.metrics;
+    if (!m || !Array.isArray(m.track) || m.track.length !== TRACK_N * 4) continue;
+    if (clubId && !(w.club && w.club.id === clubId)) continue;
+    out.push({club_id: w.club && w.club.id, clipped: !!(m.acc_clipped || m.gyro_clipped),
+              track: m.track});
+  }
+  return out;
+}
+/* Centre direction per step, plus the spread about it.
+   Both statistics are robust on purpose. Near the top of the backswing the
+   forearm can come close to vertical, and there the Euler yaw is degenerate:
+   two swings a degree apart can report directions 100° apart. On real swings
+   that shows up as a single-step 48° spike sitting between neighbours of 7°,
+   which is gimbal lock, not the golfer. A per-component median survives it
+   where a mean does not, and the median absolute deviation reports spread
+   without letting one ill-conditioned sample set the scale.
+   Steps where the centre itself is near vertical are flagged rather than
+   silently drawn, because there the number genuinely means less. */
+const TRK_VERT = 0.985;        // |z| above this is within ~10° of vertical
+function rsMedian3(vals){
+  const s = [...vals].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+}
+function rsMeanTrack(rows){
+  const n = rows.length;
+  if (!n) return null;
+  const mean = [], sd = [], roll = [], shaky = [];
+  for (let k = 0; k < TRACK_N; k++){
+    const xs = [], ys = [], zs = [], rs = [];
+    for (const w of rows){ const t = w.track;
+      xs.push(t[k*4]); ys.push(t[k*4+1]); zs.push(t[k*4+2]); rs.push(t[k*4+3]); }
+    let x = rsMedian3(xs), y = rsMedian3(ys), z = rsMedian3(zs);
+    const L = Math.hypot(x, y, z) || 1;
+    const m = [x/L, y/L, z/L];
+    const devs = [];
+    for (const w of rows){ const t = w.track;
+      const d = Math.max(-1, Math.min(1, t[k*4]*m[0] + t[k*4+1]*m[1] + t[k*4+2]*m[2]));
+      devs.push(Math.acos(d) * 180/Math.PI);
+    }
+    mean.push(m);
+    sd.push(rsMedian3(devs) * 1.4826);      // MAD, scaled to read like an sd
+    roll.push(rsMedian3(rs));
+    shaky.push(Math.abs(m[2]) > TRK_VERT);
+  }
+  return {n, mean, sd, roll, shaky};
+}
+/* Orthographic projection with drag to rotate. Nothing fancier earns its
+   weight here: one curve on a sphere reads fine without perspective, and a
+   self-contained page cannot reach for a 3D library. */
+let trkAz = -0.6, trkEl = 0.35;
+function rsProject(v, W, H, R){
+  const ca = Math.cos(trkAz), sa = Math.sin(trkAz);
+  const ce = Math.cos(trkEl), se = Math.sin(trkEl);
+  const x =  v[0]*ca + v[1]*sa;
+  const y = -v[0]*sa + v[1]*ca;
+  const z =  v[2];
+  return {x: W/2 + R*y, y: H/2 - R*(z*ce - x*se), depth: x*ce + z*se};
+}
+/* A session on screen is either the live one (tracks already in memory and not
+   yet synced) or a past one (tracks in the cloud, fetched on demand). */
+function rsRenderTrackFor(sess, hostId, noteId, after){
+  if (!sess){ rsRenderTrack(hostId, noteId, [], {}); return; }
+  const live = (typeof cloudSession !== "undefined" && cloudSession && cloudSession.id === sess.id)
+    ? rsLocalTracks(anClub) : null;
+  if (live && live.length){ rsRenderTrack(hostId, noteId, live, {}); return; }
+  const have = trackCache[sess.id];
+  if (have === undefined){
+    rsRenderTrack(hostId, noteId, "loading", {});
+    rsLoadTracks(sess.id, after);
+    return;
+  }
+  rsRenderTrack(hostId, noteId,
+    Array.isArray(have) ? have.filter(r => !anClub || r.club_id === anClub) : have, {});
+}
+function rsRenderTrack(hostId, noteId, rows, opts){
+  const host = document.getElementById(hostId);
+  const note = noteId ? document.getElementById(noteId) : null;
+  if (!host) return;
+  host.textContent = "";
+  if (rows === "loading"){ loadingLine(host, "Loading swing tracks…", "mfine"); if (note) note.textContent = ""; return; }
+  if (rows === "error"){ div("mfine", host, "Couldn't load the swing tracks for this session."); return; }
+  const use = (rows || []).filter(r => !r.clipped);
+  if (use.length < TRK.MIN_SWINGS){
+    div("mfine", host, (rows || []).length
+      ? `Needs ${TRK.MIN_SWINGS} clean swings to average — ${use.length} here.`
+      : "No swing tracks stored for this session yet. Tracks are recorded from this build onward, so sessions hit before it won't have them.");
+    if (note) note.textContent = "";
+    return;
+  }
+  const avg = rsMeanTrack(use);
+  const W = 340, H = 300, R = 112;
+  const svg = el("svg", {width: "100%", viewBox: `0 0 ${W} ${H}`,
+    style: "touch-action:none;cursor:grab", role: "img",
+    "aria-label": `Average forearm direction through the swing, ${avg.n} swings`}, host);
+
+  const draw = () => {
+    svg.textContent = "";
+    // the sphere the track lives on, as a horizon circle and a ground ellipse
+    el("circle", {cx: W/2, cy: H/2, r: R, fill: "none", stroke: "#ddd7c4"}, svg);
+    const ell = [];
+    for (let a = 0; a <= 360; a += 6){
+      const r = a*Math.PI/180;
+      ell.push(rsProject([Math.cos(r), Math.sin(r), 0], W, H, R));
+    }
+    el("path", {d: ell.map((p,i)=>`${i?"L":"M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(""),
+      fill: "none", stroke: "#e6e1d2"}, svg);
+    // the target line: straight down the address heading
+    for (const [v, lbl] of [[[1,0,0], "target"], [[0,0,1], "up"]]){
+      const p = rsProject(v, W, H, R), o = rsProject([0,0,0], W, H, R);
+      el("line", {x1:o.x, y1:o.y, x2:p.x, y2:p.y, stroke:"#c9d0ae", "stroke-width":1.5}, svg);
+      el("text", {x:p.x, y:p.y-4, "text-anchor":"middle",
+        style:"font:10px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = lbl;
+    }
+    // the swings themselves, faint — a truer picture of spread than an envelope
+    // A wrist cannot cross 45° of arc in one 32 ms step, so a jump that big is
+    // the Euler heading giving way near vertical, not a movement. Break the
+    // line there: a gap says "unknown", a chord would draw a swing that never
+    // happened — and these faint curves are the honest part of the picture.
+    const MAXSTEP = Math.cos(45 * Math.PI/180);
+    for (const w of use.slice(0, TRK.MAX_DRAW)){
+      let d = "", prev = null;
+      for (let k = 0; k < TRACK_N; k++){
+        const v = [w.track[k*4], w.track[k*4+1], w.track[k*4+2]];
+        const p = rsProject(v, W, H, R);
+        const jump = prev && (prev[0]*v[0] + prev[1]*v[1] + prev[2]*v[2]) < MAXSTEP;
+        d += `${(!prev || jump) ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+        prev = v;
+      }
+      el("path", {d, fill:"none", stroke:"#8a9270", "stroke-width":1, opacity:.22}, svg);
+    }
+    // the mean track, thickness carrying how much the swings disagreed there
+    for (let k = 1; k < TRACK_N; k++){
+      const a = rsProject(avg.mean[k-1], W, H, R), b = rsProject(avg.mean[k], W, H, R);
+      const spread = (avg.sd[k-1] + avg.sd[k]) / 2;
+      const iffy = avg.shaky[k-1] || avg.shaky[k];
+      el("line", {x1:a.x, y1:a.y, x2:b.x, y2:b.y,
+        stroke: iffy ? "#b0a892" : "#3c4a30",
+        "stroke-width": Math.max(1.5, Math.min(7, spread/3)),
+        "stroke-dasharray": iffy ? "3 3" : "",
+        "stroke-linecap":"round", opacity: iffy ? .7 : .92}, svg);
+    }
+    // where impact falls on the grid, and where the track begins
+    const kImpact = Math.round((0 - TRACK_T0) / (TRACK_T1 - TRACK_T0) * (TRACK_N - 1));
+    // The forearm genuinely points about the same way at address as at impact,
+    // so these two markers often project on top of each other. Drop the start
+    // label rather than stack the two.
+    const pI = rsProject(avg.mean[kImpact], W, H, R), p0 = rsProject(avg.mean[0], W, H, R);
+    const collide = Math.hypot(pI.x - p0.x, pI.y - p0.y) < 34;
+    for (const [k, col, lbl] of [[0, "#8a8577", collide ? "" : "−1.0 s"], [kImpact, "#b4632f", "impact"]]){
+      const p = rsProject(avg.mean[k], W, H, R);
+      el("circle", {cx:p.x, cy:p.y, r: k === kImpact ? 5 : 3.5, fill: col}, svg);
+      if (!lbl) continue;
+      el("text", {x: p.x + (k === kImpact ? 8 : -8), y: p.y + (k === kImpact ? 3 : -8),
+        "text-anchor": k === kImpact ? "start" : "end",
+        style:"font:10px 'IBM Plex Mono',monospace;fill:"+col}, svg).textContent = lbl;
+    }
+  };
+  draw();
+
+  // drag to rotate
+  let dragging = false, lx = 0, ly = 0;
+  const down = e => { dragging = true; lx = (e.touches?e.touches[0]:e).clientX;
+                      ly = (e.touches?e.touches[0]:e).clientY; svg.style.cursor = "grabbing"; };
+  const move = e => {
+    if (!dragging) return;
+    const t = e.touches ? e.touches[0] : e;
+    trkAz -= (t.clientX - lx) * 0.012;
+    trkEl = Math.max(-1.4, Math.min(1.4, trkEl + (t.clientY - ly) * 0.012));
+    lx = t.clientX; ly = t.clientY;
+    if (e.cancelable) e.preventDefault();
+    draw();
+  };
+  const up = () => { dragging = false; svg.style.cursor = "grab"; };
+  svg.addEventListener("pointerdown", down);
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerup", up);
+  svg.addEventListener("pointerleave", up);
+
+  if (note){
+    const worst = Math.max(...avg.sd), best = Math.min(...avg.sd);
+    const kI = Math.round((0 - TRACK_T0) / (TRACK_T1 - TRACK_T0) * (TRACK_N - 1));
+    const a0 = avg.mean[0], a1 = avg.mean[TRACK_N - 1];
+    const sweep = Math.acos(Math.max(-1, Math.min(1, a0[0]*a1[0] + a0[1]*a1[1] + a0[2]*a1[2]))) * 180/Math.PI;
+    const nShaky = avg.shaky.filter(Boolean).length;
+    note.textContent = `${avg.n} clean swing${avg.n === 1 ? "" : "s"}. `
+      + `The line thickens where they disagreed: ${best.toFixed(0)}° at your steadiest point, `
+      + `${worst.toFixed(0)}° at your loosest, ${avg.sd[kI].toFixed(0)}° at impact — `
+      + `against about ${sweep.toFixed(0)}° of total sweep. `
+      + (nShaky ? "The dashed stretch is where the forearm passes near vertical and the sensor's "
+                + "heading stops being well defined; treat its shape loosely. " : "")
+      + `Drag to turn it.`;
+  }
+}
+
 function renderRangePane(){
   const gate = document.getElementById("dRangeGate");
   const body = document.getElementById("dRangeBody");
@@ -5239,14 +5558,24 @@ function renderRangePane(){
   const dlab = iso => new Date(iso).toLocaleDateString(undefined, {month: "short", day: "numeric"});
 
   rsClubChips(document.getElementById("dRangeClubs"), rng, renderRangePane);
-  const last = rng[rng.length - 1];
-  document.getElementById("dRangeLastTitle").textContent =
-    `Last session — ${dlab(last.date)} · ${rsClubLabel(anClub)}`;
+  const withClub = rsSessionsWith(rng, anClub);
+  const cur = rsPickSession(rng);
+  const idx = cur ? withClub.findIndex(x => x.id === cur.id) : -1;
+  document.getElementById("dRangeLastTitle").textContent = cur
+    ? `${dlab(cur.date)} · ${rsClubLabel(anClub)}`
+    : rsClubLabel(anClub);
+  document.getElementById("dRangeSessPos").textContent = withClub.length
+    ? `${idx + 1} / ${withClub.length}` : "";
+  const dp = document.getElementById("dRangePrev"), dn = document.getElementById("dRangeNext");
+  dp.disabled = idx <= 0; dn.disabled = idx < 0 || idx >= withClub.length - 1;
+  dp.onclick = () => { rsStepSession(rng, -1); renderRangePane(); };
+  dn.onclick = () => { rsStepSession(rng, +1); renderRangePane(); };
   document.getElementById("dRangeLastNote").textContent =
     "This session's average, the spread around it, and how it sits against your own history with this club. "
     + "A difference is only called a difference when it exceeds what this many balls could produce by chance — "
     + "where it doesn't, the smallest change that would have shown is quoted instead.";
   rsRenderCompare(document.getElementById("dRangeLast"), rng, {});
+  rsRenderTrackFor(cur, "dRangeTrack", "dRangeTrackNote", renderRangePane);
 
   document.getElementById("progSpeedTitle").textContent =
     `Club speed consistency — ${rsClubLabel(anClub)}`;
@@ -7630,6 +7959,7 @@ function mkSvg(svg, n, at){
    which is right for comparing SHAPE but throws away tempo and speed — the two
    properties with the most behind them. Impact-aligned real time keeps all
    three visible, and it is what the OpenCap validation already does. */
+const TRACK_N = 40, TRACK_T0 = -1.0, TRACK_T1 = 0.25;   // orientation track grid, s about impact
 const REF_T0 = -1.6, REF_T1 = 0.35, REF_DT = 1 / 60;   // seconds about impact
 const REF_MIN = 5;        // swings needed before a band is drawn
 let refBandCache = {key: "", band: null};
@@ -9072,23 +9402,41 @@ function renderAnRange(){
   }
   rsClubChips(g("mrClubs"), rng, renderAnRange);
 
-  const last = rng[rng.length - 1];
-  g("mrLastTitle").textContent = `${dlab(last.date)} · ${rsClubLabel(anClub)}`;
+  const withClub = rsSessionsWith(rng, anClub);
+  const cur = rsPickSession(rng);
+  const idx = cur ? withClub.findIndex(x => x.id === cur.id) : -1;
+  g("mrLastTitle").textContent = cur
+    ? `${dlab(cur.date)} · ${rsClubLabel(anClub)}`
+    : rsClubLabel(anClub);
+  g("mrSessPos").textContent = withClub.length
+    ? `session ${idx + 1} of ${withClub.length} with this club`
+    : "";
+  g("mrPrev").disabled = idx <= 0;
+  g("mrNext").disabled = idx < 0 || idx >= withClub.length - 1;
+  g("mrPrev").style.opacity = g("mrPrev").disabled ? .35 : 1;
+  g("mrNext").style.opacity = g("mrNext").disabled ? .35 : 1;
+  g("mrPrev").onclick = () => { rsStepSession(rng, -1); renderAnRange(); };
+  g("mrNext").onclick = () => { rsStepSession(rng, +1); renderAnRange(); };
   g("mrLastNote").textContent =
     "Each number is this session's average, the spread around it, and how it compares with your own "
     + "history for this club. A difference only counts when it is bigger than this many balls could "
     + "produce by chance.";
   rsRenderCompare(g("mrLast"), rng, {});
+  rsRenderTrackFor(cur, "mrTrack", "mrTrackNote", renderAnRange);
   rsRenderSpread("mrSdTempo", "mrSdTempoNote", rng, RMETRICS[0]);
   rsRenderSpread("mrSdSpeed", "mrSdSpeedNote", rng, RMETRICS[1]);
 
   sess.textContent = "";
-  for (const s of [...rng].reverse().slice(0, 8)){
-    const vals = rsVals(s.swings, anClub, "tempo");
-    const st = rsStat(vals);
+  for (const s of [...withClub].reverse().slice(0, 10)){
+    const st = rsStat(rsVals(s.swings, anClub, "tempo"));
     const spd = rsStat(rsVals(s.swings, anClub, "club_mph"));
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #ddd7c4";
+    const row = document.createElement("button");
+    row.type = "button";
+    const on = cur && s.id === cur.id;
+    row.style.cssText = "display:flex;width:100%;text-align:left;align-items:baseline;gap:8px;"
+      + "padding:8px 6px;border:0;border-bottom:1px solid #ddd7c4;cursor:pointer;font:inherit;"
+      + "background:" + (on ? "rgba(60,74,48,0.07)" : "transparent");
+    row.addEventListener("click", () => { anSessId = s.id; renderAnRange(); });
     const left = document.createElement("div"); left.style.cssText = "flex:1";
     const c = div("", left, dlab(s.date));
     c.style.cssText = "font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
