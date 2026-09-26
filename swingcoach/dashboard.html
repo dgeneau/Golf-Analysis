@@ -902,6 +902,11 @@
       </div>
       <div class="grid2">
         <div class="card">
+          <h2>Strike channel</h2>
+          <p class="note">What the microphone heard, swing by swing.</p>
+          <div id="dRangeStrike"></div>
+        </div>
+        <div class="card">
           <h2>Average swing shape</h2>
           <p class="note">Where your forearm points through the swing, averaged over this session, with each swing faint behind it. This is the sensor's own orientation — nothing is integrated, so nothing drifts. Drag to turn it.</p>
           <div id="dRangeTrack"></div>
@@ -1347,6 +1352,11 @@
             <p class="mfine" id="mrSessPos" style="text-align:center;margin:4px 0 0"></p>
             <p class="mfine" style="margin-top:8px" id="mrLastNote"></p>
             <div id="mrLast"></div>
+          </div>
+          <div class="mlight" id="mrStrikeCard">
+            <h2>Strike channel</h2>
+            <p class="mfine" style="margin-top:0">What the microphone heard, swing by swing.</p>
+            <div id="mrStrikeRep"></div>
           </div>
           <div class="mlight">
             <h2>Average swing shape</h2>
@@ -5334,9 +5344,11 @@ async function rsLoadTracks(sessionId, after){
     if (q.error){ trackCache[sessionId] = "error"; }
     else {
       trackCache[sessionId] = (q.data || [])
-        .filter(r => r && r.metrics && Array.isArray(r.metrics.track)
-                     && r.metrics.track.length === TRACK_N * 4)
-        .map(r => ({club_id: r.club_id, clipped: !!r.clipped, track: r.metrics.track}));
+        .filter(r => r && r.metrics)
+        .map((r, i) => ({club_id: r.club_id, clipped: !!r.clipped, n: i + 1,
+                         m: r.metrics,
+                         track: Array.isArray(r.metrics.track)
+                                && r.metrics.track.length === TRACK_N * 4 ? r.metrics.track : null}));
     }
   } catch (e){ trackCache[sessionId] = "error"; }
   if (after) after();
@@ -5344,12 +5356,14 @@ async function rsLoadTracks(sessionId, after){
 /* The live session is already in memory and has not synced yet. */
 function rsLocalTracks(clubId){
   const out = [];
+  let n = 0;
   for (const w of (typeof swings !== "undefined" ? swings : [])){
     const m = w && w.metrics;
-    if (!m || !Array.isArray(m.track) || m.track.length !== TRACK_N * 4) continue;
+    if (!m) continue;
+    n++;
     if (clubId && !(w.club && w.club.id === clubId)) continue;
     out.push({club_id: w.club && w.club.id, clipped: !!(m.acc_clipped || m.gyro_clipped),
-              track: m.track});
+              n, m, track: (Array.isArray(m.track) && m.track.length === TRACK_N * 4) ? m.track : null});
   }
   return out;
 }
@@ -5426,7 +5440,7 @@ function rsRenderTrack(hostId, noteId, rows, opts){
   host.textContent = "";
   if (rows === "loading"){ loadingLine(host, "Loading swing tracks…", "mfine"); if (note) note.textContent = ""; return; }
   if (rows === "error"){ div("mfine", host, "Couldn't load the swing tracks for this session."); return; }
-  const use = (rows || []).filter(r => !r.clipped);
+  const use = (rows || []).filter(r => !r.clipped && r.track);
   if (use.length < TRK.MIN_SWINGS){
     div("mfine", host, (rows || []).length
       ? `Needs ${TRK.MIN_SWINGS} clean swings to average — ${use.length} here.`
@@ -5539,6 +5553,191 @@ function rsRenderTrack(hostId, noteId, rows, opts){
   }
 }
 
+/* ---------- Strike report ----------
+   The field-test readout for the microphone channel. It exists because the
+   first time the strike channel went to a range there was no way to find out
+   what it had done: the diagnostics ride in the metrics jsonb, the session CSV
+   carries raw samples only, and nothing read the two together.
+
+   What it answers, in order: did the microphone hear the ball at all; when it
+   did, how far the acoustic instant sat from the sensor's own impact call; and
+   whether that gap is a steady offset (which calibration removes) or scatter
+   (which it cannot). The distinction is the whole point — a large but
+   consistent offset is a solved problem, a small but erratic one is not. */
+function rsStrikeRows(rows){
+  const out = [];
+  for (const r of (Array.isArray(rows) ? rows : [])){
+    const m = r.m;
+    if (!m || m.strike_heard === undefined) continue;
+    out.push({n: r.n, club: r.club_id, clipped: r.clipped,
+      heard: !!m.strike_heard,
+      rejected: m.strike_rejected || 0,
+      offMs: m.strike_offset_s != null ? m.strike_offset_s * 1000 : null,
+      offSamp: m.strike_offset_samples != null ? m.strike_offset_samples : null,
+      shift: m.impact_shift_samples || 0,
+      frac: m.impact_frac || 0,
+      snr: m.strike_snr_db != null ? m.strike_snr_db : null,
+      bright: m.strike_bright != null ? m.strike_bright : null,
+      ref: m.strike_ref || "none",
+      clockMs: m.clock_resid_ms != null ? m.clock_resid_ms : null,
+      tempo: m.tempo_ratio});
+  }
+  return out;
+}
+function rsStrikeSummary(rows){
+  const n = rows.length;
+  if (!n) return null;
+  const heard = rows.filter(r => r.heard);
+  const offs = heard.map(r => r.offMs).filter(v => v != null);
+  const med = offs.length ? median(offs) : null;
+  // Scatter about the session's own median is the number that matters: a
+  // constant offset is absorbed by calibration, scatter never is.
+  const scat = offs.length >= 3 ? median(offs.map(v => Math.abs(v - med))) * 1.4826 : null;
+  const clocks = rows.map(r => r.clockMs).filter(v => v != null);
+  const shifted = heard.filter(r => Math.abs(r.shift) >= 1).length;
+  return {n, heard: heard.length, missed: n - heard.length,
+          rejected: rows.filter(r => r.rejected).length,
+          med, scat, shifted,
+          scatSamples: scat != null ? scat / (1000 / 60) : null,
+          clock: clocks.length ? median(clocks) : null,
+          ref: heard.length ? heard[heard.length - 1].ref : "none",
+          snr: heard.length ? median(heard.map(r => r.snr).filter(v => v != null)) : null};
+}
+function rsRenderStrike(hostId, rows){
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  host.textContent = "";
+  const src = (rows === "loading" || rows === "error") ? [] : rsStrikeRows(rows);
+  if (rows === "loading"){ loadingLine(host, "Loading…", "mfine"); return; }
+  if (!src.length){
+    div("mfine", host, "No microphone data in this session — the strike channel was off, "
+      + "or the session predates it.");
+    return;
+  }
+  const S = rsStrikeSummary(src);
+  const line = (txt, strong) => {
+    const d = div("", host, txt);
+    d.style.cssText = strong
+      ? "font:600 14px 'IBM Plex Sans',system-ui;color:#23221c;margin-bottom:6px"
+      : "font:500 12.5px 'IBM Plex Sans',system-ui;line-height:1.6;color:#8a8577";
+    return d;
+  };
+  line(`${S.heard} of ${S.n} swings heard`, true);
+  if (S.med != null){
+    line(`The microphone put impact a median ${S.med >= 0 ? "" : "−"}${Math.abs(S.med).toFixed(1)} ms `
+       + `${S.med >= 0 ? "after" : "before"} the sensor's own call`
+       + (S.scat != null
+          ? `, scattering ${S.scat.toFixed(1)} ms about that — ${S.scatSamples.toFixed(2)} of a sensor sample.`
+          : "."));
+    if (S.scat != null)
+      line(S.scatSamples < 0.35
+        ? "That scatter is the useful part: well under one sample, so the acoustic instant is "
+          + "genuinely sharper than the sensor's. The median offset itself is a constant and "
+          + "the sync tap removes it."
+        : "That scatter is larger than hoped — over a third of a sensor sample. Either the "
+          + "microphone is picking up something other than the ball, the phone moved between "
+          + "swings, or the sensor clock is not being pinned well.");
+  }
+  if (S.shifted)
+    line(`${S.shifted} impact${S.shifted === 1 ? " was" : "s were"} moved to a different sample `
+       + `to match what was heard.`);
+  if (S.missed)
+    line(`${S.missed} swing${S.missed === 1 ? "" : "s"} made no sound the app would accept`
+       + (S.rejected ? `, ${S.rejected} of which heard something too quiet to be your ball.` : "."));
+  if (S.clock != null)
+    line(`Sensor clock pinned to ±${S.clock.toFixed(2)} ms. `
+       + `Calibration: ${S.ref === "tap" ? "sync tap done." :
+            S.ref === "self" ? "none — offsets are referenced to this session's own median." :
+            "none, and not enough swings yet for a self-reference."}`);
+  if (S.snr != null) line(`Strikes came in ${S.snr.toFixed(0)} dB over the background.`);
+
+  // per-swing strip: each swing's offset against the session median
+  if (S.med != null && src.some(r => r.offMs != null)){
+    const W = 340, H = 74, m = {l: 30, r: 10, t: 14, b: 18};
+    const vals = src.filter(r => r.offMs != null).map(r => r.offMs - S.med);
+    // Half a sensor sample is the whole reference for this chart, so keep it on
+    // scale even when every swing lands well inside it — that IS the result.
+    const half = (1000 / 60) / 2;
+    const lim = Math.max(half * 1.15, Math.ceil(Math.max(...vals.map(Math.abs)) * 1.2));
+    const svg = el("svg", {width: "100%", viewBox: `0 0 ${W} ${H}`, style: "margin-top:10px",
+      role: "img", "aria-label": "Per-swing acoustic offset about the session median"}, host);
+    const X = i => m.l + (W - m.l - m.r) * (src.length < 2 ? .5 : i / (src.length - 1));
+    const Y = v => m.t + (H - m.t - m.b) * (1 - (v + lim) / (2 * lim));
+    // one sensor sample, for scale — the whole point is to sit inside it
+    const sh = half;
+    el("rect", {x: m.l, y: Y(sh), width: W - m.l - m.r, height: Y(-sh) - Y(sh),
+      fill: "rgba(60,74,48,0.09)"}, svg);
+    el("line", {x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0), stroke: "#8a9270"}, svg);
+    el("text", {x: m.l - 4, y: Y(0) + 3, "text-anchor": "end",
+      style: "font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = "med";
+    el("text", {x: m.l - 4, y: Y(sh) + 3, "text-anchor": "end",
+      style: "font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = "½ smp";
+    src.forEach((r, i) => {
+      if (r.offMs == null){
+        el("text", {x: X(i), y: Y(0) + 4, "text-anchor": "middle",
+          style: "font:11px 'IBM Plex Mono',monospace;fill:#b0a892"}, svg).textContent = "×";
+        return;
+      }
+      const v = Math.max(-lim, Math.min(lim, r.offMs - S.med));
+      el("line", {x1: X(i), x2: X(i), y1: Y(0), y2: Y(v), stroke: "#ddd7c4"}, svg);
+      el("circle", {cx: X(i), cy: Y(v), r: 3.5,
+        fill: Math.abs(r.shift) >= 1 ? "#b4632f" : "#3c4a30"}, svg);
+    });
+    const cap = div("mfine", host,
+      "Each swing's acoustic instant against the session median. The band is half a sensor "
+      + "sample either way — inside it, the microphone is resolving impact finer than the "
+      + "sensor can. × is a swing that made no accepted sound; orange had its impact moved.");
+    cap.style.marginTop = "4px";
+  }
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "mghost";
+  btn.style.cssText = "width:100%;margin-top:10px;border:1px solid #ddd7c4;border-radius:10px;padding:10px";
+  btn.textContent = "Export swing diagnostics (CSV)";
+  btn.addEventListener("click", () => rsExportDiagnostics(src));
+  host.appendChild(btn);
+}
+/* The session CSV carries raw samples and nothing else, which is why the first
+   field test of the strike channel produced no evidence. This one is per swing. */
+function rsExportDiagnostics(src){
+  const cols = ["swing","club","clipped","heard","rejected","offset_ms","offset_samples",
+                "impact_shift_samples","impact_frac","snr_db","bright","ref","clock_resid_ms","tempo"];
+  const lines = [cols.join(",")];
+  for (const r of src)
+    lines.push([r.n, r.club || "", r.clipped ? 1 : 0, r.heard ? 1 : 0, r.rejected,
+      r.offMs == null ? "" : r.offMs.toFixed(3),
+      r.offSamp == null ? "" : r.offSamp.toFixed(4),
+      r.shift, r.frac == null ? "" : r.frac.toFixed(4),
+      r.snr == null ? "" : r.snr.toFixed(1),
+      r.bright == null ? "" : r.bright.toFixed(3),
+      r.ref, r.clockMs == null ? "" : r.clockMs.toFixed(3),
+      r.tempo == null ? "" : (+r.tempo).toFixed(3)].join(","));
+  const name = `downrange-strike-${new Date().toISOString().replace(/[:T]/g,"-").slice(0,19)}.csv`;
+  const blob = new Blob([lines.join("\n")], {type: "text/csv"});
+  (async () => {
+    try {
+      const f = new File([blob], name, {type: "text/csv"});
+      if (navigator.canShare && navigator.canShare({files: [f]})){
+        await navigator.share({files: [f], title: name});
+        return;
+      }
+    } catch (e){ if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    URL.revokeObjectURL(a.href);
+  })();
+}
+/* Same source-picking as the 3D track: live session from memory, past ones
+   from the cloud. */
+function rsRenderStrikeFor(sess, hostId, after){
+  if (!sess){ rsRenderStrike(hostId, []); return; }
+  const live = (typeof cloudSession !== "undefined" && cloudSession && cloudSession.id === sess.id)
+    ? rsLocalTracks(null) : null;
+  if (live && live.length){ rsRenderStrike(hostId, live); return; }
+  const have = trackCache[sess.id];
+  if (have === undefined){ rsRenderStrike(hostId, "loading"); rsLoadTracks(sess.id, after); return; }
+  rsRenderStrike(hostId, have);
+}
+
 function renderRangePane(){
   const gate = document.getElementById("dRangeGate");
   const body = document.getElementById("dRangeBody");
@@ -5575,6 +5774,7 @@ function renderRangePane(){
     + "A difference is only called a difference when it exceeds what this many balls could produce by chance — "
     + "where it doesn't, the smallest change that would have shown is quoted instead.";
   rsRenderCompare(document.getElementById("dRangeLast"), rng, {});
+  rsRenderStrikeFor(cur, "dRangeStrike", renderRangePane);
   rsRenderTrackFor(cur, "dRangeTrack", "dRangeTrackNote", renderRangePane);
 
   document.getElementById("progSpeedTitle").textContent =
@@ -9422,6 +9622,7 @@ function renderAnRange(){
     + "history for this club. A difference only counts when it is bigger than this many balls could "
     + "produce by chance.";
   rsRenderCompare(g("mrLast"), rng, {});
+  rsRenderStrikeFor(cur, "mrStrikeRep", renderAnRange);
   rsRenderTrackFor(cur, "mrTrack", "mrTrackNote", renderAnRange);
   rsRenderSpread("mrSdTempo", "mrSdTempoNote", rng, RMETRICS[0]);
   rsRenderSpread("mrSdSpeed", "mrSdSpeedNote", rng, RMETRICS[1]);
