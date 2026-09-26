@@ -396,6 +396,50 @@
   .msumgrid .v small { font-size: 15px; color: #6b6558; font-weight: 600; }
   .mfine { margin: 14px 0 0; font-size: 12px; color: #8a8577; line-height: 1.5; }
   .mlight { background: #f8f6ee; border: 1px solid #ddd7c4; border-radius: 10px; padding: 14px 16px; }
+  /* Analytics panes own the spacing between their cards, whatever kind of card
+     it is. Before this the cards butted flush — five bordered boxes with no
+     breathing room — because .mlight and .card carry no margin of their own and
+     each pane simply stacked them. A gap on the container fixes every child at
+     once and cannot collapse the way margins do. */
+  #mPaneRange, #mPaneRounds, #dRangeBody { display: flex; flex-direction: column; gap: 14px; }
+  #dRangeBody .grid2 { margin-bottom: 0; }
+
+  /* Reference material — diagnostics, notes on what a number means — folds away
+     until asked for. It is the difference between a screen you read and a screen
+     you scroll past. */
+  .mdisc { border: 0; background: transparent; padding: 0; width: 100%; text-align: left;
+           font: 600 13px "IBM Plex Sans", system-ui; color: #3c4a30; cursor: pointer;
+           display: flex; align-items: center; gap: 7px; }
+  .mdisc .caret { font-size: 9px; color: #8a8577; transition: transform .15s; }
+  .mdisc[aria-expanded="true"] .caret { transform: rotate(90deg); }
+  .mdisc-sub { font: 500 12px "IBM Plex Sans", system-ui; color: #8a8577; margin-left: auto; }
+
+  /* Stat rows. These replaced about thirty one-off inline styles, which is what
+     "cluttered" actually looked like in the source. */
+  .mstat { display: grid; grid-template-columns: auto 1fr; gap: 0 14px; align-items: baseline; }
+  .mstat-k { font: 600 13px "IBM Plex Sans", system-ui; color: #23221c; padding-top: 11px; }
+  .mstat-v { padding-top: 11px; }
+  .mstat-n { font: 600 15px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30;
+             font-variant-numeric: tabular-nums; }
+  .mstat-n em { font-style: normal; color: #8a8577; font-size: 12.5px; }
+  .mstat-s { font: 500 11.5px "IBM Plex Sans", system-ui; line-height: 1.55; margin-top: 3px;
+             color: #8a8577; }
+  .mstat-s.on { color: #3c4a30; }
+  .mstat-sep { grid-column: 1 / -1; border-bottom: 1px solid #ddd7c4; margin-top: 11px; }
+  .mconsist-h { font: 600 11px "IBM Plex Sans", system-ui; letter-spacing: .06em;
+                text-transform: uppercase; color: #8a8577; margin: 14px 0 2px; }
+  .mconsist-h:first-of-type { margin-top: 10px; }
+  .mstat > .mstat-sep:last-child { border-bottom: 0; }
+
+  .mrow { display: flex; width: 100%; text-align: left; align-items: baseline; gap: 10px;
+          padding: 9px 6px; border: 0; border-bottom: 1px solid #ddd7c4; cursor: pointer;
+          background: transparent; font: inherit; border-radius: 6px; }
+  .mrow:last-of-type { border-bottom: 0; }
+  .mrow.on { background: rgba(60,74,48,.07); }
+  .mrow-k { font: 600 13.5px "IBM Plex Sans", system-ui; color: #23221c; }
+  .mrow-s { font: 500 11.5px "IBM Plex Sans", system-ui; color: #8a8577; margin-top: 1px; }
+  .mrow-v { font: 600 15px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30;
+            text-align: right; font-variant-numeric: tabular-nums; }
   .mlight h2 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 15px;
                letter-spacing: .04em; text-transform: uppercase; margin: 0 0 8px; }
 
@@ -1342,37 +1386,30 @@
         <!-- ---- RANGE ---- -->
         <div id="mPaneRange" hidden>
           <div id="mrClubs" role="group" aria-label="Club"
-               style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+               style="display:flex;gap:6px;flex-wrap:wrap"></div>
           <div class="mlight">
             <div style="display:flex;align-items:center;gap:8px">
               <button class="mchip" id="mrPrev" aria-label="Earlier session" style="padding:6px 12px">‹</button>
               <h2 id="mrLastTitle" style="flex:1;text-align:center;margin:0">Last session</h2>
               <button class="mchip" id="mrNext" aria-label="Later session" style="padding:6px 12px">›</button>
             </div>
-            <p class="mfine" id="mrSessPos" style="text-align:center;margin:4px 0 0"></p>
-            <p class="mfine" style="margin-top:8px" id="mrLastNote"></p>
+            <p class="mfine" id="mrSessPos" style="text-align:center;margin:6px 0 0"></p>
+            <p class="mfine" id="mrLastNote" style="margin-top:10px"></p>
             <div id="mrLast"></div>
-          </div>
-          <div class="mlight" id="mrStrikeCard">
-            <h2>Strike channel</h2>
-            <p class="mfine" style="margin-top:0">What the microphone heard, swing by swing.</p>
-            <div id="mrStrikeRep"></div>
           </div>
           <div class="mlight">
             <h2>Average swing shape</h2>
-            <p class="mfine" style="margin-top:0">Where your forearm points through the swing, averaged over this session. Read off the sensor's orientation, not integrated from acceleration — so there is no drift in it.</p>
+            <p class="mfine" style="margin-top:0">Where your forearm points through the swing, averaged over this session.</p>
             <div id="mrTrack"></div>
             <p class="mfine" id="mrTrackNote" style="margin-bottom:0"></p>
           </div>
           <div class="mlight">
-            <h2>Tempo consistency</h2>
-            <p class="mfine" style="margin-top:0">How much your tempo varied within each session. Lower is better — this is the part of your swing that practice actually moves.</p>
+            <h2>Consistency</h2>
+            <p class="mfine" style="margin-top:0">Spread within each session. Lower is better.</p>
+            <div class="mconsist-h">Tempo</div>
             <div id="mrSdTempo"></div>
-            <p class="mfine" id="mrSdTempoNote" style="margin-bottom:0"></p>
-          </div>
-          <div class="mlight">
-            <h2>Club speed consistency</h2>
-            <p class="mfine" style="margin-top:0">Spread of estimated club speed within each session. Swings that clipped the sensor are excluded.</p>
+            <p class="mfine" id="mrSdTempoNote"></p>
+            <div class="mconsist-h">Club speed</div>
             <div id="mrSdSpeed"></div>
             <p class="mfine" id="mrSdSpeedNote" style="margin-bottom:0"></p>
           </div>
@@ -1380,7 +1417,19 @@
             <h2>Recent sessions</h2>
             <div id="mtSessions"></div>
           </div>
-          <p class="mfine" id="mrFoot"></p>
+          <div class="mlight" id="mrStrikeCard">
+            <button class="mdisc" id="mrStrikeToggle" aria-expanded="false">
+              <span class="caret">&#9654;</span>Strike channel
+              <span class="mdisc-sub" id="mrStrikeOneLine"></span>
+            </button>
+            <div id="mrStrikeRep" hidden style="margin-top:12px"></div>
+          </div>
+          <div class="mlight">
+            <button class="mdisc" id="mrAboutToggle" aria-expanded="false">
+              <span class="caret">&#9654;</span>About these numbers
+            </button>
+            <p class="mfine" id="mrFoot" hidden></p>
+          </div>
         </div>
 
       </div>
@@ -5138,7 +5187,9 @@ function lineChart(hostId, pts, opts){
     el("circle",{cx:x(i),cy:y(p.y),r:4.5,fill:"var(--s1)",
                  stroke:"var(--surface)","stroke-width":2},svg);
     if (i % step === 0 || i === pts.length-1)
-      el("text",{x:x(i),y:H-8,"text-anchor":"middle"},svg).textContent = p.label;
+      el("text",{x: x(i), y: H-8,
+        "text-anchor": i === 0 ? "start" : (i === pts.length-1 ? "end" : "middle")},
+        svg).textContent = p.label;
     const hit = el("rect",{x:x(i)-12,y:m.t,width:24,height:ph,fill:"transparent"},svg);
     attachBarTip(hit, host, p.label,
       [["var(--s1)", p.y.toFixed(opts.dp ?? 1) + (opts.unit||""), opts.series]]);
@@ -5216,6 +5267,7 @@ const RMETRICS = [
 ];
 let anClub = null;      // which club the range analytics is looking at
 let anSessId = null;    // and which session; null means the most recent one with that club
+let anSessAll = false;  // the session list shows a handful until asked for the rest
 
 /* Sessions that actually contain the selected club, oldest first. Picking a
    club whose last outing was three weeks ago used to land on the newest
@@ -5297,18 +5349,18 @@ function rsResolvable(cur, base){
 }
 function rsVerdict(cur, base, m){
   if (!cur || cur.n < RSTAT.MIN_N)
-    return {state: "thin", text: `${cur ? cur.n : 0} of ${RSTAT.MIN_N} balls — not enough to say anything yet.`};
+    return {state: "thin", text: `${cur ? cur.n : 0} of ${RSTAT.MIN_N} balls — too few to say.`};
   if (!base || base.n < RSTAT.MIN_BASE)
-    return {state: "nobase", text: `No baseline yet — ${base ? base.n : 0} of ${RSTAT.MIN_BASE} balls of history with this club.`};
+    return {state: "nobase", text: `No baseline yet — ${base ? base.n : 0} of ${RSTAT.MIN_BASE} balls of history.`};
   const d = cur.mean - base.mean, res = rsResolvable(cur, base);
   const fmt = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(m.dp) + m.unit;
   if (res == null) return {state: "thin", text: "Not enough spread to judge."};
   if (Math.abs(d) > res)
     return {state: "real", delta: d,
-            text: `${fmt(d)} against your usual ${base.mean.toFixed(m.dp)}${m.unit} — bigger than this session could produce by chance.`};
+            text: `${fmt(d)} vs your usual ${base.mean.toFixed(m.dp)}${m.unit} — beyond chance.`};
   return {state: "same", delta: d,
-          text: `${fmt(d)} against your usual ${base.mean.toFixed(m.dp)}${m.unit} — inside your normal scatter, `
-              + `which today could only resolve ${res.toFixed(m.dp)}${m.unit}.`};
+          text: `${fmt(d)} vs your usual ${base.mean.toFixed(m.dp)}${m.unit} — inside your scatter; `
+              + `${cur.n} balls resolve ${res.toFixed(m.dp)}${m.unit}.`};
 }
 /* Per-session spread for one club: the consistency series. */
 function rsSpreadSeries(sessions, key, clubId){
@@ -5390,28 +5442,20 @@ function rsRenderCompare(host, sessions, opts){
     rows.push({m, cur, base, v: rsVerdict(cur, base, m)});
   }
   const table = document.createElement("div");
-  table.style.cssText = "display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:baseline";
+  table.className = "mstat";
   for (const r of rows){
-    const name = document.createElement("div");
-    name.textContent = r.m.label;
-    name.style.cssText = "font:600 13px 'IBM Plex Sans',system-ui;color:#23221c;padding-top:8px";
-    const val = document.createElement("div");
-    val.style.cssText = "padding-top:8px";
-    const big = document.createElement("div");
-    big.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30";
+    const name = div("mstat-k", table, r.m.label);
+    const val = div("mstat-v", table);
+    const big = div("mstat-n", val);
     if (r.cur && r.cur.n){
-      big.textContent = r.cur.mean.toFixed(r.m.dp) + r.m.unit
-        + (r.cur.sd != null ? `  ± ${r.cur.sd.toFixed(r.m.dp)}` : "")
+      big.append(r.cur.mean.toFixed(r.m.dp) + r.m.unit);
+      const sub = document.createElement("em");
+      sub.textContent = (r.cur.sd != null ? `  ± ${r.cur.sd.toFixed(r.m.dp)}` : "")
         + `   n=${r.cur.n}`;
-    } else big.textContent = "—";
-    const say = document.createElement("div");
-    say.textContent = r.v.text;
-    say.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;line-height:1.5;margin-top:2px;color:"
-      + (r.v.state === "real" ? "#3c4a30" : "#8a8577");
-    val.append(big, say);
-    const sep = document.createElement("div");
-    sep.style.cssText = "grid-column:1/-1;border-bottom:1px solid #ddd7c4;margin-top:8px";
-    table.append(name, val, sep);
+      big.appendChild(sub);
+    } else big.append("—");
+    const say = div("mstat-s" + (r.v.state === "real" ? " on" : ""), val, r.v.text);
+    div("mstat-sep", table);
   }
   host.appendChild(table);
   return last;
@@ -5439,11 +5483,11 @@ function rsRenderSpread(chartId, noteId, sessions, m){
   if (!t)
     note.textContent = `${series.length} session${series.length === 1 ? "" : "s"} — a trend needs four.`;
   else if (t.real)
-    note.textContent = (t.slope < 0 ? "Tightening by " : "Widening by ")
-      + `${Math.abs(t.slope).toFixed(m.dp + 2)}${m.unit} per session — more than these points bounce on their own.`;
+    note.textContent = (t.slope < 0 ? "Tightening " : "Widening ")
+      + `${Math.abs(t.slope).toFixed(m.dp + 2)}${m.unit} a session — beyond the bounce.`;
   else
-    note.textContent = `${lastY < first ? "Tighter" : "Wider"} than when you started, but not by more than `
-      + `these ${series.length} sessions bounce around on their own.`;
+    note.textContent = `${lastY < first ? "Tighter" : "Wider"} than at the start, `
+      + `but within these ${series.length} sessions' own bounce.`;
 }
 
 /* ---------- The average swing, in three dimensions ----------
@@ -5753,10 +5797,8 @@ function rsRenderStrike(hostId, rows){
   }
   const S = rsStrikeSummary(src);
   const line = (txt, strong) => {
-    const d = div("", host, txt);
-    d.style.cssText = strong
-      ? "font:600 14px 'IBM Plex Sans',system-ui;color:#23221c;margin-bottom:6px"
-      : "font:500 12.5px 'IBM Plex Sans',system-ui;line-height:1.6;color:#8a8577";
+    const d = div(strong ? "mrow-k" : "mstat-s", host, txt);
+    if (strong) d.style.marginBottom = "6px"; else d.style.marginTop = "5px";
     return d;
   };
   line(`${S.heard} of ${S.n} swings heard`, true);
@@ -5875,14 +5917,27 @@ function rsExportDiagnostics(src){
 }
 /* Same source-picking as the 3D track: live session from memory, past ones
    from the cloud. */
-function rsRenderStrikeFor(sess, hostId, after){
-  if (!sess){ rsRenderStrike(hostId, []); return; }
+/* What the folded card says, so it does not have to be opened to be checked. */
+function rsStrikeOneLine(rows){
+  if (rows === undefined || rows === "loading") return "…";
+  if (rows === "error") return "unavailable";
+  const src = rsStrikeRows(rows);
+  if (!src.length) return "off";
+  const S = rsStrikeSummary(src);
+  return `${S.heard}/${S.n} heard`
+    + (S.scatSamples != null ? ` · ${S.scatSamples.toFixed(2)} smp` : "");
+}
+function rsStrikeSource(sess){
+  if (!sess) return [];
   const live = (typeof cloudSession !== "undefined" && cloudSession && cloudSession.id === sess.id)
     ? rsLocalTracks(null) : null;
-  if (live && live.length){ rsRenderStrike(hostId, live); return; }
-  const have = trackCache[sess.id];
-  if (have === undefined){ rsRenderStrike(hostId, "loading"); rsLoadTracks(sess.id, after); return; }
-  rsRenderStrike(hostId, have);
+  if (live && live.length) return live;
+  return trackCache[sess.id];          // undefined means "not fetched yet"
+}
+function rsRenderStrikeFor(sess, hostId, after){
+  const src = rsStrikeSource(sess);
+  if (src === undefined){ rsRenderStrike(hostId, "loading"); rsLoadTracks(sess.id, after); return; }
+  rsRenderStrike(hostId, src);
 }
 
 function renderRangePane(){
@@ -7777,6 +7832,17 @@ function initMobile(){
       if (t) showExplain(t.getAttribute("data-explain"));
     });
   // strike channel sheet
+  const fold = (btnId, panelId) => {
+    const btn = el(btnId), panel = el(panelId);
+    if (!btn || !panel) return;
+    btn.addEventListener("click", () => {
+      const open = btn.getAttribute("aria-expanded") === "true";
+      btn.setAttribute("aria-expanded", String(!open));
+      panel.hidden = open;
+    });
+  };
+  fold("mrStrikeToggle", "mrStrikeRep");
+  fold("mrAboutToggle", "mrFoot");
   el("mStrikeChip").addEventListener("click", () => {
     el("mStrike").hidden = false; renderStrikeUI();
   });
@@ -9768,48 +9834,56 @@ function renderAnRange(){
   g("mrNext").style.opacity = g("mrNext").disabled ? .35 : 1;
   g("mrPrev").onclick = () => { rsStepSession(rng, -1); renderAnRange(); };
   g("mrNext").onclick = () => { rsStepSession(rng, +1); renderAnRange(); };
-  g("mrLastNote").textContent =
-    "Each number is this session's average, the spread around it, and how it compares with your own "
-    + "history for this club. A difference only counts when it is bigger than this many balls could "
-    + "produce by chance.";
+  g("mrLastNote").textContent = "This session against your own history with this club.";
   rsRenderCompare(g("mrLast"), rng, {});
-  rsRenderStrikeFor(cur, "mrStrikeRep", renderAnRange);
+  {
+    const src = rsStrikeSource(cur);
+    g("mrStrikeOneLine").textContent = rsStrikeOneLine(src);
+    if (!g("mrStrikeRep").hidden) rsRenderStrike("mrStrikeRep", src);
+    if (src === undefined && cur) rsLoadTracks(cur.id, renderAnRange);
+  }
   rsRenderTrackFor(cur, "mrTrack", "mrTrackNote", renderAnRange);
   rsRenderSpread("mrSdTempo", "mrSdTempoNote", rng, RMETRICS[0]);
   rsRenderSpread("mrSdSpeed", "mrSdSpeedNote", rng, RMETRICS[1]);
 
   sess.textContent = "";
-  for (const s of [...withClub].reverse().slice(0, 10)){
+  const ordered = [...withClub].reverse();
+  const shown = anSessAll ? ordered : ordered.slice(0, 5);
+  for (const s of shown){
     const st = rsStat(rsVals(s.swings, anClub, "tempo"));
     const spd = rsStat(rsVals(s.swings, anClub, "club_mph"));
     const row = document.createElement("button");
     row.type = "button";
-    const on = cur && s.id === cur.id;
-    row.style.cssText = "display:flex;width:100%;text-align:left;align-items:baseline;gap:8px;"
-      + "padding:8px 6px;border:0;border-bottom:1px solid #ddd7c4;cursor:pointer;font:inherit;"
-      + "background:" + (on ? "rgba(60,74,48,0.07)" : "transparent");
+    row.className = "mrow" + (cur && s.id === cur.id ? " on" : "");
     row.addEventListener("click", () => { anSessId = s.id; renderAnRange(); });
-    const left = document.createElement("div"); left.style.cssText = "flex:1";
-    const c = div("", left, dlab(s.date));
-    c.style.cssText = "font:600 13.5px 'IBM Plex Sans',system-ui;color:#23221c";
+    const left = document.createElement("div");
+    left.style.flex = "1";
+    div("mrow-k", left, dlab(s.date));
     const n = st ? st.n : 0;
-    const d = div("", left, `${n} ${rsClubLabel(anClub)} swing${n === 1 ? "" : "s"}`
+    div("mrow-s", left, `${n} ${rsClubLabel(anClub)} swing${n === 1 ? "" : "s"}`
       + (st && st.sd != null ? ` · tempo ${st.mean.toFixed(2)} ± ${st.sd.toFixed(2)}` : ""));
-    d.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;color:#8a8577";
-    const v = div("", null, spd && spd.mean ? `${Math.round(spd.mean)} mph` : "—");
-    v.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
+    const v = div("mrow-v", null, spd && spd.mean ? `${Math.round(spd.mean)} mph` : "—");
     row.append(left, v);
     sess.appendChild(row);
   }
   const held = rsHeldOut(withClub, anClub);
+  if (ordered.length > shown.length || anSessAll){
+    const more = document.createElement("button");
+    more.type = "button"; more.className = "mdisc";
+    more.style.marginTop = "10px";
+    more.textContent = anSessAll ? "Show fewer" : `Show all ${ordered.length}`;
+    more.addEventListener("click", () => { anSessAll = !anSessAll; renderAnRange(); });
+    sess.appendChild(more);
+  }
   g("mrFoot").textContent =
-    (held ? `${held} detection${held === 1 ? "" : "s"} with this club were held out of every number `
-          + `above — their timings are not physically a golf swing, so they are waggles, `
-          + `re-grips or practice passes the sensor could not tell apart. ` : "")
-    + "Swing plane and release are the two steadiest things this sensor measures, so they carry numbers here. "
-    + "Attack angle does not: it reads anywhere from 1° to 43° inside a single club's block, where the real "
-    + "quantity moves a couple of degrees. Club speed is a wrist estimate — good for tracking change, not for "
-    + "arguing with a launch monitor.";
+    (held ? `${held} detection${held === 1 ? "" : "s"} with this club were held out — their timings `
+          + `are not physically a golf swing, so they are waggles or practice passes. ` : "")
+    + "Plane and release are the steadiest things this sensor measures, so they carry numbers. "
+    + "Attack angle does not — it reads 1° to 43° inside one club's block, where the real quantity moves a "
+    + "couple of degrees. Club speed is a wrist estimate: good for tracking change, not for arguing with a "
+    + "launch monitor. A difference only counts here when it is bigger than that many balls could produce by "
+    + "chance; where it is not, the smallest change that would have shown is quoted instead. The swing shape "
+    + "is read off the sensor's orientation rather than integrated from acceleration, so nothing in it drifts.";
 }
 
 /* ---------- Drills: hub + putting + chipping modules ----------
