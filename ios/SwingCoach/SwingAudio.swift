@@ -17,7 +17,7 @@ import QuartzCore
 /// page removes them with one calibration constant. What the phone must get
 /// right is the *jitter*, and that it can do to well under a millisecond.
 ///
-///   native -> page : window._nativeStrike({mt, peak, base, bright, dur})
+///   native -> page : window._nativeStrike({mt, peak, base, bright, crest})
 ///                    window._nativeMic(state, detail, levelDb)
 final class SwingAudio {
     static let shared = SwingAudio()
@@ -42,7 +42,15 @@ final class SwingAudio {
     /// baseline; a struck ball is 20–40 dB above it a metre or two away.
     private let onsetRatio: Float = 12.0     // ~22 dB over baseline
     private let absFloor: Float = 0.004      // ignore near-silence entirely
-    private let refractory: Double = 0.25    // one strike per quarter second
+    /* First field test, 99 swings: the onset fired on the clubhead's rush past
+       the phone, not the ball, on 93% of swings — 2 samples (~33 ms) early,
+       which at 40 m/s puts the head 1.3 m out. A quarter-second refractory
+       then guaranteed the strike that followed was never seen at all. Keep
+       only enough to avoid counting one transient twice, and report every
+       onset; the page decides which one was the ball. */
+    private let refractory: Double = 0.025
+    private var scratchRaw = [Float](repeating: 0, count: 4096)
+    private var scratchHp  = [Float](repeating: 0, count: 4096)
 
     // MARK: - control
 
@@ -137,8 +145,8 @@ final class SwingAudio {
         var hitIdx = -1
         var hitPeak: Float = 0
         var baseAt: Float = 0
-        var rawEnergy: Float = 0     // for a crude brightness ratio
-        var hpEnergy: Float = 0
+        if scratchRaw.count < n { scratchRaw = [Float](repeating: 0, count: n) }
+        if scratchHp.count  < n { scratchHp  = [Float](repeating: 0, count: n) }
 
         for i in 0..<n {
             let x = ch[i]
@@ -147,8 +155,13 @@ final class SwingAudio {
             let y2 = hpA * (hpY2 + y1 - hpX2); hpX2 = y1; hpY2 = y2
             let a = abs(y2)
 
-            rawEnergy += x * x
-            hpEnergy += y2 * y2
+            // Kept per sample so the features below can describe the TRANSIENT.
+            // They used to be summed over the whole 21 ms block, which meant
+            // "brightness" described the block's ambient character rather than
+            // the thing that triggered — and that is why gating on it made the
+            // field-test scatter worse instead of better.
+            scratchRaw[i] = x
+            scratchHp[i] = y2
 
             fastEnv += (a - fastEnv) * fastK
             if fastEnv > meterPeak { meterPeak = fastEnv }
@@ -195,13 +208,33 @@ final class SwingAudio {
         while i > backLimit && abs(ch[i]) > onsetFloor { i -= 1 }
         let refinedAbs = bufStart + Double(i) * dt
 
-        let bright = rawEnergy > 0 ? sqrt(hpEnergy / rawEnergy) : 0
+        // Brightness over the 3 ms following the onset, not the block.
+        var tRaw: Float = 0, tHp: Float = 0
+        let fEnd = min(n, hitIdx + Int(0.003 * sr))
+        var bright: Float = -1
+        if fEnd - hitIdx > 8 {
+            for k in hitIdx..<fEnd { tRaw += scratchRaw[k] * scratchRaw[k]; tHp += scratchHp[k] * scratchHp[k] }
+            if tRaw > 0 { bright = sqrt(tHp / tRaw) }
+        }
+        // Crest: the peak against the 20 ms of background before it. A struck
+        // ball rises in well under a millisecond and towers over that; a
+        // clubhead swishing past swells over tens of milliseconds and does
+        // not. This is the feature that separates them — brightness alone
+        // demonstrably does not.
+        var crest: Float = -1
+        let bgFrom = max(0, hitIdx - Int(0.020 * sr))
+        if hitIdx > bgFrom {
+            var bg: Float = 0
+            for k in bgFrom..<hitIdx { bg += scratchHp[k] * scratchHp[k] }
+            bg = (bg / Float(hitIdx - bgFrom)).squareRoot()
+            if bg > 0 { crest = hitPeak / bg }
+        }
         let peakDb = 20 * log10(max(hitPeak, 1e-6))
         let baseDb = 20 * log10(max(baseAt, 1e-6))
 
         let js = String(
-            format: "window._nativeStrike && window._nativeStrike({mt:%.6f,peak:%.1f,base:%.1f,bright:%.3f});",
-            refinedAbs, peakDb, baseDb, bright)
+            format: "window._nativeStrike && window._nativeStrike({mt:%.6f,peak:%.1f,base:%.1f,bright:%.3f,crest:%.1f});",
+            refinedAbs, peakDb, baseDb, bright, crest)
         DispatchQueue.main.async { [weak self] in self?.evaluator?(js) }
     }
 

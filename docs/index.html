@@ -1562,7 +1562,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "6849167 · 2026-09-26";
+const BUILD = "c2a1891 · 2026-09-26";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1875,7 +1875,8 @@ const strikes = [];
 window._nativeStrike = ev => {
   if (!ev || ev.mt == null || !isFinite(ev.mt)) return;
   const st = {mt: +ev.mt, peak: +ev.peak, base: +ev.base,
-              bright: +ev.bright || 0, used: false};
+              bright: ev.bright == null ? -1 : +ev.bright,
+              crest: ev.crest == null ? -1 : +ev.crest, used: false};
   st.snr = st.peak - st.base;
   if (!(st.snr >= STRIKE.MIN_SNR)) return;
   strikes.push(st);
@@ -1947,12 +1948,24 @@ function matchStrike(rec){
     const at = td - lag;
     if (Math.abs(at - tI) > STRIKE.MATCH) continue;
     if (floor != null && st.peak < floor){ rejected++; continue; }
-    // Where two survive, the loudest is the ball you just hit.
-    if (!best || st.peak > best.st.peak) best = {st, at, imuT: tI};
+    /* Loudest used to win. The field test showed why that is wrong: the
+       clubhead rushing past the phone is heard ~33 ms before the ball and can
+       be the louder of the two, so "loudest" reliably picked the whoosh. What
+       separates them is impulsiveness — a struck ball rises in well under a
+       millisecond, a rush swells over tens of them — so score on crest and
+       brightness, and let a later event beat an earlier one on a tie, because
+       the ball always follows the swish. */
+    if (!best || strikeScore(st) > strikeScore(best.st)) best = {st, at, imuT: tI};
   }
   if (best){ best.st.used = true; best.rejected = rejected; }
   else if (rejected) return {tooQuiet: rejected};
   return best;
+}
+
+function strikeScore(st){
+  const c = st.crest > 0 ? st.crest : 1;
+  const b = st.bright > 0 ? st.bright : 0.2;    // -1 means too near a block edge to describe
+  return c * b;
 }
 
 /* Move the impact call onto the instant the microphone heard, when we know
@@ -1994,6 +2007,7 @@ function noteStrike(m, rec, hit){
   m.strike_offset_samples = off * 60;
   m.strike_snr_db = hit.st.snr;
   m.strike_bright = hit.st.bright;
+  m.strike_crest = hit.st.crest;
   m.strike_ref = strikeCalibrated() ? "tap" : (strikeAutoZero() == null ? "none" : "self");
   m.impact_shift_samples = rec.impactShift || 0;
   m.impact_frac = rec.impactFrac || 0;
@@ -5632,6 +5646,7 @@ function rsStrikeRows(rows){
       frac: m.impact_frac || 0,
       snr: m.strike_snr_db != null ? m.strike_snr_db : null,
       bright: m.strike_bright != null ? m.strike_bright : null,
+      crest: m.strike_crest != null ? m.strike_crest : null,
       ref: m.strike_ref || "none",
       clockMs: m.clock_resid_ms != null ? m.clock_resid_ms : null,
       tempo: m.tempo_ratio});
@@ -5758,7 +5773,8 @@ function rsRenderStrike(hostId, rows){
    field test of the strike channel produced no evidence. This one is per swing. */
 function rsExportDiagnostics(src){
   const cols = ["swing","club","clipped","heard","rejected","offset_ms","offset_samples",
-                "impact_shift_samples","impact_frac","snr_db","bright","ref","clock_resid_ms","tempo"];
+                "impact_shift_samples","impact_frac","snr_db","bright","crest","ref",
+                "clock_resid_ms","tempo"];
   const lines = [cols.join(",")];
   for (const r of src)
     lines.push([r.n, r.club || "", r.clipped ? 1 : 0, r.heard ? 1 : 0, r.rejected,
@@ -5767,6 +5783,7 @@ function rsExportDiagnostics(src){
       r.shift, r.frac == null ? "" : r.frac.toFixed(4),
       r.snr == null ? "" : r.snr.toFixed(1),
       r.bright == null ? "" : r.bright.toFixed(3),
+      r.crest == null ? "" : r.crest.toFixed(1),
       r.ref, r.clockMs == null ? "" : r.clockMs.toFixed(3),
       r.tempo == null ? "" : (+r.tempo).toFixed(3)].join(","));
   const name = `downrange-strike-${new Date().toISOString().replace(/[:T]/g,"-").slice(0,19)}.csv`;
