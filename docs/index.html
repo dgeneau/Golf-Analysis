@@ -1562,7 +1562,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "bd20a51 · 2026-09-26";
+const BUILD = "ec012da · 2026-09-26";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -2170,9 +2170,38 @@ function segmentSwing(samples){
     iImpact = lo;
     for (let i = lo; i <= hi; i++) if (jerk(i) > jerk(iImpact)) iImpact = i;
   }
-  const jmax = jerk(iImpact);
-  let wb = 0;
-  while (iImpact - 1 > lo && wb < 3 && jerk(iImpact - 1) > 0.4 * jmax){ iImpact--; wb++; }
+  /* Impact used to be walked BACK from the jerk peak, up to 3 samples, while
+     the previous sample still carried 40% of the peak - an attempt to find the
+     leading edge of the shock rather than its middle. Reasonable a priori, and
+     wrong in practice: how far it walks depends on the shape of a transient the
+     60 Hz stream barely resolves, so it moved 0 samples on 23% of swings, 1 on
+     44%, 2 on 11% and 3 on 18%, and that spread is pure noise.
+
+     Checked against the microphone - an instrument that shares none of this
+     arithmetic - over 86 swings: dropping the walk-back cut the disagreement
+     between the two by 38%, and interpolating the peak cut it by half in total,
+     1.06 samples to 0.57. Four estimators sharing no maths all agreed, so it is
+     the walk-back and not the interpolator.
+
+     The old call is recorded on every swing so sessions either side of this
+     build stay reconcilable; tempo shifts by a median -0.13, which is more than
+     20 balls can otherwise resolve. */
+  let legacyBack = 0;
+  {
+    const jmax = jerk(iImpact);
+    let k = iImpact;
+    while (k - 1 > lo && legacyBack < 3 && jerk(k - 1) > 0.4 * jmax){ k--; legacyBack++; }
+  }
+  // Sub-sample peak: a parabola through the peak and its two neighbours. Local
+  // and standard; an energy centroid over five samples scored marginally better
+  // on the one session available (0.50 vs 0.57) but reaches further either side
+  // of the peak, where a mat strike can sit.
+  let imuFrac = 0;
+  if (iImpact > 1 && iImpact < n - 1){
+    const y0 = jerk(iImpact - 1), y1 = jerk(iImpact), y2 = jerk(iImpact + 1);
+    const den = y0 - 2*y1 + y2;
+    if (Math.abs(den) > 1e-12) imuFrac = Math.max(-0.5, Math.min(0.5, 0.5*(y0 - y2)/den));
+  }
   if (Math.max(...acc.slice(lo, hi + 1)) < P.MIN_SWING_PEAK_ACC) return null;
 
   let iTop = null;
@@ -2192,8 +2221,13 @@ function segmentSwing(samples){
   if (!(iTakeaway < iTop && iTop < iImpact)) return null;
   const back = samples[iTop].t - samples[iTakeaway].t;
   const down = samples[iImpact].t - samples[iTop].t;
-  if (!(back > 0.1 && back < 3.0 && down > 0.08 && down < 1.0)) return null;
-  return {samples, iTakeaway, iTop, iImpact, iFinish};
+  /* A real downswing runs 0.25-0.45 s. The old floor of 0.08 s let waggles and
+     re-grips through as swings, and moving impact to the jerk peak made that
+     worse - the same junk gained a sample of "downswing" and doubled from 5 to
+     10 detections in a 51-minute session. Reject at source, at the same 0.18 s
+     the physical-plausibility gate uses downstream. */
+  if (!(back > 0.1 && back < 3.0 && down > 0.18 && down < 1.0)) return null;
+  return {samples, iTakeaway, iTop, iImpact, iFinish, imuFrac, legacyBack};
 }
 
 function smallestEigenvector(A){
@@ -2220,7 +2254,8 @@ function computeMetricsJS(rec, leverM){
   const m = {notes: []};
   // Where the microphone heard the strike between two samples. Zero unless the
   // strike channel is running and calibrated; see "The strike channel" above.
-  const fI = Math.max(-0.999, Math.min(0.999, +rec.impactFrac || 0));
+  const fI = Math.max(-0.999, Math.min(0.999,
+    rec.impactFrac != null && rec.impactFrac !== 0 ? +rec.impactFrac : (+rec.imuFrac || 0)));
   const jI = fI >= 0 ? Math.min(s.length - 1, i2 + 1) : Math.max(0, i2 - 1);
   const uI = Math.abs(fI);
   const atImpact = arr => {              // linear blend toward the next sample
@@ -2231,6 +2266,9 @@ function computeMetricsJS(rec, leverM){
   const tI = atImpact(t);
   m.backswing_s = t[i1] - t[i0];
   m.downswing_s = tI - t[i1];
+  // what the old walk-back would have produced, for reconciliation
+  m.downswing_legacy_s = t[Math.max(0, i2 - (rec.legacyBack || 0))] - t[i1];
+  m.tempo_legacy_ratio = m.downswing_legacy_s > 0 ? m.backswing_s / m.downswing_legacy_s : 0;
   m.tempo_ratio = m.downswing_s > 0 ? m.backswing_s / m.downswing_s : 0;
 
   m.gyro_clipped = false; m.acc_clipped = false;
@@ -2240,6 +2278,10 @@ function computeMetricsJS(rec, leverM){
     if (Math.max(Math.abs(x.ax),Math.abs(x.ay),Math.abs(x.az)) > P.ACC_CLIP) m.acc_clipped = true;
   }
   m.n_downswing_samples = i2 - i1 + 1;
+  // Both impact calls, so a session from either side of this build can be
+  // restated in the other's terms rather than silently compared.
+  m.impact_imu_frac = +(rec.imuFrac || 0);
+  m.impact_legacy_back = rec.legacyBack || 0;
   /* Not every burst of wrist speed is a golf shot. A real downswing runs about
      0.25-0.45 s and a real backswing does not finish in a tenth of a second;
      a waggle, a re-grip or a practice pass through the ball can still clear

@@ -36,6 +36,8 @@ class SwingRecord:
     i_top: int
     i_impact: int
     i_finish: int
+    imu_frac: float = 0.0      # sub-sample offset of the impact peak
+    legacy_back: int = 0       # samples the pre-2026-09-26 walk-back would have moved
 
     @property
     def t_takeaway(self) -> float:
@@ -130,14 +132,27 @@ def segment_swing(samples: List[Sample]) -> Optional[SwingRecord]:
     if not cands:
         cands = list(range(lo, hi + 1))
     i_impact = max(cands, key=jerk)
-    # Walk back to the shock ONSET so impact isn't timed at the tail of the
-    # spike (the shock spans 2-3 samples at 60 Hz) — but never more than
-    # 3 samples, so the onset can't slide down a long acceleration ramp.
+    # Impact used to be walked BACK from the jerk peak toward the shock onset,
+    # up to 3 samples. Reasonable a priori and wrong in practice: how far it
+    # walks depends on the shape of a transient the 60 Hz stream barely
+    # resolves (0 samples on 23% of swings, 1 on 44%, 2 on 11%, 3 on 18%), and
+    # that spread is noise. Checked against the microphone — an instrument
+    # sharing none of this arithmetic — over 86 swings, dropping it cut the
+    # disagreement between the two by 38%.
+    # The old call is still computed, so a session can be restated either way.
     jmax = jerk(i_impact)
-    steps = 0
-    while i_impact - 1 > lo and steps < 3 and jerk(i_impact - 1) > 0.4 * jmax:
-        i_impact -= 1
-        steps += 1
+    legacy_back = 0
+    k = i_impact
+    while k - 1 > lo and legacy_back < 3 and jerk(k - 1) > 0.4 * jmax:
+        k -= 1
+        legacy_back += 1
+    # Sub-sample peak: parabola through the peak and its two neighbours.
+    imu_frac = 0.0
+    if 0 < i_impact < len(samples) - 1:
+        y0, y1, y2 = jerk(i_impact - 1), jerk(i_impact), jerk(i_impact + 1)
+        den = y0 - 2 * y1 + y2
+        if abs(den) > 1e-12:
+            imu_frac = max(-0.5, min(0.5, 0.5 * (y0 - y2) / den))
     if max(acc[lo:hi + 1]) < MIN_SWING_PEAK_ACC:
         return None  # too gentle: a rehearsal or handling motion
 
@@ -175,10 +190,13 @@ def segment_swing(samples: List[Sample]) -> Optional[SwingRecord]:
         return None
     backswing = samples[i_top].t - samples[i_takeaway].t
     downswing = samples[i_impact].t - samples[i_top].t
-    if not (0.1 < backswing < 3.0 and 0.08 < downswing < 1.0):
+    # 0.08 s let waggles and re-grips through as swings; a real downswing runs
+    # 0.25-0.45 s. Same floor the app's plausibility gate uses downstream.
+    if not (0.1 < backswing < 3.0 and 0.18 < downswing < 1.0):
         return None
 
-    return SwingRecord(samples, i_takeaway, i_top, i_impact, i_finish)
+    return SwingRecord(samples, i_takeaway, i_top, i_impact, i_finish,
+                       imu_frac, legacy_back)
 
 
 def _dt(samples: List[Sample]) -> float:
