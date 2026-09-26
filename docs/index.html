@@ -1562,7 +1562,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "c2a1891 · 2026-09-26";
+const BUILD = "bd20a51 · 2026-09-26";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1941,6 +1941,7 @@ function matchStrike(rec){
   const lag = strikeLag();
   const floor = strikeFloor(strikeClubKey());
   let best = null, rejected = 0;
+  const cands = [];
   for (const st of strikes){
     if (st.used) continue;
     const td = dotTimeOf(st.mt);
@@ -1948,16 +1949,31 @@ function matchStrike(rec){
     const at = td - lag;
     if (Math.abs(at - tI) > STRIKE.MATCH) continue;
     if (floor != null && st.peak < floor){ rejected++; continue; }
-    /* Loudest used to win. The field test showed why that is wrong: the
-       clubhead rushing past the phone is heard ~33 ms before the ball and can
-       be the louder of the two, so "loudest" reliably picked the whoosh. What
-       separates them is impulsiveness — a struck ball rises in well under a
-       millisecond, a rush swells over tens of them — so score on crest and
-       brightness, and let a later event beat an earlier one on a tie, because
-       the ball always follows the swish. */
-    if (!best || strikeScore(st) > strikeScore(best.st)) best = {st, at, imuT: tI};
+    /* Loudest still wins. I briefly changed this to prefer the most impulsive
+       event, on the reading that the detector was locking onto the clubhead's
+       rush ~2 samples before the ball. That reading was wrong: it compared the
+       acoustic instant against the raw jerk peak, while the detector walks its
+       impact call backward from that peak by up to 3 samples. Measured against
+       the detector's OWN call the bias is -0.51 samples, not -2, and the
+       distribution is a single skewed hump (kurtosis -0.04), not two events.
+       Changing the selection rule on that mis-read would only confound the next
+       test, so the incumbent rule stands and the alternative is recorded
+       instead — see the candidate fields below. */
+    cands.push({st, at});
+    if (!best || st.peak > best.st.peak) best = {st, at, imuT: tI};
   }
-  if (best){ best.st.used = true; best.rejected = rejected; }
+  if (best){
+    best.st.used = true; best.rejected = rejected;
+    /* What the other rule would have picked. Nothing logged so far separates a
+       swing measured to a sixth of a sample from one measured to two, so the
+       next session needs to carry the road not taken rather than another
+       guess about it. */
+    best.nCands = cands.length;
+    let alt = null;
+    for (const c of cands)
+      if (!alt || strikeScore(c.st) > strikeScore(alt.st)) alt = c;
+    best.alt = (alt && alt.st !== best.st) ? alt : null;
+  }
   else if (rejected) return {tooQuiet: rejected};
   return best;
 }
@@ -2008,6 +2024,12 @@ function noteStrike(m, rec, hit){
   m.strike_snr_db = hit.st.snr;
   m.strike_bright = hit.st.bright;
   m.strike_crest = hit.st.crest;
+  m.strike_n_cands = hit.nCands || 1;
+  if (hit.alt){
+    m.strike_alt_offset_s = hit.alt.at - rec.imuImpactT;
+    m.strike_alt_crest = hit.alt.st.crest;
+    m.strike_alt_bright = hit.alt.st.bright;
+  }
   m.strike_ref = strikeCalibrated() ? "tap" : (strikeAutoZero() == null ? "none" : "self");
   m.impact_shift_samples = rec.impactShift || 0;
   m.impact_frac = rec.impactFrac || 0;
@@ -5647,6 +5669,10 @@ function rsStrikeRows(rows){
       snr: m.strike_snr_db != null ? m.strike_snr_db : null,
       bright: m.strike_bright != null ? m.strike_bright : null,
       crest: m.strike_crest != null ? m.strike_crest : null,
+      nCands: m.strike_n_cands != null ? m.strike_n_cands : null,
+      altOffMs: m.strike_alt_offset_s != null ? m.strike_alt_offset_s * 1000 : null,
+      altCrest: m.strike_alt_crest != null ? m.strike_alt_crest : null,
+      altBright: m.strike_alt_bright != null ? m.strike_alt_bright : null,
       ref: m.strike_ref || "none",
       clockMs: m.clock_resid_ms != null ? m.clock_resid_ms : null,
       tempo: m.tempo_ratio});
@@ -5774,7 +5800,7 @@ function rsRenderStrike(hostId, rows){
 function rsExportDiagnostics(src){
   const cols = ["swing","club","clipped","heard","rejected","offset_ms","offset_samples",
                 "impact_shift_samples","impact_frac","snr_db","bright","crest","ref",
-                "clock_resid_ms","tempo"];
+                "clock_resid_ms","tempo","n_candidates","alt_offset_ms","alt_crest","alt_bright"];
   const lines = [cols.join(",")];
   for (const r of src)
     lines.push([r.n, r.club || "", r.clipped ? 1 : 0, r.heard ? 1 : 0, r.rejected,
@@ -5785,7 +5811,11 @@ function rsExportDiagnostics(src){
       r.bright == null ? "" : r.bright.toFixed(3),
       r.crest == null ? "" : r.crest.toFixed(1),
       r.ref, r.clockMs == null ? "" : r.clockMs.toFixed(3),
-      r.tempo == null ? "" : (+r.tempo).toFixed(3)].join(","));
+      r.tempo == null ? "" : (+r.tempo).toFixed(3),
+      r.nCands == null ? "" : r.nCands,
+      r.altOffMs == null ? "" : r.altOffMs.toFixed(3),
+      r.altCrest == null ? "" : r.altCrest.toFixed(1),
+      r.altBright == null ? "" : r.altBright.toFixed(3)].join(","));
   const name = `downrange-strike-${new Date().toISOString().replace(/[:T]/g,"-").slice(0,19)}.csv`;
   const blob = new Blob([lines.join("\n")], {type: "text/csv"});
   (async () => {
