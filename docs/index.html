@@ -1562,7 +1562,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "3f3d356 · 2026-09-26";
+const BUILD = "6849167 · 2026-09-26";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1756,6 +1756,31 @@ const STRIKE = {
   SOUND_MPS: 343,   // 20 °C; ±5 °C is ±0.6 %, i.e. ±0.02 ms at 2 m
   MIN_SNR: 12,      // dB over the running background to count as a strike
   AUTO_MIN: 8,      // swings before a self-referenced zero is offered
+  /* OBSERVE ONLY, from the first real field test (99 swings, 2026-09-26).
+     The channel shipped on the premise that a 48 kHz microphone resolves
+     impact more finely than a 60 Hz sensor. It does not, on this evidence:
+     the acoustic instant and the sensor's own call disagreed by 18.0 ms of
+     scatter - 1.08 of a sensor sample - with 57% of swings more than half a
+     sample from the median, over a range of -55 to +57 ms.
+
+     That alone would make the channel useless. Acting on it made it harmful:
+     impact was moved on 65 of 91 heard swings, by up to 3 samples, on the
+     strength of a signal agreeing with the sensor to no better than one
+     sample. Tempo, path and club speed all read from that instant, so the app
+     was degrading its own numbers with it.
+
+     The test did vindicate the clock: residual 0.42 ms median, uncorrelated
+     with the offset (r = -0.07), so the DOT-to-phone model is sound and is not
+     the source of the scatter. What it did not settle is WHOSE scatter it is.
+     Offset scatter tracks the sensor's own difficulty placing impact across
+     clubs (r = +0.44, permutation p = 0.28 on 8 clubs) - suggestive that some
+     of it is the sensor's, nowhere near conclusive. Brightness does not
+     separate good events from bad: gating on it makes the scatter worse, so
+     "it latched onto the clubhead whoosh" is not supported either.
+
+     Keep measuring, stop acting. Flip this back on when a session's scatter
+     comes in comfortably under half a sample. */
+  SEAT: false,
   LVL_MIN_N: 4,     // strikes with a club before its own level is a reference
   LVL_DROP: 7,      // dB below that club's median before a strike is somebody else's
   TAP_MIN: 3,       // taps needed for a calibration
@@ -1936,6 +1961,7 @@ function matchStrike(rec){
 function seatImpact(rec, hit){
   rec.imuImpactT = rec.samples[rec.iImpact].t;
   rec.impactShift = 0; rec.impactFrac = 0;
+  if (!STRIKE.SEAT) return false;        // observe only - see STRIKE.SEAT above
   const zero = strikeCalibrated() ? 0 : strikeAutoZero();
   if (zero == null) return false;          // relative-only: report, don't move
   const target = hit.at - zero;
@@ -1982,15 +2008,13 @@ function noteNoStrike(m, why){
   m.strike_heard = false;
   if (why && why.tooQuiet){
     m.strike_rejected = why.tooQuiet;
-    m.notes.push("Heard something at the right moment but too quiet to be your ball "
-      + "\u2014 most likely the next bay along.");
     return;
   }
-  // A full-speed "swing" that made no noise is usually not a shot: a practice
-  // pass, a waggle, or the sensor being handled. This is the cleanest artifact
-  // signal the app has — it observes the ball rather than inferring it from a
-  // silly distance after the fact.
-  m.notes.push("No ball strike heard — this looks like a practice swing.");
+  /* This used to claim a silent swing was a practice swing. The field test
+     did not support it: of 5 detections that were not physically golf swings
+     only 2 were silent, while 6 of the 8 silent swings were perfectly real
+     ones the microphone missed. The timing gate caught 5 of 5. So silence is
+     recorded and reported, and nothing is concluded from it. */
 }
 
 /* --- sync tap ----------------------------------------------------------- */
@@ -5671,6 +5695,10 @@ function rsRenderStrike(hostId, rows){
   if (S.shifted)
     line(`${S.shifted} impact${S.shifted === 1 ? " was" : "s were"} moved to a different sample `
        + `to match what was heard.`);
+  if (!STRIKE.SEAT)
+    line("The channel is watching, not acting: nothing below changes your tempo, path or "
+       + "club speed. It earns the right to move impact when a session's scatter comes in "
+       + "under half a sensor sample.");
   if (S.missed)
     line(`${S.missed} swing${S.missed === 1 ? "" : "s"} made no sound the app would accept`
        + (S.rejected ? `, ${S.rejected} of which heard something too quiet to be your ball.` : "."));
@@ -6770,15 +6798,9 @@ function initBleMode(){
       if (hit) seatImpact(rec, hit);
       const sw = swingToJson(rec, leverMeters());
       if (hit) noteStrike(sw.metrics, rec, hit); else noteNoStrike(sw.metrics, found);
-      if (sw.metrics.strike_heard === false && Array.isArray(sw.cues))
-        sw.cues.unshift(sw.metrics.strike_rejected
-          ? {priority: 2, title: "That sound wasn't yours",
-             detail: "Something landed at the right moment but far too quiet to be your ball. "
-                   + "If you did hit one, the phone is too far away — half a metre from the ball "
-                   + "is what keeps the next bay out."}
-          : {priority: 1, title: "No strike heard",
-             detail: "The microphone picked up the swing but not a ball. If you did hit one, "
-                   + "move the phone closer or check the distance in the strike settings."});
+      // No cue from the strike channel while it is observe-only: on the field
+      // test 6 of 8 silences were real swings, so a cue would be wrong more
+      // often than right.
       sw.club = currentClubTag();
       const onCourse = uiMode === "round" && round && !round.endedAt;
       if (onCourse) sw.metrics.round_ctx = shotContext();   // rides along in swings.metrics
