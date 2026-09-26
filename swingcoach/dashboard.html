@@ -2180,6 +2180,23 @@ function computeMetricsJS(rec, leverM){
     if (Math.max(Math.abs(x.ax),Math.abs(x.ay),Math.abs(x.az)) > P.ACC_CLIP) m.acc_clipped = true;
   }
   m.n_downswing_samples = i2 - i1 + 1;
+  /* Not every burst of wrist speed is a golf shot. A real downswing runs about
+     0.25-0.45 s and a real backswing does not finish in a tenth of a second;
+     a waggle, a re-grip or a practice pass through the ball can still clear
+     the detector's gyro threshold. Over a real 51-minute session, 5 of 99
+     detections were physically impossible as swings — one with a 0.08 s
+     downswing, five samples — and they were doing real damage: they took the
+     9 iron's tempo spread from 0.22 to 1.19 and the 5 wood's from 0.17 to
+     2.49. This is the same thing the microphone catches by hearing no ball,
+     arrived at from the timings alone, so it works without the microphone and
+     works on everything already recorded. */
+  m.implausible = null;
+  if (m.downswing_s < 0.18) m.implausible = `downswing of ${m.downswing_s.toFixed(2)}s is too quick to be a swing`;
+  else if (m.downswing_s > 0.60) m.implausible = `downswing of ${m.downswing_s.toFixed(2)}s is too slow to be a swing`;
+  else if (m.backswing_s < 0.35) m.implausible = `backswing of ${m.backswing_s.toFixed(2)}s is too quick to be a swing`;
+  else if (m.tempo_ratio > TEMPO_MAX || m.tempo_ratio < TEMPO_MIN)
+    m.implausible = `tempo of ${m.tempo_ratio.toFixed(1)} is outside anything a golf swing produces`;
+  if (m.implausible) m.notes.push(`Held out of your averages: ${m.implausible}.`);
   if (m.gyro_clipped) m.notes.push("Gyro saturated during downswing; speed metrics are a floor, not a ceiling.");
   if (m.acc_clipped) m.notes.push("Accelerometer saturated near impact; hand speed is a floor and path/attack angles are unreliable for this swing.");
   if (m.n_downswing_samples < 8) m.notes.push("Few samples in downswing at this output rate; timing is approximate.");
@@ -5000,7 +5017,8 @@ function lineChart(hostId, pts, opts){
   const svg = el("svg",{width:"100%",height:H,viewBox:`0 0 ${W} ${H}`,
     preserveAspectRatio:"none","aria-label":opts.label,role:"img"},host);
   const pw = W-m.l-m.r, ph = H-m.t-m.b;
-  const maxY = Math.max(opts.minMax || 0, ...pts.map(p=>p.y))*1.12;
+  const rawMax = Math.max(opts.minMax || 0, ...pts.map(p => isFinite(p.y) ? p.y : 0))*1.12;
+  const maxY = (isFinite(rawMax) && rawMax > 0) ? rawMax : 1;   // a flat series still needs an axis
   const y = v => m.t + ph - (v/maxY)*ph;
   const x = i => m.l + (pts.length === 1 ? pw/2 : pw*i/(pts.length-1));
   if (opts.band) el("rect",{x:m.l,y:y(opts.band[1]),width:pw,
@@ -5124,15 +5142,27 @@ function rangeSessions(){
 /* Clipped swings are excluded everywhere: a saturated sensor reports a floor,
    not a measurement, and a floor dragged into a spread makes practice look
    more consistent than it was. */
+function rsPlausible(w){
+  const t = +w.tempo;
+  return isFinite(t) && t >= TEMPO_MIN && t <= TEMPO_MAX;
+}
 function rsVals(swings, clubId, key){
   const out = [];
   for (const w of swings || []){
     if (w.clipped) continue;
+    if (!rsPlausible(w)) continue;          // waggles and practice passes
     if (clubId && w.club_id !== clubId) continue;
     const v = +w[key];
     if (isFinite(v) && (key !== "club_mph" || v > 0)) out.push(v);
   }
   return out;
+}
+function rsHeldOut(sessions, clubId){
+  let n = 0;
+  for (const s of sessions || [])
+    for (const w of s.swings || [])
+      if (!w.clipped && (!clubId || w.club_id === clubId) && !rsPlausible(w)) n++;
+  return n;
 }
 function rsStat(vals){
   const n = vals.length;
@@ -6925,8 +6955,14 @@ function tiles() {
 
 /* ---------- generic chart helpers ---------- */
 function niceTicks(max, n=4) {
+  // A zero or non-finite max used to compute a step of zero, and the loop below
+  // then never terminated — it threw "Invalid array length" and took the whole
+  // screen with it. Reachable in practice: a spread chart for a session where
+  // the metric did not vary at all is a series of exact zeros.
+  if (!isFinite(max) || max <= 0) return [0];
   const raw = max/n, pow = Math.pow(10, Math.floor(Math.log10(raw)));
   const step = [1,2,2.5,5,10].map(m=>m*pow).find(s=>s*n>=max) || 10*pow;
+  if (!isFinite(step) || step <= 0) return [0, max];
   const out=[]; for(let v=0; v<=max+1e-9; v+=step) out.push(+v.toFixed(6)); return out;
 }
 
@@ -8159,6 +8195,10 @@ function mkSvg(svg, n, at){
    which is right for comparing SHAPE but throws away tempo and speed — the two
    properties with the most behind them. Impact-aligned real time keeps all
    three visible, and it is what the OpenCap validation already does. */
+/* Measured over a real 51-minute session: 94 genuine swings spanned tempo
+   1.86 to 4.00, while the 5 artifacts sat at 0.38, 0.70, 1.33, 6.40 and 11.33.
+   This gate catches all five with nothing real inside half a point of it. */
+const TEMPO_MIN = 1.4, TEMPO_MAX = 4.5;
 const TRACK_N = 40, TRACK_T0 = -1.0, TRACK_T1 = 0.25;   // orientation track grid, s about impact
 const REF_T0 = -1.6, REF_T1 = 0.35, REF_DT = 1 / 60;   // seconds about impact
 const REF_MIN = 5;        // swings needed before a band is drawn
@@ -9650,8 +9690,12 @@ function renderAnRange(){
     row.append(left, v);
     sess.appendChild(row);
   }
+  const held = rsHeldOut(withClub, anClub);
   g("mrFoot").textContent =
-    "Swing plane and release are the two steadiest things this sensor measures, so they carry numbers here. "
+    (held ? `${held} detection${held === 1 ? "" : "s"} with this club were held out of every number `
+          + `above — their timings are not physically a golf swing, so they are waggles, `
+          + `re-grips or practice passes the sensor could not tell apart. ` : "")
+    + "Swing plane and release are the two steadiest things this sensor measures, so they carry numbers here. "
     + "Attack angle does not: it reads anywhere from 1° to 43° inside a single club's block, where the real "
     + "quantity moves a couple of degrees. Club speed is a wrist estimate — good for tracking change, not for "
     + "arguing with a launch monitor.";
