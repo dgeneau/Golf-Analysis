@@ -1753,7 +1753,15 @@ function bagLoad(){
                   inches: (typeof r.in === "number" && r.in >= BAG_MIN_IN && r.in <= BAG_MAX_IN)
                           ? r.in : bagStd(r.id)}));
   }
-  if (!myBag.length) myBag = BAG_DEFAULT.map(id => ({id, inches: bagStd(id)}));
+  if (!myBag.length){
+    myBag = BAG_DEFAULT.map(id => ({id, inches: bagStd(id)}));
+    // Seeding a bag for someone who was already using the app: whatever club
+    // they last had selected is one they carry, even if it is outside the
+    // default eleven - otherwise their selection would silently jump to driver.
+    if (typeof clubId === "string" && clubId !== "custom"
+        && bagStd(clubId) != null && !myBag.some(c => c.id === clubId))
+      myBag.push({id: clubId, inches: bagStd(clubId)});
+  }
   const ord = bagOrder();
   myBag.sort((a, b) => ord.indexOf(a.id) - ord.indexOf(b.id));
 }
