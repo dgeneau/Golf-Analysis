@@ -407,6 +407,28 @@
   /* Reference material — diagnostics, notes on what a number means — folds away
      until asked for. It is the difference between a screen you read and a screen
      you scroll past. */
+  /* Prefixed cb- (club bag) on purpose: .bagrow and .bagname already exist
+     for the round-mode bag table, and an unprefixed copy here overrode
+     them - it swallowed this row's controls AND restyled that table. */
+  .cbrow { display: flex; align-items: center; gap: 10px; padding: 7px 0;
+            border-bottom: 1px solid #e6e1d2; }
+  .cbrow:last-of-type { border-bottom: 0; }
+  .cbtick { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; cursor: pointer;
+             border: 1.5px solid #ddd7c4; background: #f0ede2; color: #f8f6ee;
+             font: 700 13px system-ui; line-height: 1; padding: 0; }
+  .cbrow.on .cbtick { background: #3c4a30; border-color: #3c4a30; }
+  .cbname { flex: 1; font: 600 14px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbrow.on .cbname { color: #23221c; }
+  .cblen { width: 68px; padding: 6px 8px; border: 1px solid #ddd7c4; border-radius: 8px;
+            background: #f0ede2; font: 600 14px "IBM Plex Mono", ui-monospace, monospace;
+            color: #23221c; text-align: right; }
+  .cblen:disabled { color: #b0a892; background: transparent; border-color: #e6e1d2; }
+  .cbunit { font: 500 13px "IBM Plex Mono", monospace; color: #8a8577; width: 8px; }
+  .cbstd { font: 500 10.5px "IBM Plex Sans", system-ui; color: #b4632f; width: 50px;
+            text-align: right; }
+  .cbfoot { margin-top: 12px; font: 500 12px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbscroll { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
   .mdisc { border: 0; background: transparent; padding: 0; width: 100%; text-align: left;
            font: 600 13px "IBM Plex Sans", system-ui; color: #3c4a30; cursor: pointer;
            display: flex; align-items: center; gap: 7px; }
@@ -1056,9 +1078,14 @@
         <h2 class="serif obh">Tap any number to learn it</h2>
         <p class="obp">Not sure what "tempo 2.9:1" means? Tap any metric for a plain-language explainer. You'll start in <b>Simple</b> mode — switch to Detailed whenever you want the full picture.</p>
       </div>
+      <div class="obstep" data-step="3" hidden style="align-self:stretch">
+        <h2 class="serif obh" style="margin-top:4px">Load your bag</h2>
+        <p class="obp" style="margin-bottom:10px">Tick what you carry. Length is the lever in the club-speed estimate — on an iron swing it is most of the number — so if yours are fitted, set them here and the speeds follow. You can change this any time from the club picker.</p>
+        <div class="cbscroll" id="obBagList" style="align-self:stretch;width:100%"></div>
+      </div>
     </div>
     <div class="mbottom" style="padding:0 20px max(var(--sab),16px)">
-      <div class="mdots" id="obDots" style="margin-bottom:16px"><span class="on"></span><span></span><span></span></div>
+      <div class="mdots" id="obDots" style="margin-bottom:16px"></div>
       <div style="display:flex;gap:10px">
         <button class="mghost" id="obBack" hidden style="flex:none;padding-left:22px;padding-right:22px">Back</button>
         <button class="mprimary" id="obNext" style="flex:1">Next</button>
@@ -1159,6 +1186,17 @@
       <button class="mghost" id="mStrikeTap" style="width:100%;border:1px solid #ddd7c4;border-radius:10px;padding:11px">Sync tap</button>
       <p class="tgt" id="mStrikeTapMsg" style="margin-top:8px"></p>
       <button class="mprimary" id="mStrikeClose" style="width:100%;margin-top:14px">Done</button>
+    </div>
+  </div>
+
+  <!-- your bag: which clubs you carry, and how long yours are -->
+  <div class="mexplain" id="mBagSheet" hidden>
+    <div class="mexplain-card">
+      <h3>Your bag</h3>
+      <p>Tick the clubs you carry and set your own lengths. Length is the lever in
+         the club-speed estimate, so an inch out moves the number by about 2&nbsp;mph.</p>
+      <div class="cbscroll" id="mBagList"></div>
+      <button class="mprimary" id="mBagDone" style="width:100%;margin-top:14px">Done</button>
     </div>
   </div>
 
@@ -1611,7 +1649,7 @@
 const DATA = null;
 // Build stamp, injected by scripts/build_web.py (git sha + date). Shown in the
 // footer / session summary so a bug report can name the exact build.
-const BUILD = "38bb190 · 2026-09-27";
+const BUILD = "8f7fb31 · 2026-10-01";
 for (const id of ["buildStamp", "mBuildStamp"]) {
   const e = document.getElementById(id);
   if (e) e.textContent = BUILD && !BUILD.startsWith("/*") ? "Downrange build " + BUILD : "Downrange · dev";
@@ -1687,6 +1725,67 @@ const CLUBS = [
   {id:"sw",     name:"Sand wedge",     inches:35.25},
   {id:"custom", name:"Custom length…", inches:null},
 ];
+/* ---------- Your bag ----------
+   Which clubs you actually carry, and how long YOURS are. The length is not
+   cosmetic: club speed is estimated as hand speed + omega x lever x K, and on
+   a typical iron swing the lever term is about 83% of the total. So an inch
+   out on a 37" club - well inside the spread between manufacturers, and
+   nothing unusual for a fitted set - moves the club-speed estimate by roughly
+   2 mph. Worth thirty seconds at setup.
+
+   The bag governs what the pickers offer and what length a new swing is
+   tagged with. It deliberately does NOT touch history: every swing already
+   stores the {id, inches} it was hit with, so re-measuring a club changes
+   future swings and leaves past ones alone. */
+const BAG_DEFAULT = ["driver","3w","hybrid","4i","5i","6i","7i","8i","9i","pw","sw"];
+const BAG_MIN_IN = 25, BAG_MAX_IN = 50;
+let myBag = [];
+function bagStd(id){ const c = CLUBS.find(x => x.id === id); return c && c.inches != null ? c.inches : null; }
+function bagName(id){ const c = CLUBS.find(x => x.id === id); return c ? c.name : id; }
+function bagOrder(){ return CLUBS.map(c => c.id); }
+function bagLoad(){
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem("sc-bag")); } catch (e){}
+  if (Array.isArray(raw) && raw.length){
+    myBag = raw
+      .filter(r => r && bagStd(r.id) != null)
+      .map(r => ({id: r.id,
+                  inches: (typeof r.in === "number" && r.in >= BAG_MIN_IN && r.in <= BAG_MAX_IN)
+                          ? r.in : bagStd(r.id)}));
+  }
+  if (!myBag.length) myBag = BAG_DEFAULT.map(id => ({id, inches: bagStd(id)}));
+  const ord = bagOrder();
+  myBag.sort((a, b) => ord.indexOf(a.id) - ord.indexOf(b.id));
+}
+function bagSave(){
+  try { localStorage.setItem("sc-bag", JSON.stringify(myBag.map(c => ({id: c.id, in: c.inches})))); }
+  catch (e){}
+}
+function bagHas(id){ return myBag.some(c => c.id === id); }
+function bagInches(id){ const c = myBag.find(x => x.id === id); return c ? c.inches : bagStd(id); }
+function bagSetIn(id, v){
+  const c = myBag.find(x => x.id === id);
+  if (c && isFinite(v)) c.inches = Math.min(BAG_MAX_IN, Math.max(BAG_MIN_IN, v));
+}
+function bagToggle(id){
+  const i = myBag.findIndex(c => c.id === id);
+  if (i >= 0){
+    if (myBag.length <= 1) return false;          // never empty the bag
+    myBag.splice(i, 1);
+  } else {
+    myBag.push({id, inches: bagStd(id)});
+    const ord = bagOrder();
+    myBag.sort((a, b) => ord.indexOf(a.id) - ord.indexOf(b.id));
+  }
+  return true;
+}
+/* The selected club must always be one you carry. */
+function bagEnsureSelection(){
+  if (clubId === "custom" || bagHas(clubId)) return;
+  clubId = myBag.length ? myBag[0].id : "driver";
+  try { localStorage.setItem("swingcoach-club", JSON.stringify({id: clubId, in: customIn})); } catch (e){}
+}
+
 let clubId = "driver";
 let customIn = 45.5;
 try {
@@ -1697,7 +1796,12 @@ try {
   }
 } catch (e) {}
 
-function clubInches(){ const c = CLUBS.find(c=>c.id===clubId); return c.inches ?? customIn; }
+bagLoad();
+function clubInches(){
+  if (clubId === "custom") return customIn;
+  const v = bagInches(clubId);
+  return v != null ? v : customIn;        // your measured length, not the catalogue's
+}
 function leverMeters(){ return clubInches() * 0.0254; }
 function clubLabel(){
   const c = CLUBS.find(c=>c.id===clubId);
@@ -1718,18 +1822,112 @@ function clubSpeedMph(sw){
   const lever = swingClub(sw).inches * 0.0254 * EFF_LEVER_K;
   return (m.hand_speed_mps + m.omega_impact_dps * Math.PI/180 * lever) * 2.23694;
 }
+/* One editor, rendered into whichever host asks for it: the onboarding step
+   and the "my bag" sheet are the same control, so they cannot drift apart. */
+function renderBagEditor(hostId, after){
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  host.textContent = "";
+  for (const c of CLUBS){
+    if (c.inches == null) continue;                  // the legacy custom entry
+    const inBag = bagHas(c.id);
+    const row = document.createElement("div");
+    row.className = "cbrow" + (inBag ? " on" : "");
+    const tick = document.createElement("button");
+    tick.type = "button"; tick.className = "cbtick";
+    tick.setAttribute("aria-pressed", String(inBag));
+    tick.setAttribute("aria-label", (inBag ? "Remove " : "Add ") + c.name);
+    tick.textContent = inBag ? "\u2713" : "";
+    tick.addEventListener("click", () => {
+      if (!bagToggle(c.id)){
+        host.dataset.warn = "Keep at least one club in the bag.";
+      } else { delete host.dataset.warn; }
+      bagSave(); bagEnsureSelection(); fillClubSelects();
+      renderBagEditor(hostId, after); if (after) after();
+    });
+    const name = document.createElement("div");
+    name.className = "cbname"; name.textContent = c.name;
+    const std = document.createElement("span");
+    const len = document.createElement("input");
+    len.className = "cblen"; len.type = "number"; len.inputMode = "decimal";
+    len.step = "0.25"; len.min = String(BAG_MIN_IN); len.max = String(BAG_MAX_IN);
+    len.value = inBag ? bagInches(c.id) : c.inches;
+    len.disabled = !inBag;
+    len.setAttribute("aria-label", c.name + " length in inches");
+    const commit = () => {
+      const v = parseFloat(len.value);
+      if (isFinite(v)){ bagSetIn(c.id, v); bagSave(); len.value = bagInches(c.id); }
+      else len.value = bagInches(c.id);
+      // update the standard-length marker in place rather than re-rendering the
+      // list, which would steal focus from the field being typed into
+      std.textContent = Math.abs(bagInches(c.id) - c.inches) > 0.01 ? `std ${c.inches}` : "";
+      fillClubSelects(); if (after) after();
+    };
+    len.addEventListener("change", commit);
+    len.addEventListener("blur", commit);
+    const unit = document.createElement("span");
+    unit.className = "cbunit"; unit.textContent = "\u2033";
+    std.className = "cbstd";
+    std.textContent = inBag && Math.abs(bagInches(c.id) - c.inches) > 0.01
+      ? `std ${c.inches}` : "";
+    row.append(tick, name, len, unit, std);
+    host.appendChild(row);
+  }
+  const foot = document.createElement("div");
+  foot.className = "cbfoot";
+  const n = myBag.length;
+  foot.textContent = `${n} club${n === 1 ? "" : "s"} in the bag`
+    + (host.dataset.warn ? " \u00b7 " + host.dataset.warn : "");
+  const reset = document.createElement("button");
+  reset.type = "button"; reset.className = "mdisc"; reset.style.marginTop = "10px";
+  reset.textContent = "Reset to standard lengths";
+  reset.addEventListener("click", () => {
+    for (const c of myBag) c.inches = bagStd(c.id);
+    bagSave(); fillClubSelects(); renderBagEditor(hostId, after); if (after) after();
+  });
+  host.append(foot, reset);
+}
+
+/* Every club picker is filled from the bag, so they cannot disagree about
+   what you carry or how long it is. */
+function fillClubSelects(){
+  bagEnsureSelection();
+  const ids = ["clubSel", "mClubSel", "mClubSelR"];
+  for (const id of ids){
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    sel.textContent = "";
+    for (const c of myBag){
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = `${bagName(c.id)} \u00b7 ${c.inches}\u2033`;
+      sel.appendChild(o);
+    }
+    if (clubId === "custom"){            // honour a legacy saved selection
+      const o = document.createElement("option");
+      o.value = "custom"; o.textContent = `Custom \u00b7 ${customIn}\u2033`;
+      sel.appendChild(o);
+    }
+    const edit = document.createElement("option");
+    edit.value = "__bag"; edit.textContent = "Edit my bag\u2026";
+    sel.appendChild(edit);
+    sel.value = clubId;
+  }
+}
+function openBagSheet(){
+  const w = document.getElementById("mBagSheet");
+  if (!w) return;
+  w.hidden = false;
+  renderBagEditor("mBagList", () => renderAll());
+}
+
 function initClubFilter(){
   const sel = document.getElementById("clubSel");
-  for (const c of CLUBS) {
-    const o = document.createElement("option");
-    o.value = c.id;
-    o.textContent = c.inches === null ? c.name : `${c.name} · ${c.inches}″`;
-    sel.appendChild(o);
-  }
-  sel.value = clubId;
+  fillClubSelects();
   const inp = document.getElementById("customLen");
   inp.value = customIn;
   const apply = () => {
+    if (sel.value === "__bag"){ sel.value = clubId; openBagSheet(); return; }
     clubId = sel.value;
     const v = parseFloat(inp.value);
     if (!Number.isNaN(v)) customIn = Math.min(50, Math.max(30, v));
@@ -7897,20 +8095,16 @@ function initMobile(){
   const el = id => document.getElementById(id);
   // club chips mirror the main selector (range top bar + round bottom bar)
   for (const sel of [el("mClubSel"), el("mClubSelR")]){
-    for (const c of CLUBS){
-      const o = document.createElement("option");
-      o.value = c.id;
-      o.textContent = c.inches === null ? "Custom" : `${c.name} · ${c.inches}″`;
-      sel.appendChild(o);
-    }
-    sel.value = clubId;
     sel.addEventListener("change", () => {
+      if (sel.value === "__bag"){ sel.value = clubId; openBagSheet(); return; }
       clubId = sel.value;
-      document.getElementById("clubSel").value = clubId;
+      const d = document.getElementById("clubSel");
+      if (d) d.value = clubId;
       try { localStorage.setItem("swingcoach-club", JSON.stringify({id: clubId, in: customIn})); } catch (e) {}
       renderAll();
     });
   }
+  fillClubSelects();
   for (let n = 1; n <= 18; n++){
     const o = document.createElement("option");
     o.value = String(n); o.textContent = `Hole ${n}`;
@@ -7948,6 +8142,10 @@ function initMobile(){
       panel.hidden = open;
     });
   };
+  el("mBagDone").addEventListener("click", () => { el("mBagSheet").hidden = true; renderAll(); });
+  el("mBagSheet").addEventListener("click", e => {
+    if (e.target === el("mBagSheet")){ el("mBagSheet").hidden = true; renderAll(); }
+  });
   fold("mrStrikeToggle", "mrStrikeRep");
   fold("mrAboutToggle", "mrFoot");
   el("mStrikeChip").addEventListener("click", () => {
@@ -8235,7 +8433,16 @@ function renderOnboard(){
   steps.forEach(s => { s.hidden = (+s.dataset.step !== obStep); });
   document.getElementById("obBack").hidden = obStep === 0;
   document.getElementById("obNext").textContent = obStep >= steps.length - 1 ? "Get started" : "Next";
-  document.querySelectorAll("#obDots span").forEach((d, i) => { d.className = i === obStep ? "on" : ""; });
+  // the dots are built from the step count, so adding a step cannot leave a
+  // hardcoded row of three behind
+  const dots = document.getElementById("obDots");
+  if (dots.children.length !== steps.length){
+    dots.textContent = "";
+    for (let i = 0; i < steps.length; i++) dots.appendChild(document.createElement("span"));
+  }
+  [...dots.children].forEach((d, i) => { d.className = i === obStep ? "on" : ""; });
+  const bagStep = document.querySelector('#mOnboard .obstep[data-step="3"]');
+  if (bagStep && !bagStep.hidden) renderBagEditor("obBagList", null);
 }
 function finishOnboard(){ try { localStorage.setItem("sc-onboarded", "1"); } catch (e){} renderMobile(); }
 function replayOnboard(){ try { localStorage.removeItem("sc-onboarded"); } catch (e){} obStep = 0; renderMobile(); }
