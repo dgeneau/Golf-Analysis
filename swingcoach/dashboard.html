@@ -5,11 +5,14 @@
      warm paper + ink + loden green. Loden is the single accent; moss and
      sage extend it for series; clay is the one warm counter-color. */
   :root {
+    color-scheme: light;     /* the select, number fields and scrubber are
+                                native controls: without this they follow the
+                                OS and render dark on the warm paper */
     --plane: #f0ede2;        /* paper */
     --surface: #f8f6ee;      /* card */
     --ink: #23221c;
     --ink-2: #6b6558;
-    --muted: #8a8577;
+    --muted: #6e6a5f;      /* was #8a8577: 3.14:1 on paper, under the AA floor */
     --grid: #e4decb;
     --baseline: #ddd7c4;     /* line */
     --border: #ddd7c4;
@@ -25,29 +28,17 @@
     --chip-on-ink: #f0ede2;
     --good-text: #2b3522;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --plane: #242c1e;      /* deep loden field */
-      --surface: #2b3522;
-      --ink: #f0ede2;
-      --ink-2: #c9c4b0;
-      --muted: #a09b89;
-      --grid: #3a4430;
-      --baseline: #4a553c;
-      --border: rgba(240,237,226,0.16);
-      --s1: #a7b58a;
-      --s1-soft: #5c6b46;
-      --s2: #d08a55;
-      --s3: #8a9270;
-      --band: rgba(201,208,174,0.12);
-      --good: #9db07f;
-      --warn: #d4b45e;
-      --serious: #d0765a;
-      --chip-on: #f0ede2;
-      --chip-on-ink: #2b3522;
-      --good-text: #c9d0ae;
-    }
-  }
+  /* No @media (prefers-color-scheme: dark) here, on purpose.
+     The token set below is a real start on a dark theme, but it is not
+     finished: roughly 200 colour literals live in the JS that draws the
+     charts and the swing views, as SVG presentation attributes, where a
+     CSS variable does not reach. Under the OS dark preference the tokens
+     flipped while every one of those literals stayed light, so the app
+     served dark ink on a dark field - the stat values on the desktop
+     Progress pane were all but invisible. The mobile layer is light-only
+     by design and the brand is a warm-paper one, so light is the app's
+     look on every surface until those literals are tokenised. Nothing
+     sets data-theme today; the block below is kept for when they are. */
   :root[data-theme="dark"] {
     --plane: #242c1e;
     --surface: #2b3522;
@@ -227,7 +218,7 @@
   .mempty p, .mempty h2 { margin: 0; }
   .mempty h2 { margin: 18px 0 10px; font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
                font-size: 36px; line-height: 1.02; }
-  .mempty p { font-size: 14.5px; line-height: 1.55; color: #8a8577; max-width: 300px; }
+  .mempty p { font-size: 14.5px; line-height: 1.55; color: #6e6a5f; max-width: 300px; }
   .mempty .mprimary { width: 100%; margin-top: 28px; }
   @keyframes mpulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
   .mempty.live circle { fill: #3c4a30; }
@@ -241,13 +232,13 @@
             overscroll-behavior: contain; }
   .mswipe::-webkit-scrollbar { display: none; }
   .mswipe .mpage { flex: none; width: 100%; min-width: 0; scroll-snap-align: center; scroll-snap-stop: always; }
-  .mgcap { font-size: 11.5px; color: #8a8577; margin-top: 6px;
+  .mgcap { font-size: 11.5px; color: #6e6a5f; margin-top: 6px;
            min-height: 33px; }             /* reserve two lines so pages don't change height */
   .mdots { display: flex; gap: 7px; justify-content: center; margin: 12px 0 2px; }
   .mdots span { width: 6px; height: 6px; border-radius: 50%; background: #cfc8b2; }
   .mdots span.on { background: #f8f6ee; }
   .mlabel { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 14px;
-            letter-spacing: .09em; text-transform: uppercase; color: #8a8577; }
+            letter-spacing: .09em; text-transform: uppercase; color: #6e6a5f; }
   .mbig { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: min(104px, 26vw);
           line-height: .95; font-variant-numeric: tabular-nums; }
   .msub { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 20px;
@@ -269,7 +260,7 @@
                padding: 9px 10px; background: transparent; color: #23221c; text-align: left; }
   .mrailcard.sel { background: rgba(60,74,48,.18); border-color: rgba(60,74,48,.5); }
   .mrailcard .n { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 11px;
-                  letter-spacing: .07em; text-transform: uppercase; color: #8a8577; }
+                  letter-spacing: .07em; text-transform: uppercase; color: #6e6a5f; }
   .mrailcard .t { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 19px; line-height: 1.1; }
   .mrailcard .c { font-size: 11px; color: #6b6558; font-variant-numeric: tabular-nums; }
   .mactions { display: flex; gap: 10px; padding: 4px 20px 0; }
@@ -296,7 +287,7 @@
   .mmeta { font-size: 12.5px; color: #6b6558; }
   .mfind { padding: 9px 0; border-bottom: 1px solid #ddd7c4; }
   .mfind:last-child { border-bottom: 0; }
-  .mfind .tag { font: 600 9.5px "IBM Plex Sans", system-ui; color: #8a8577; text-transform: uppercase; letter-spacing: .08em; }
+  .mfind .tag { font: 600 9.5px "IBM Plex Sans", system-ui; color: #6e6a5f; text-transform: uppercase; letter-spacing: .08em; }
   .mfind h3 { margin: 1px 0 2px; font-size: 13.5px; font-weight: 650; color: #23221c; }
   .mfind p { margin: 0; font-size: 12.5px; color: #6b6558; line-height: 1.45; }
   .mreaddrill { margin-top: 12px; padding: 12px 14px; background: #2b3522; color: #f0ede2; border-radius: 12px; }
@@ -306,38 +297,38 @@
   .mreaddrill button { margin-top: 10px; width: 100%; border: 0; border-radius: 10px; padding: 10px;
     background: #8a9270; color: #23221c; font: 600 13px "IBM Plex Sans", system-ui; }
   .shotrow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #ddd7c4; }
-  .shotn { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; color: #8a8577; width: 18px; text-align: right; flex: none; }
+  .shotn { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; color: #6e6a5f; width: 18px; text-align: right; flex: none; }
   .shotrow select.shotclub { flex: 1; min-width: 0; }
   .shotdist { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30; min-width: 54px; text-align: right; flex: none; }
-  .shotrow.manual .shotdist { color: #8a8577; font-weight: 500; font-size: 11px; }
+  .shotrow.manual .shotdist { color: #6e6a5f; font-weight: 500; font-size: 11px; }
   .shotact { flex: none; border: 1px solid #ddd7c4; background: #f8f6ee; color: #23221c; border-radius: 9px;
              width: 34px; height: 34px; font: 600 17px "IBM Plex Sans", system-ui; line-height: 1; }
   .shotact.del.armed { background: #b4632f; border-color: #b4632f; color: #f8f6ee; font-size: 11.5px; width: auto; padding: 0 10px; }
   .shotadd { width: 100%; margin-top: 10px; border: 1px dashed #c9c2ab; background: transparent; color: #6b6558;
              border-radius: 10px; padding: 10px; font: 600 12.5px "IBM Plex Sans", system-ui; }
-  .shottag { font: 500 10px "IBM Plex Sans", system-ui; color: #8a8577; text-transform: uppercase; letter-spacing: .06em; }
+  .shottag { font: 500 10px "IBM Plex Sans", system-ui; color: #6e6a5f; text-transform: uppercase; letter-spacing: .06em; }
   .mtabs { display: flex; gap: 6px; padding: 0 16px 10px; }
   .mtab { flex: 1; padding: 9px 10px; border-radius: 10px; border: 1px solid #ddd7c4;
-          background: #f8f6ee; color: #8a8577; font: 600 13px "IBM Plex Sans", system-ui; }
+          background: #f8f6ee; color: #6e6a5f; font: 600 13px "IBM Plex Sans", system-ui; }
   .mtab.on { background: #3c4a30; border-color: #3c4a30; color: #f8f6ee; }
   .mbagwin { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
   .mbagwin button { padding: 6px 11px; border-radius: 999px; border: 1px solid #ddd7c4;
-        background: transparent; color: #8a8577; font: 600 11.5px "IBM Plex Sans", system-ui; }
+        background: transparent; color: #6e6a5f; font: 600 11.5px "IBM Plex Sans", system-ui; }
   .mbagwin button.on { background: #3c4a30; border-color: #3c4a30; color: #f8f6ee; }
   .bagrow { border-bottom: 1px solid #ddd7c4; }
   .bagrow > button { width: 100%; display: flex; align-items: baseline; gap: 10px;
         padding: 9px 0; background: none; border: 0; text-align: left; cursor: pointer; }
   .bagname { flex: 1; font: 600 13.5px "IBM Plex Sans", system-ui; color: #23221c; }
   .bagdist { font: 600 15px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30; }
-  .bagn { font: 500 11px "IBM Plex Mono", ui-monospace, monospace; color: #8a8577;
+  .bagn { font: 500 11px "IBM Plex Mono", ui-monospace, monospace; color: #6e6a5f;
           min-width: 54px; text-align: right; }
-  .bagcar { color: #8a8577; font-size: 11px; width: 10px; }
+  .bagcar { color: #6e6a5f; font-size: 11px; width: 10px; }
   .bagdet { padding: 0 0 12px; }
   .baggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; margin-top: 2px; }
-  .bagk { font: 500 9.5px "IBM Plex Sans", system-ui; color: #8a8577;
+  .bagk { font: 500 9.5px "IBM Plex Sans", system-ui; color: #6e6a5f;
           text-transform: uppercase; letter-spacing: .07em; }
   .bagv { font: 600 14px "IBM Plex Mono", ui-monospace, monospace; color: #23221c; }
-  .bagv small { font-size: 10px; color: #8a8577; font-weight: 500; margin-left: 2px; }
+  .bagv small { font-size: 10px; color: #6e6a5f; font-weight: 500; margin-left: 2px; }
   .mtr { top: calc(max(var(--sat), 16px) + 8px); right: 14px; padding: 8px 14px;
          text-align: center; max-width: 42%; box-sizing: border-box; }
   .mtr b { display: block; font-size: 26px; font-weight: 650; line-height: 1.1; }
@@ -345,7 +336,7 @@
   .mtr .slopeflag { font-size: 14px; color: #b4632f; vertical-align: 3px; margin-left: 1px; }
   .mtr .mrise { display: block; margin: 2px 0 1px; font-weight: 600; color: #b4632f;
                 font-size: 10.5px; letter-spacing: .01em; }
-  .mtr.slopeoff .mrise { color: #8a8577; font-weight: 500; }
+  .mtr.slopeoff .mrise { color: #6e6a5f; font-weight: 500; }
   .mtr2 { top: calc(max(var(--sat), 16px) + 96px); right: 14px; padding: 8px 12px;
           font-size: 11.5px; color: #6b6558; text-align: right; max-width: 46%; box-sizing: border-box; }
   .mtr2 b { color: #23221c; }
@@ -394,7 +385,7 @@
   .msumgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; margin-top: 18px; }
   .msumgrid .v { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
   .msumgrid .v small { font-size: 15px; color: #6b6558; font-weight: 600; }
-  .mfine { margin: 14px 0 0; font-size: 12px; color: #8a8577; line-height: 1.5; }
+  .mfine { margin: 14px 0 0; font-size: 12px; color: #6e6a5f; line-height: 1.5; }
   .mlight { background: #f8f6ee; border: 1px solid #ddd7c4; border-radius: 10px; padding: 14px 16px; }
   /* Analytics panes own the spacing between their cards, whatever kind of card
      it is. Before this the cards butted flush — five bordered boxes with no
@@ -417,16 +408,16 @@
              border: 1.5px solid #ddd7c4; background: #f0ede2; color: #f8f6ee;
              font: 700 13px system-ui; line-height: 1; padding: 0; }
   .cbrow.on .cbtick { background: #3c4a30; border-color: #3c4a30; }
-  .cbname { flex: 1; font: 600 14px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbname { flex: 1; font: 600 14px "IBM Plex Sans", system-ui; color: #6e6a5f; }
   .cbrow.on .cbname { color: #23221c; }
   .cblen { flex: 0 0 auto; width: 78px; padding: 6px 8px; border: 1px solid #ddd7c4; border-radius: 8px;
             background: #f0ede2; font: 600 14px "IBM Plex Mono", ui-monospace, monospace;
             color: #23221c; text-align: right; }
   .cblen:disabled { color: #b0a892; background: transparent; border-color: #e6e1d2; }
-  .cbunit { font: 500 13px "IBM Plex Mono", monospace; color: #8a8577; width: 8px; }
+  .cbunit { font: 500 13px "IBM Plex Mono", monospace; color: #6e6a5f; width: 8px; }
   .cbstd { font: 500 10.5px "IBM Plex Sans", system-ui; color: #b4632f; width: 50px;
             text-align: right; }
-  .cbfoot { margin-top: 12px; font: 500 12px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbfoot { margin-top: 12px; font: 500 12px "IBM Plex Sans", system-ui; color: #6e6a5f; }
   .cbnamein { min-width: 0; padding: 5px 7px; border: 1px solid #ddd7c4; border-radius: 8px;
             background: #f0ede2; }
   .cbdel { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; margin-left: 2px; cursor: pointer;
@@ -442,7 +433,7 @@
             font: 600 14px "IBM Plex Sans", system-ui; }
   .cbaddgo { flex: 0 0 auto; border: 0; border-radius: 8px; background: #3c4a30; color: #f8f6ee;
             padding: 8px 14px; cursor: pointer; font: 600 13px "IBM Plex Sans", system-ui; }
-  .cbaddhint { margin-top: 6px; font: 500 11px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbaddhint { margin-top: 6px; font: 500 11px "IBM Plex Sans", system-ui; color: #6e6a5f; }
   .cbaddhint.bad { color: #b4632f; }
   .cbscroll { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
@@ -453,20 +444,20 @@
              font: 400 12px system-ui; line-height: 1; padding: 0; }
   .trkscrub { flex: 1; min-width: 0; accent-color: #3c4a30; }
   .trkread { margin-top: 7px; font: 500 11px "IBM Plex Mono", ui-monospace, monospace;
-             color: #8a8577; line-height: 1.5; }
+             color: #6e6a5f; line-height: 1.5; }
   .trkhgt { margin-top: 8px; }
   .trkhgtbtn { border: 0; background: transparent; padding: 0; cursor: pointer; text-align: left;
-             font: 500 11px "IBM Plex Sans", system-ui; color: #8a9270;
+             font: 500 11px "IBM Plex Sans", system-ui; color: #3c4a30;
              text-decoration: underline; text-underline-offset: 2px; }
   .trkhgtform { display: flex; align-items: center; gap: 8px; }
-  .trkhgtimp { flex: 1; font: 500 11px "IBM Plex Mono", monospace; color: #8a8577; }
+  .trkhgtimp { flex: 1; font: 500 11px "IBM Plex Mono", monospace; color: #6e6a5f; }
 
   .mdisc { border: 0; background: transparent; padding: 0; width: 100%; text-align: left;
            font: 600 13px "IBM Plex Sans", system-ui; color: #3c4a30; cursor: pointer;
            display: flex; align-items: center; gap: 7px; }
-  .mdisc .caret { font-size: 9px; color: #8a8577; transition: transform .15s; }
+  .mdisc .caret { font-size: 9px; color: #6e6a5f; transition: transform .15s; }
   .mdisc[aria-expanded="true"] .caret { transform: rotate(90deg); }
-  .mdisc-sub { font: 500 12px "IBM Plex Sans", system-ui; color: #8a8577; margin-left: auto; }
+  .mdisc-sub { font: 500 12px "IBM Plex Sans", system-ui; color: #6e6a5f; margin-left: auto; }
 
   /* Stat rows. These replaced about thirty one-off inline styles, which is what
      "cluttered" actually looked like in the source. */
@@ -475,13 +466,13 @@
   .mstat-v { padding-top: 11px; }
   .mstat-n { font: 600 15px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30;
              font-variant-numeric: tabular-nums; }
-  .mstat-n em { font-style: normal; color: #8a8577; font-size: 12.5px; }
+  .mstat-n em { font-style: normal; color: #6e6a5f; font-size: 12.5px; }
   .mstat-s { font: 500 11.5px "IBM Plex Sans", system-ui; line-height: 1.55; margin-top: 3px;
-             color: #8a8577; }
+             color: #6e6a5f; }
   .mstat-s.on { color: #3c4a30; }
   .mstat-sep { grid-column: 1 / -1; border-bottom: 1px solid #ddd7c4; margin-top: 11px; }
   .mconsist-h { font: 600 11px "IBM Plex Sans", system-ui; letter-spacing: .06em;
-                text-transform: uppercase; color: #8a8577; margin: 14px 0 2px; }
+                text-transform: uppercase; color: #6e6a5f; margin: 14px 0 2px; }
   .mconsist-h:first-of-type { margin-top: 10px; }
   .mstat > .mstat-sep:last-child { border-bottom: 0; }
 
@@ -491,7 +482,7 @@
   .mrow:last-of-type { border-bottom: 0; }
   .mrow.on { background: rgba(60,74,48,.07); }
   .mrow-k { font: 600 13.5px "IBM Plex Sans", system-ui; color: #23221c; }
-  .mrow-s { font: 500 11.5px "IBM Plex Sans", system-ui; color: #8a8577; margin-top: 1px; }
+  .mrow-s { font: 500 11.5px "IBM Plex Sans", system-ui; color: #6e6a5f; margin-top: 1px; }
   .mrow-v { font: 600 15px "IBM Plex Mono", ui-monospace, monospace; color: #3c4a30;
             text-align: right; font-variant-numeric: tabular-nums; }
   .mlight h2 { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; font-size: 15px;
@@ -508,7 +499,7 @@
                        box-shadow: 0 2px 10px rgba(35,34,28,.14); transition: border-color .12s, box-shadow .12s; }
   .msharetile.nobg canvas { background: repeating-conical-gradient(#6f6a5b 0 25%, #837d6c 0 50%) 0 0 / 14px 14px; }
   .msharetile.sel canvas { border-color: #3c4a30; box-shadow: 0 4px 16px rgba(60,74,48,.34); }
-  .msharetile .lbl { font: 600 11px "IBM Plex Sans", system-ui; color: #8a8577; letter-spacing: .02em; }
+  .msharetile .lbl { font: 600 11px "IBM Plex Sans", system-ui; color: #6e6a5f; letter-spacing: .02em; }
   .msharetile.sel .lbl { color: #3c4a30; }
 
   /* drills hub cards */
@@ -519,7 +510,7 @@
   .mdrillicon { font-size: 26px; line-height: 1; flex: none; width: 34px; text-align: center; }
   .mdrilltxt { flex: 1; }
   .mdrilltxt h3 { margin: 0; font: 650 16px "IBM Plex Sans", system-ui; color: #23221c; text-transform: none; letter-spacing: 0; }
-  .mdrilltxt p { margin: 3px 0 0; font: 400 12.5px "IBM Plex Sans", system-ui; color: #8a8577; line-height: 1.45; }
+  .mdrilltxt p { margin: 3px 0 0; font: 400 12.5px "IBM Plex Sans", system-ui; color: #6e6a5f; line-height: 1.45; }
   .msoon { font: 600 9.5px "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase;
            color: #8a9270; background: rgba(138,146,112,.16); border-radius: 5px; padding: 2px 6px; vertical-align: middle; }
   .mdrillgo { font-size: 18px; color: #8a9270; flex: none; }
@@ -528,7 +519,7 @@
   .mputtarm { display: flex; flex-direction: column; align-items: center; justify-content: center;
               min-height: 260px; text-align: center; }
   .mputtarm-big { font: 400 52px "Instrument Serif", Georgia, serif; color: #3c4a30; line-height: 1.05; text-align: center; min-height: 56px; }
-  .mputtarm-sub { font: 500 13.5px "IBM Plex Sans", system-ui; color: #8a8577; margin-top: 10px; letter-spacing: .02em; text-align: center; }
+  .mputtarm-sub { font: 500 13.5px "IBM Plex Sans", system-ui; color: #6e6a5f; margin-top: 10px; letter-spacing: .02em; text-align: center; }
   .mtempoviz { display: block; width: 100%; max-width: 340px; margin: 22px auto 4px; }
   .mtempoviz.go line { stroke: #8a9270; }
   .mputtbig { width: 100%; margin-bottom: 10px; padding: 15px; font-size: 16px; }
@@ -630,7 +621,7 @@
   .bootsplash.gone { opacity: 0; pointer-events: none; }
   .bootword { font: 400 30px/1 "Instrument Serif", Georgia, serif; color: #23221c;
               letter-spacing: .01em; margin-top: 4px; }
-  .bootsub { font: 500 12.5px "IBM Plex Sans", system-ui; color: #8a8577; margin-top: 6px; }
+  .bootsub { font: 500 12.5px "IBM Plex Sans", system-ui; color: #6e6a5f; margin-top: 6px; }
   .spinmark { display: inline-block; vertical-align: -3px; margin-right: 7px; }
   @media (prefers-reduced-motion: reduce) { .bootsplash { transition: none; } }
 </style>
@@ -1105,7 +1096,7 @@
       </div>
       <div class="obstep" data-step="2" hidden>
         <div class="obart" style="display:flex;align-items:center;justify-content:center">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:44px;color:#23221c">2.9<span style="font-size:18px;color:#8a8577">:1</span></div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:44px;color:#23221c">2.9<span style="font-size:18px;color:#6e6a5f">:1</span></div>
         </div>
         <h2 class="serif obh">Tap any number to learn it</h2>
         <p class="obp">Not sure what "tempo 2.9:1" means? Tap any metric for a plain-language explainer. You'll start in <b>Simple</b> mode — switch to Detailed whenever you want the full picture.</p>
@@ -1149,7 +1140,7 @@
         <h2 id="mEmptyTitle">Connect your sensor</h2>
         <p id="mEmptySub"></p>
         <button class="mprimary" id="mConnectBtn">Connect sensor</button>
-        <button id="mHowItWorks" style="margin-top:14px;border:0;background:transparent;color:#8a8577;font:500 13px 'IBM Plex Sans',system-ui;padding:6px">New here? How it works</button>
+        <button id="mHowItWorks" style="margin-top:14px;border:0;background:transparent;color:#6e6a5f;font:500 13px 'IBM Plex Sans',system-ui;padding:6px">New here? How it works</button>
       </div>
       <div class="mswipe" id="mSwipe">
         <div class="mpage">
@@ -1214,7 +1205,7 @@
                style="width:66px;padding:6px 8px;border:1px solid #ddd7c4;border-radius:8px;background:#f0ede2;font:inherit">
         m from the ball
       </label>
-      <p style="font-size:12.5px;color:#8a8577;margin:0 0 12px">Lay the phone on the ground about half a metre behind the ball, screen up, clear of your swing and the divot. Close is what separates your ball from the next bay along: at half a metre yours lands about 9&nbsp;dB louder than their driver, at a metre and a half theirs wins.</p>
+      <p style="font-size:12.5px;color:#6e6a5f;margin:0 0 12px">Lay the phone on the ground about half a metre behind the ball, screen up, clear of your swing and the divot. Close is what separates your ball from the next bay along: at half a metre yours lands about 9&nbsp;dB louder than their driver, at a metre and a half theirs wins.</p>
       <button class="mghost" id="mStrikeTap" style="width:100%;border:1px solid #ddd7c4;border-radius:10px;padding:11px">Sync tap</button>
       <p class="tgt" id="mStrikeTapMsg" style="margin-top:8px"></p>
       <button class="mprimary" id="mStrikeClose" style="width:100%;margin-top:14px">Done</button>
@@ -1566,16 +1557,16 @@
         <div class="mputtarm-big" id="mPuttArmBig">Watch</div>
         <svg class="mtempoviz" id="mPuttTempoViz" width="100%" viewBox="0 0 320 112" aria-hidden="true">
           <line x1="24" y1="52" x2="296" y2="52" stroke="#cfc8b2" stroke-width="2"/>
-          <text x="24" y="80" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">through</text>
-          <text x="160" y="80" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">ball</text>
-          <text x="296" y="80" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">back</text>
-          <circle cx="160" cy="52" r="4" fill="none" stroke="#8a8577" stroke-width="1.5"/>
+          <text x="24" y="80" fill="#6e6a5f" style="font:10px system-ui" text-anchor="middle">through</text>
+          <text x="160" y="80" fill="#6e6a5f" style="font:10px system-ui" text-anchor="middle">ball</text>
+          <text x="296" y="80" fill="#6e6a5f" style="font:10px system-ui" text-anchor="middle">back</text>
+          <circle cx="160" cy="52" r="4" fill="none" stroke="#6e6a5f" stroke-width="1.5"/>
           <rect id="mPuttTempoBar" x="157" y="30" width="6" height="44" rx="3" fill="#3c4a30"/>
           <circle id="mPuttTempoLive" cx="160" cy="52" r="8" fill="#b4632f" opacity="0"/>
           <rect x="112" y="96" width="10" height="10" rx="2" fill="#3c4a30"/>
-          <text x="127" y="105" fill="#8a8577" style="font:10px system-ui">guide</text>
+          <text x="127" y="105" fill="#6e6a5f" style="font:10px system-ui">guide</text>
           <circle cx="188" cy="101" r="5" fill="#b4632f"/>
-          <text x="198" y="105" fill="#8a8577" style="font:10px system-ui">your wrist</text>
+          <text x="198" y="105" fill="#6e6a5f" style="font:10px system-ui">your wrist</text>
         </svg>
         <div class="mputtarm-sub" id="mPuttArmSub">it cycles twice — on the third, match the dot to the bar</div>
       </div>
@@ -1628,9 +1619,9 @@
         <div class="mputtarm-big" id="mChipArmBig">Watch</div>
         <svg class="mtempoviz" id="mChipTempoViz" width="100%" viewBox="0 0 320 96" aria-hidden="true">
           <line x1="24" y1="52" x2="296" y2="52" stroke="#cfc8b2" stroke-width="2"/>
-          <text x="24" y="82" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">through</text>
-          <text x="160" y="82" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">ball</text>
-          <text x="296" y="82" fill="#8a8577" style="font:10px system-ui" text-anchor="middle">back</text>
+          <text x="24" y="82" fill="#6e6a5f" style="font:10px system-ui" text-anchor="middle">through</text>
+          <text x="160" y="82" fill="#6e6a5f" style="font:10px system-ui" text-anchor="middle">ball</text>
+          <text x="296" y="82" fill="#6e6a5f" style="font:10px system-ui" text-anchor="middle">back</text>
           <circle cx="160" cy="52" r="5" fill="#b4632f"/>
           <rect id="mChipTempoBar" x="157" y="30" width="6" height="44" rx="3" fill="#3c4a30"/>
         </svg>
@@ -6170,13 +6161,13 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     const pinH = 27 * far * (0.45 + 0.55*Math.cos(trkEl));
     const fw = 13 * far;
     el("line", {x1:tp.x, y1:tp.y, x2:tp.x, y2:tp.y-pinH,
-      stroke:"#8a8577", "stroke-width":1.4, "stroke-linecap":"round"}, flag);
+      stroke:"#6e6a5f", "stroke-width":1.4, "stroke-linecap":"round"}, flag);
     el("path", {d:`M${tp.x},${(tp.y-pinH).toFixed(1)} L${(tp.x+fw).toFixed(1)},`
       + `${(tp.y-pinH+fw*0.38).toFixed(1)} L${tp.x},${(tp.y-pinH+fw*0.77).toFixed(1)} Z`,
       fill:"#b4632f"}, flag);
-    el("circle", {cx:tp.x, cy:tp.y, r:2.2*far, fill:"#8a8577"}, flag);
+    el("circle", {cx:tp.x, cy:tp.y, r:2.2*far, fill:"#6e6a5f"}, flag);
     el("text", {x:tp.x, y:tp.y+13, "text-anchor":"middle",
-      style:"font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, flag)
+      style:"font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, flag)
       .textContent = squared ? "target" : "address";
     const up = rsProject([0,0,1], W, H, R);
     el("line", {x1:o.x, y1:o.y, x2:up.x, y2:up.y, stroke:"#e6e1d2", "stroke-width":1}, svg);
@@ -6242,7 +6233,7 @@ function rsRenderTrack(hostId, noteId, rows, opts){
       "stroke-width":2.2, "stroke-linecap":"round"}, svg);
     el("circle", {cx:pS.x, cy:pS.y, r:5, fill:"#23221c"}, svg);
     el("text", {x:pS.x - 9, y:pS.y - 7, "text-anchor":"end",
-      style:"font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = "shoulder";
+      style:"font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, svg).textContent = "shoulder";
     el("circle", {cx:pE.x, cy:pE.y, r:3.2, fill:"#f8f6ee", stroke:"#b0a892", "stroke-width":1.5}, svg);
     el("circle", {cx:pH.x, cy:pH.y, r:5.5, fill:"#23221c"}, svg);
     el("circle", {cx:pH.x, cy:pH.y, r:2, fill:"#f8f6ee"}, svg);
@@ -6511,9 +6502,9 @@ function rsRenderStrike(hostId, rows){
       fill: "rgba(60,74,48,0.09)"}, svg);
     el("line", {x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0), stroke: "#8a9270"}, svg);
     el("text", {x: m.l - 4, y: Y(0) + 3, "text-anchor": "end",
-      style: "font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = "med";
+      style: "font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, svg).textContent = "med";
     el("text", {x: m.l - 4, y: Y(sh) + 3, "text-anchor": "end",
-      style: "font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = "½ smp";
+      style: "font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, svg).textContent = "½ smp";
     src.forEach((r, i) => {
       if (r.offMs == null){
         el("text", {x: X(i), y: Y(0) + 4, "text-anchor": "middle",
@@ -8976,8 +8967,8 @@ function renderMRange(){
   mk("rect", {x: 0, y: 12, width: 340, height: 10, rx: 5, fill: "#ddd7c4"});
   mk("rect", {x: x(2.5), y: 12, width: x(3.5) - x(2.5), height: 10, rx: 5, fill: "rgba(60,74,48,0.22)"});
   mk("rect", {x: Math.max(0, Math.min(335, x(m.tempo_ratio) - 2.5)), y: 4, width: 5, height: 26, rx: 2.5, fill: "#3c4a30"});
-  mk("text", {x: x(2.5), y: 34, fill: "#8a8577", style: "font:10px system-ui"}).textContent = "2.5";
-  mk("text", {x: x(3.5), y: 34, "text-anchor": "end", fill: "#8a8577", style: "font:10px system-ui"}).textContent = "3.5";
+  mk("text", {x: x(2.5), y: 34, fill: "#6e6a5f", style: "font:10px system-ui"}).textContent = "2.5";
+  mk("text", {x: x(3.5), y: 34, "text-anchor": "end", fill: "#6e6a5f", style: "font:10px system-ui"}).textContent = "3.5";
   renderMTrace(sw);
   renderMPath(sw);
   el("mClubMph").textContent = "";
@@ -9150,7 +9141,7 @@ function renderMTrace(sw){
     if (x < padL || x > W) continue;
     mkSvg(svg, "line", {x1: x, y1: padT, x2: x, y2: H - padB, stroke: col,
       "stroke-width": 1, "stroke-dasharray": "3 4"});
-    mkSvg(svg, "text", {x: Math.min(W - 26, x + 3), y: padT + 8, fill: col === "#b4632f" ? "#b4632f" : "#8a8577",
+    mkSvg(svg, "text", {x: Math.min(W - 26, x + 3), y: padT + 8, fill: col === "#b4632f" ? "#b4632f" : "#6e6a5f",
       style: "font:9px system-ui"}).textContent = lbl;
   }
   // this swing
@@ -9243,7 +9234,7 @@ function renderMPath(sw){
   // target line through impact, straight up the screen
   mkSvg(svg, "line", {x1: ix, y1: 6, x2: ix, y2: H - 6,
                       stroke: "#cfc8b2", "stroke-width": 1, "stroke-dasharray": "4 5"});
-  mkSvg(svg, "text", {x: ix + 5, y: 14, fill: "#8a8577",
+  mkSvg(svg, "text", {x: ix + 5, y: 14, fill: "#6e6a5f",
                       style: "font:9.5px system-ui"}).textContent = "address line";
   const seg = (a, b, color, w) => {
     if (b - a < 1) return;
@@ -9253,10 +9244,10 @@ function renderMPath(sw){
                             "stroke-width": w, "stroke-linecap": "round"});
   };
   seg(iI, xr.length - 1, "rgba(138,146,112,0.45)", 2);   // follow-through
-  seg(0, iT, "#8a8577", 2);                               // backswing
+  seg(0, iT, "#6e6a5f", 2);                               // backswing
   seg(iT, iI, "#3c4a30", 3);                              // downswing
   mkSvg(svg, "circle", {cx: SX(0), cy: SY(0), r: 3.5, fill: "#f0ede2",
-                        stroke: "#8a8577", "stroke-width": 1.5});
+                        stroke: "#6e6a5f", "stroke-width": 1.5});
   mkSvg(svg, "circle", {cx: ix, cy: iy, r: 4.5, fill: "#3c4a30"});
   // impact-direction arrow: its lean off the vertical is the path angle
   if (!m.acc_clipped && m.path_angle_deg != null){
@@ -9285,14 +9276,14 @@ function renderPathBand(m){
   mkSvg(svg, "rect", {x: 0, y: 14, width: W, height: 8, rx: 4, fill: "#ddd7c4"});
   mkSvg(svg, "rect", {x: x(PATH_TGT.lo), y: 14, width: x(PATH_TGT.hi) - x(PATH_TGT.lo),
                       height: 8, rx: 4, fill: "rgba(60,74,48,0.22)"});
-  mkSvg(svg, "line", {x1: x(0), y1: 12, x2: x(0), y2: 24, stroke: "#8a8577", "stroke-width": 1});
-  mkSvg(svg, "text", {x: x(PATH_TGT.lo), y: 36, "text-anchor": "middle", fill: "#8a8577",
+  mkSvg(svg, "line", {x1: x(0), y1: 12, x2: x(0), y2: 24, stroke: "#6e6a5f", "stroke-width": 1});
+  mkSvg(svg, "text", {x: x(PATH_TGT.lo), y: 36, "text-anchor": "middle", fill: "#6e6a5f",
                       style: "font:10px system-ui"}).textContent = `${PATH_TGT.lo}°`;
-  mkSvg(svg, "text", {x: x(PATH_TGT.hi), y: 36, "text-anchor": "middle", fill: "#8a8577",
+  mkSvg(svg, "text", {x: x(PATH_TGT.hi), y: 36, "text-anchor": "middle", fill: "#6e6a5f",
                       style: "font:10px system-ui"}).textContent = `+${PATH_TGT.hi}°`;
-  mkSvg(svg, "text", {x: 0, y: 8, fill: "#8a8577",
+  mkSvg(svg, "text", {x: 0, y: 8, fill: "#6e6a5f",
                       style: "font:9.5px system-ui"}).textContent = "out-to-in";
-  mkSvg(svg, "text", {x: W, y: 8, "text-anchor": "end", fill: "#8a8577",
+  mkSvg(svg, "text", {x: W, y: 8, "text-anchor": "end", fill: "#6e6a5f",
                       style: "font:9.5px system-ui"}).textContent = "in-to-out";
   const cal = window.__pathCal || 0;
   const sq = document.getElementById("mSquareBtn");
@@ -9308,13 +9299,13 @@ function renderPathBand(m){
     cap.textContent = sp.med != null
       ? `Not squared yet — these are raw angles. Hit a few normal swings at a target, then tap Set square.`
       : `${pSwing == null || m.acc_clipped ? "—" : (pSwing >= 0 ? "+" : "") + fmt1(pSwing) + "°"} raw — not squared yet. Hit a few normal swings at a target, then tap Set square.`;
-    cap.style.color = "#8a8577";
+    cap.style.color = "#6e6a5f";
     return;
   }
   if (sp.med == null){
     cap.textContent = `Path needs ${PATH_MIN_N} squared swings with a club before it means anything — `
       + `${sp.n} so far. A single swing carries about ±${Math.round(PATH_SD_DEG * 0.75)}° of timing noise, so we wait for the session tendency.`;
-    cap.style.color = "#8a8577";
+    cap.style.color = "#6e6a5f";
     return;
   }
   // the session tendency: median with its 95% interval
@@ -10145,7 +10136,7 @@ function renderBagChart(host, groups, opts){
                 fill: "#8a9270", opacity: .75}, svg);
     el("line", {x1: X(r.st.med), x2: X(r.st.med), y1: y - 7, y2: y + 7,
                 stroke: "#b4632f", "stroke-width": 2.2, "stroke-linecap": "round"}, svg);
-    const v = el("text", {x: Math.min(W - 2, X(r.st.max) + 5), y: y + 3.5, fill: "#8a8577"}, svg);
+    const v = el("text", {x: Math.min(W - 2, X(r.st.max) + 5), y: y + 3.5, fill: "#6e6a5f"}, svg);
     v.style.cssText = "font:500 9.5px 'IBM Plex Mono',monospace";
     v.textContent = Math.round(r.st.med);
   });
@@ -10153,7 +10144,7 @@ function renderBagChart(host, groups, opts){
   el("line", {x1: L, x2: W - R, y1: ay - 9, y2: ay - 9, stroke: "#ddd7c4", "stroke-width": 1}, svg);
   for (const v of [x0, (x0 + x1) / 2, x1]){
     const tx = el("text", {x: X(v), y: ay,
-      "text-anchor": v === x0 ? "start" : (v === x1 ? "end" : "middle"), fill: "#8a8577"}, svg);
+      "text-anchor": v === x0 ? "start" : (v === x1 ? "end" : "middle"), fill: "#6e6a5f"}, svg);
     tx.style.cssText = "font:500 9px 'IBM Plex Mono',monospace";
     tx.textContent = Math.round(v);
   }
@@ -10448,13 +10439,13 @@ function renderAnRounds(){
     const d = div("", left,
       `${raDlab(r.date)} · ${r.holesPlayed} hole${r.holesPlayed === 1 ? "" : "s"}`
       + (r.putts ? ` · ${r.putts} putts` : ""));
-    d.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;color:#8a8577";
+    d.style.cssText = "font:500 11.5px 'IBM Plex Sans',system-ui;color:#6e6a5f";
     const score = div("", null, r.parKnown
       ? `${r.score} (${r.toPar > 0 ? "+" : ""}${r.toPar === 0 ? "E" : r.toPar})`
       : (r.girElig ? `${r.girHit}/${r.girElig} GIR` : "—"));
     score.style.cssText = "font:600 15px 'IBM Plex Mono',monospace;color:#3c4a30;text-align:right";
     const go = div("", null, "▸");
-    go.style.cssText = "color:#8a8577;font-size:12px;padding-left:8px";
+    go.style.cssText = "color:#6e6a5f;font-size:12px;padding-left:8px";
     row.style.cursor = "pointer";
     row.setAttribute("role", "button");
     row.addEventListener("click", () => openPastRound(r));
@@ -10852,7 +10843,7 @@ function renderMPutt(){
   mk("rect", {x: 0, y: 12, width: 340, height: 10, rx: 5, fill: "#ddd7c4"});
   mk("rect", {x: x(PUTT_BAND.lo), y: 12, width: x(PUTT_BAND.hi) - x(PUTT_BAND.lo), height: 10, rx: 5, fill: "rgba(60,74,48,0.22)"});
   mk("rect", {x: Math.max(0, Math.min(335, x(m.tempo_ratio) - 2.5)), y: 4, width: 5, height: 26, rx: 2.5, fill: "#3c4a30"});
-  mk("text", {x: x(2), y: 33, "text-anchor": "middle", fill: "#8a8577", style: "font:10px system-ui"}).textContent = "2:1";
+  mk("text", {x: x(2), y: 33, "text-anchor": "middle", fill: "#6e6a5f", style: "font:10px system-ui"}).textContent = "2:1";
   el("mPuttSym").textContent = "";
   el("mPuttSym").append(fmt1(m.symmetry));
   const su = document.createElement("small"); su.textContent = "×"; el("mPuttSym").appendChild(su);
@@ -10927,14 +10918,14 @@ function renderChipSpread(svg, reps, sel){
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
   const tol = mean * 0.08;   // ±8% "grooved" window
   mk("rect", {x: x(mean - tol), y: 20, width: Math.max(2, x(mean + tol) - x(mean - tol)), height: 26, rx: 5, fill: "rgba(60,74,48,0.16)"});
-  mk("line", {x1: x(mean), y1: 16, x2: x(mean), y2: 50, stroke: "#8a8577", "stroke-width": 1.5, "stroke-dasharray": "3 3"});
+  mk("line", {x1: x(mean), y1: 16, x2: x(mean), y2: 50, stroke: "#6e6a5f", "stroke-width": 1.5, "stroke-dasharray": "3 3"});
   const selVal = reps[sel] && reps[sel].back_deg;
   use.forEach((r, k) => {
     const isSel = (reps.length - use.length + k) === sel;
     mk("circle", {cx: x(r.back_deg), cy: 33, r: isSel ? 6 : 4.5,
                   fill: isSel ? "#b4632f" : "#3c4a30", "fill-opacity": isSel ? 1 : 0.5});
   });
-  mk("text", {x: x(mean), y: 62, "text-anchor": "middle", fill: "#8a8577", style: "font:10px system-ui"})
+  mk("text", {x: x(mean), y: 62, "text-anchor": "middle", fill: "#6e6a5f", style: "font:10px system-ui"})
     .textContent = `avg ${Math.round(mean)}° · aim to stack the dots`;
 }
 function buildDrillRail(railId, reps, i, secondary){
@@ -10968,7 +10959,7 @@ function renderDrillTrace(svgId, capId, m){
     if (idx == null || idx < 0 || idx >= T.t.length) continue;
     const xx = xs(T.t[idx]);
     mk("line", {x1: xx, y1: padT, x2: xx, y2: H - padB, stroke: "#cfc8b2", "stroke-width": 1, "stroke-dasharray": "3 4"});
-    mk("text", {x: xx + 3, y: H - 4, fill: "#8a8577", style: "font:9.5px system-ui"}).textContent = lbl;
+    mk("text", {x: xx + 3, y: H - 4, fill: "#6e6a5f", style: "font:9.5px system-ui"}).textContent = lbl;
   }
   mk("polyline", {fill: "none", stroke: "#3c4a30", "stroke-width": 2, "stroke-linejoin": "round",
     points: T.gyro.map((v, i) => `${xs(T.t[i]).toFixed(1)},${y(v).toFixed(1)}`).join(" ")});
