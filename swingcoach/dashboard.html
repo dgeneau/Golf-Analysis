@@ -419,7 +419,7 @@
   .cbrow.on .cbtick { background: #3c4a30; border-color: #3c4a30; }
   .cbname { flex: 1; font: 600 14px "IBM Plex Sans", system-ui; color: #8a8577; }
   .cbrow.on .cbname { color: #23221c; }
-  .cblen { width: 68px; padding: 6px 8px; border: 1px solid #ddd7c4; border-radius: 8px;
+  .cblen { flex: 0 0 auto; width: 78px; padding: 6px 8px; border: 1px solid #ddd7c4; border-radius: 8px;
             background: #f0ede2; font: 600 14px "IBM Plex Mono", ui-monospace, monospace;
             color: #23221c; text-align: right; }
   .cblen:disabled { color: #b0a892; background: transparent; border-color: #e6e1d2; }
@@ -427,6 +427,23 @@
   .cbstd { font: 500 10.5px "IBM Plex Sans", system-ui; color: #b4632f; width: 50px;
             text-align: right; }
   .cbfoot { margin-top: 12px; font: 500 12px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbnamein { min-width: 0; padding: 5px 7px; border: 1px solid #ddd7c4; border-radius: 8px;
+            background: #f0ede2; }
+  .cbdel { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; margin-left: 2px; cursor: pointer;
+            border: 0; background: transparent; color: #b0a892;
+            font: 400 17px system-ui; line-height: 1; }
+  .cbadd { padding-top: 10px; }
+  .cbaddbtn { border: 1px dashed #ddd7c4; background: transparent; border-radius: 9px; width: 100%;
+            padding: 9px 0; cursor: pointer; color: #3c4a30;
+            font: 600 13px "IBM Plex Sans", system-ui; }
+  .cbaddform { display: flex; align-items: center; gap: 8px; }
+  .cbaddname { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid #ddd7c4;
+            border-radius: 8px; background: #f0ede2; color: #23221c;
+            font: 600 14px "IBM Plex Sans", system-ui; }
+  .cbaddgo { flex: 0 0 auto; border: 0; border-radius: 8px; background: #3c4a30; color: #f8f6ee;
+            padding: 8px 14px; cursor: pointer; font: 600 13px "IBM Plex Sans", system-ui; }
+  .cbaddhint { margin-top: 6px; font: 500 11px "IBM Plex Sans", system-ui; color: #8a8577; }
+  .cbaddhint.bad { color: #b4632f; }
   .cbscroll { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
   .mdisc { border: 0; background: transparent; padding: 0; width: 100%; text-align: left;
@@ -1722,9 +1739,57 @@ const CLUBS = [
   {id:"8i",     name:"8 iron",         inches:36.5},
   {id:"9i",     name:"9 iron",         inches:36.0},
   {id:"pw",     name:"Pitching wedge", inches:35.75},
+  {id:"gw",     name:"Gap wedge",      inches:35.5},
   {id:"sw",     name:"Sand wedge",     inches:35.25},
+  {id:"lw",     name:"Lob wedge",      inches:35.0},
   {id:"custom", name:"Custom length…", inches:null},
 ];
+/* ---------- Clubs you added yourself ----------
+   Anything the catalogue above does not name - a 54°, a driving iron, a
+   second lob wedge - is stored here and spliced into CLUBS at boot, in
+   length order, ahead of the trailing "custom" entry. Splicing rather than
+   keeping a parallel list is deliberate: every other consumer of CLUBS (the
+   swing label, the analytics club names, the shot-reassignment pickers)
+   then resolves them with no special case.
+
+   Removing one only hides it. Swings already hit with it keep their {id,
+   inches} tag, so the definition has to survive for their label to read
+   "54 degree 35.5\u2033" instead of "Custom 35.5\u2033". */
+const UC_MAX_NAME = 22;
+let userClubs = [];
+function ucSave(){
+  try { localStorage.setItem("sc-userclubs", JSON.stringify(userClubs)); } catch (e){}
+}
+function ucSplice(){
+  for (let i = CLUBS.length - 1; i >= 0; i--)
+    if (/^u\d+$/.test(CLUBS[i].id)) CLUBS.splice(i, 1);
+  for (const u of userClubs){
+    let at = CLUBS.findIndex(c => c.inches != null && c.inches < u.inches);
+    if (at < 0) at = CLUBS.findIndex(c => c.inches == null);
+    if (at < 0) at = CLUBS.length;
+    CLUBS.splice(at, 0, {id: u.id, name: u.name, inches: u.inches, user: true});
+  }
+}
+function ucLoad(){
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem("sc-userclubs")); } catch (e){}
+  userClubs = (Array.isArray(raw) ? raw : [])
+    .filter(u => u && /^u\d+$/.test(u.id) && typeof u.name === "string" && u.name.trim()
+                 && typeof u.inches === "number" && u.inches >= BAG_MIN_IN && u.inches <= BAG_MAX_IN)
+    .map(u => ({id: u.id, name: u.name.trim().slice(0, UC_MAX_NAME),
+                inches: u.inches, hidden: u.hidden === true}));
+  ucSplice();
+}
+function ucAdd(name, inches){
+  name = String(name || "").trim().slice(0, UC_MAX_NAME);
+  if (!name || !isFinite(inches)) return null;
+  inches = Math.min(BAG_MAX_IN, Math.max(BAG_MIN_IN, inches));
+  let n = 1; while (userClubs.some(u => u.id === "u" + n)) n++;
+  const u = {id: "u" + n, name, inches, hidden: false};
+  userClubs.push(u); ucSave(); ucSplice();
+  return u;
+}
+function ucFind(id){ return userClubs.find(u => u.id === id); }
 /* ---------- Your bag ----------
    Which clubs you actually carry, and how long YOURS are. The length is not
    cosmetic: club speed is estimated as hand speed + omega x lever x K, and on
@@ -1753,6 +1818,7 @@ function bagLoad(){
                   inches: (typeof r.in === "number" && r.in >= BAG_MIN_IN && r.in <= BAG_MAX_IN)
                           ? r.in : bagStd(r.id)}));
   }
+  myBag = myBag.filter(c => { const u = ucFind(c.id); return !u || !u.hidden; });
   if (!myBag.length){
     myBag = BAG_DEFAULT.map(id => ({id, inches: bagStd(id)}));
     // Seeding a bag for someone who was already using the app: whatever club
@@ -1804,6 +1870,7 @@ try {
   }
 } catch (e) {}
 
+ucLoad();
 bagLoad();
 function clubInches(){
   if (clubId === "custom") return customIn;
@@ -1838,6 +1905,8 @@ function renderBagEditor(hostId, after){
   host.textContent = "";
   for (const c of CLUBS){
     if (c.inches == null) continue;                  // the legacy custom entry
+    const uc = ucFind(c.id);
+    if (uc && uc.hidden) continue;                   // removed, but kept for old swings
     const inBag = bagHas(c.id);
     const row = document.createElement("div");
     row.className = "cbrow" + (inBag ? " on" : "");
@@ -1853,8 +1922,23 @@ function renderBagEditor(hostId, after){
       bagSave(); bagEnsureSelection(); fillClubSelects();
       renderBagEditor(hostId, after); if (after) after();
     });
-    const name = document.createElement("div");
-    name.className = "cbname"; name.textContent = c.name;
+    let name;
+    if (uc){
+      name = document.createElement("input");
+      name.className = "cbname cbnamein"; name.type = "text"; name.value = c.name;
+      name.maxLength = UC_MAX_NAME;
+      name.setAttribute("aria-label", "Name of this club");
+      const rename = () => {
+        const v = name.value.trim().slice(0, UC_MAX_NAME);
+        if (v){ uc.name = v; c.name = v; ucSave(); fillClubSelects(); if (after) after(); }
+        else name.value = uc.name;
+      };
+      name.addEventListener("change", rename);
+      name.addEventListener("blur", rename);
+    } else {
+      name = document.createElement("div");
+      name.className = "cbname"; name.textContent = c.name;
+    }
     const std = document.createElement("span");
     const len = document.createElement("input");
     len.className = "cblen"; len.type = "number"; len.inputMode = "decimal";
@@ -1879,8 +1963,23 @@ function renderBagEditor(hostId, after){
     std.textContent = inBag && Math.abs(bagInches(c.id) - c.inches) > 0.01
       ? `std ${c.inches}` : "";
     row.append(tick, name, len, unit, std);
+    if (uc){
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "cbdel";
+      del.setAttribute("aria-label", "Remove " + c.name + " from the list");
+      del.textContent = "\u00d7";
+      del.addEventListener("click", () => {
+        uc.hidden = true; ucSave();
+        const i = myBag.findIndex(x => x.id === c.id);
+        if (i >= 0 && myBag.length > 1) myBag.splice(i, 1);
+        bagSave(); bagEnsureSelection(); fillClubSelects();
+        renderBagEditor(hostId, after); if (after) after();
+      });
+      row.appendChild(del);
+    }
     host.appendChild(row);
   }
+  host.appendChild(bagAddRow(hostId, after));
   const foot = document.createElement("div");
   foot.className = "cbfoot";
   const n = myBag.length;
@@ -1890,10 +1989,58 @@ function renderBagEditor(hostId, after){
   reset.type = "button"; reset.className = "mdisc"; reset.style.marginTop = "10px";
   reset.textContent = "Reset to standard lengths";
   reset.addEventListener("click", () => {
-    for (const c of myBag) c.inches = bagStd(c.id);
+    for (const c of myBag){ const v = bagStd(c.id); if (v != null) c.inches = v; }
     bagSave(); fillClubSelects(); renderBagEditor(hostId, after); if (after) after();
   });
   host.append(foot, reset);
+}
+
+/* "+ Add a club" - for anything the catalogue does not name. Collapsed to a
+   single line until you tap it, so the common case (tick what you carry) is
+   not buried under a form. */
+function bagAddRow(hostId, after){
+  const wrap = document.createElement("div");
+  wrap.className = "cbadd";
+  const open = document.createElement("button");
+  open.type = "button"; open.className = "cbaddbtn";
+  open.textContent = "+ Add a club";
+  const form = document.createElement("div");
+  form.className = "cbaddform"; form.hidden = true;
+  const nm = document.createElement("input");
+  nm.type = "text"; nm.className = "cbaddname"; nm.placeholder = "54\u00b0 wedge";
+  nm.maxLength = UC_MAX_NAME; nm.setAttribute("aria-label", "Club name");
+  const ln = document.createElement("input");
+  ln.type = "number"; ln.className = "cblen"; ln.inputMode = "decimal";
+  ln.step = "0.25"; ln.min = String(BAG_MIN_IN); ln.max = String(BAG_MAX_IN);
+  ln.placeholder = "35.5"; ln.setAttribute("aria-label", "Length in inches");
+  const unit = document.createElement("span");
+  unit.className = "cbunit"; unit.textContent = "\u2033";
+  const add = document.createElement("button");
+  add.type = "button"; add.className = "cbaddgo"; add.textContent = "Add";
+  const err = document.createElement("div");
+  err.className = "cbaddhint"; err.hidden = true;
+  err.textContent = "Length is what the club-speed estimate uses - measure it if you can.";
+  open.addEventListener("click", () => {
+    form.hidden = false; err.hidden = false; open.hidden = true; nm.focus();
+  });
+  add.addEventListener("click", () => {
+    const v = parseFloat(ln.value);
+    if (!nm.value.trim()){ err.textContent = "Give it a name."; err.classList.add("bad"); return; }
+    if (!isFinite(v) || v < BAG_MIN_IN || v > BAG_MAX_IN){
+      err.textContent = `Length must be between ${BAG_MIN_IN} and ${BAG_MAX_IN} inches.`;
+      err.classList.add("bad"); return;
+    }
+    const u = ucAdd(nm.value, v);
+    if (!u) return;
+    if (!bagHas(u.id)) bagToggle(u.id);
+    bagSave(); fillClubSelects();
+    renderBagEditor(hostId, after); if (after) after();
+  });
+  ln.addEventListener("keydown", e => { if (e.key === "Enter") add.click(); });
+  nm.addEventListener("keydown", e => { if (e.key === "Enter") ln.focus(); });
+  form.append(nm, ln, unit, add);
+  wrap.append(open, form, err);
+  return wrap;
 }
 
 /* Every club picker is filled from the bag, so they cannot disagree about
