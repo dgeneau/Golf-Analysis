@@ -446,6 +446,21 @@
   .cbaddhint.bad { color: #b4632f; }
   .cbscroll { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
+  /* Swing scrubber */
+  .trkbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .trkplay { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+             border: 1px solid #ddd7c4; background: #f0ede2; color: #3c4a30;
+             font: 400 12px system-ui; line-height: 1; padding: 0; }
+  .trkscrub { flex: 1; min-width: 0; accent-color: #3c4a30; }
+  .trkread { margin-top: 7px; font: 500 11px "IBM Plex Mono", ui-monospace, monospace;
+             color: #8a8577; line-height: 1.5; }
+  .trkhgt { margin-top: 8px; }
+  .trkhgtbtn { border: 0; background: transparent; padding: 0; cursor: pointer; text-align: left;
+             font: 500 11px "IBM Plex Sans", system-ui; color: #8a9270;
+             text-decoration: underline; text-underline-offset: 2px; }
+  .trkhgtform { display: flex; align-items: center; gap: 8px; }
+  .trkhgtimp { flex: 1; font: 500 11px "IBM Plex Mono", monospace; color: #8a8577; }
+
   .mdisc { border: 0; background: transparent; padding: 0; width: 100%; text-align: left;
            font: 600 13px "IBM Plex Sans", system-ui; color: #3c4a30; cursor: pointer;
            display: flex; align-items: center; gap: 7px; }
@@ -990,8 +1005,8 @@
           <div id="dRangeStrike"></div>
         </div>
         <div class="card">
-          <h2>Average swing shape</h2>
-          <p class="note">Where your forearm points through the swing, averaged over this session, with each swing faint behind it. This is the sensor's own orientation — nothing is integrated, so nothing drifts. Drag to turn it.</p>
+          <h2>Average hand path</h2>
+          <p class="note">Your hand through the swing, averaged over this session, with each swing faint behind it. Built from the sensor's own orientation — nothing is integrated, so nothing drifts. Drag to turn it, scrub to step through.</p>
           <div id="dRangeTrack"></div>
           <p class="note" id="dRangeTrackNote"></p>
         </div>
@@ -1453,8 +1468,8 @@
             <div id="mrLast"></div>
           </div>
           <div class="mlight">
-            <h2>Average swing shape</h2>
-            <p class="mfine" style="margin-top:0">Where your forearm points through the swing, averaged over this session.</p>
+            <h2>Average hand path</h2>
+            <p class="mfine" style="margin-top:0">Your hand through the swing, averaged over this session.</p>
             <div id="mrTrack"></div>
             <p class="mfine" id="mrTrackNote" style="margin-bottom:0"></p>
           </div>
@@ -6017,10 +6032,99 @@ function rsRotTracks(rows){
     return Object.assign({}, r, {track: t});
   });
 }
+/* ---------- From where the forearm points, to where the hand is ----------
+   The sensor measures a DIRECTION, not a position. One assumption turns the
+   first into the second: the lead arm - the one the sensor is strapped to -
+   stays near enough straight through a golf swing, so the hand rides at a
+   fixed arm's length from the shoulder, and
+
+       hand = shoulder + armLength x direction
+
+   with the shoulder pinned at the origin. Nothing is integrated, so nothing
+   drifts. But be exact about what this does and does not buy.
+
+   It does NOT recover new information. Scaling a unit vector by a constant is
+   a similarity transform, so the curve traced here has exactly the shape the
+   direction sphere already had. What it adds is a frame a golfer can read: an
+   anchor at the shoulder, an arm you can see, a scrubber, and centimetres.
+
+   It cannot supply radius. Where the elbow folds - the top of the backswing,
+   mostly - the real hand comes in closer to the shoulder than this draws it,
+   and the drawing has no way to know. The shoulder is pinned too, while a
+   real one turns and slides several centimetres. Both are stated on the card
+   rather than hidden.
+
+   Segment lengths from Drillis & Contini's anthropometric ratios: upper arm
+   (acromion to radiale) 0.186H, forearm (radiale to stylion) 0.146H. */
+const H_DEFAULT_CM = 178, H_MIN_CM = 120, H_MAX_CM = 220;
+const SEG_UPPER = 0.186, SEG_FORE = 0.146;
+function bodyHeightCm(){
+  let v = NaN;
+  try { v = parseFloat(localStorage.getItem("sc-height-cm")); } catch (e){}
+  return (isFinite(v) && v >= H_MIN_CM && v <= H_MAX_CM) ? v : H_DEFAULT_CM;
+}
+function bodyHeightIsSet(){
+  try { const v = parseFloat(localStorage.getItem("sc-height-cm"));
+        return isFinite(v) && v >= H_MIN_CM && v <= H_MAX_CM; } catch (e){ return false; }
+}
+function bodyHeightSet(cm){
+  if (!isFinite(cm)) return false;
+  cm = Math.min(H_MAX_CM, Math.max(H_MIN_CM, cm));
+  try { localStorage.setItem("sc-height-cm", String(cm)); } catch (e){}
+  return true;
+}
+function heightImperial(cm){
+  const inch = cm / 2.54, ft = Math.floor(inch / 12);
+  return `${ft}′${Math.round(inch - ft*12)}″`;
+}
+function armReachM(){ return bodyHeightCm() / 100 * (SEG_UPPER + SEG_FORE); }
+function foreFrac(){ return SEG_FORE / (SEG_UPPER + SEG_FORE); }
+
+/* Scrub position along the track, as a grid index. null means "sit at impact",
+   which is where the card opens - it is the instant anyone looks at first. */
+let trkK = null, trkTimer = null;
+function trkImpactK(){ return Math.round((0 - TRACK_T0) / (TRACK_T1 - TRACK_T0) * (TRACK_N - 1)); }
+function trkTimeAt(k){ return TRACK_T0 + (TRACK_T1 - TRACK_T0) * k / (TRACK_N - 1); }
+function trkAngleStep(a, b){
+  return Math.acos(Math.max(-1, Math.min(1, a[0]*b[0] + a[1]*b[1] + a[2]*b[2])));
+}
+/* Top of the backswing: the forearm is turning slowest there, because it is
+   about to turn around. Taken from the track itself rather than carried over
+   from the detector, so it stays right for an averaged curve. */
+function trkTopK(avg){
+  const kI = trkImpactK();
+  let best = 1, bestStep = Infinity;
+  for (let k = 1; k < Math.max(2, kI - 2); k++){
+    const step = trkAngleStep(avg.mean[k-1], avg.mean[k]);
+    if (step < bestStep){ bestStep = step; best = k; }
+  }
+  return best;
+}
+/* The track window opens a fixed 1.0 s before impact, which on a slow setup is
+   still address. Rather than guess, find where the forearm actually starts
+   moving: the first step that carries it more than 8 deg from where it began. */
+function trkStartK(avg){
+  for (let k = 1; k < TRACK_N; k++)
+    if (trkAngleStep(avg.mean[0], avg.mean[k]) > 8 * Math.PI/180) return k;
+  return 0;
+}
+function trkPhase(k, kTop, kStart){
+  const kI = trkImpactK();
+  if (k >= kI - 1 && k <= kI + 1) return "impact";
+  if (k < (kStart == null ? 1 : kStart)) return "address";
+  if (k >= kTop - 1 && k <= kTop + 1) return "top";
+  if (k < kTop) return "backswing";
+  if (k < kI) return "downswing";
+  return "through";
+}
+function vcross(a, b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function vnorm(a){ const L = Math.hypot(a[0],a[1],a[2]) || 1; return [a[0]/L, a[1]/L, a[2]/L]; }
+
 function rsRenderTrack(hostId, noteId, rows, opts){
   const host = document.getElementById(hostId);
   const note = noteId ? document.getElementById(noteId) : null;
   if (!host) return;
+  if (trkTimer){ clearInterval(trkTimer); trkTimer = null; }
   host.textContent = "";
   if (rows === "loading"){ loadingLine(host, "Loading swing tracks…", "mfine"); if (note) note.textContent = ""; return; }
   if (rows === "error"){ div("mfine", host, "Couldn't load the swing tracks for this session."); return; }
@@ -6034,40 +6138,34 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     return;
   }
   const avg = rsMeanTrack(use);
+  const kI = trkImpactK(), kTop = trkTopK(avg), kStart = trkStartK(avg);
+  if (trkK == null || trkK < 0 || trkK >= TRACK_N) trkK = kI;
   const W = 340, H = 300, R = 112;
   const svg = el("svg", {width: "100%", viewBox: `0 0 ${W} ${H}`,
     style: "touch-action:none;cursor:grab", role: "img",
-    "aria-label": `Average forearm direction through the swing, ${avg.n} swings`}, host);
+    "aria-label": `Average hand path through the swing, ${avg.n} swings`}, host);
 
   const draw = () => {
     svg.textContent = "";
-    // the sphere the track lives on, as a horizon circle and a ground ellipse
-    el("circle", {cx: W/2, cy: H/2, r: R, fill: "none", stroke: "#ddd7c4"}, svg);
+    const ff = foreFrac();
+    // the sphere of everything a straight arm can reach, and shoulder height
+    el("circle", {cx: W/2, cy: H/2, r: R, fill: "none", stroke: "#e6e1d2"}, svg);
     const ell = [];
     for (let a = 0; a <= 360; a += 6){
       const r = a*Math.PI/180;
       ell.push(rsProject([Math.cos(r), Math.sin(r), 0], W, H, R));
     }
     el("path", {d: ell.map((p,i)=>`${i?"L":"M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(""),
-      fill: "none", stroke: "#e6e1d2"}, svg);
-    /* A line labelled "target" told you nothing once the view turned: there was
-       nothing in the picture to orient against. So the target gets a flag.
-       This is honest as well as legible - the sphere is a space of DIRECTIONS,
-       not positions, and a flag far enough away IS a direction, which is
-       exactly what the axis denotes. It sits on the horizon where the target
-       line meets it, and it goes behind the swing when you turn past it. */
+      fill: "none", stroke: "#efebdd"}, svg);
+    /* The target gets a flag. It sits on the horizon where the target line
+       meets it, and goes behind the swing when you turn past it - honest as
+       well as legible, since a flag far enough away IS a direction. */
     const o = rsProject([0,0,0], W, H, R);
     const tp = rsProject([1,0,0], W, H, R);
     const behind = tp.depth < 0;
     const flag = el("g", {opacity: behind ? .45 : 1}, svg);
-    // the line along the ground, from the ball out to the flag
     el("line", {x1:o.x, y1:o.y, x2:tp.x, y2:tp.y, stroke:"#c9d0ae",
-      "stroke-width":1.5, "stroke-dasharray": behind ? "3 4" : ""}, flag);
-    /* Shrink the pin as it points away from the viewer. The projection is
-       orthographic so there is no perspective to do this for us, and without
-       it the down-the-line view - where the target is straight ahead and the
-       flag lands dead centre - reads as a flag stuck at your feet rather than
-       one far down the range. */
+      "stroke-width":1.2, "stroke-dasharray": behind ? "3 4" : ""}, flag);
     const far = 1 - 0.42*Math.max(0, tp.depth);
     const pinH = 27 * far * (0.45 + 0.55*Math.cos(trkEl));
     const fw = 13 * far;
@@ -6080,16 +6178,13 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     el("text", {x:tp.x, y:tp.y+13, "text-anchor":"middle",
       style:"font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, flag)
       .textContent = squared ? "target" : "address";
-    // straight up, for the vertical reference
     const up = rsProject([0,0,1], W, H, R);
-    el("line", {x1:o.x, y1:o.y, x2:up.x, y2:up.y, stroke:"#e0dcca", "stroke-width":1.2}, svg);
+    el("line", {x1:o.x, y1:o.y, x2:up.x, y2:up.y, stroke:"#e6e1d2", "stroke-width":1}, svg);
     el("text", {x:up.x, y:up.y-5, "text-anchor":"middle",
       style:"font:9px 'IBM Plex Mono',monospace;fill:#b0a892"}, svg).textContent = "up";
-    // the swings themselves, faint — a truer picture of spread than an envelope
-    // A wrist cannot cross 45° of arc in one 32 ms step, so a jump that big is
-    // the Euler heading giving way near vertical, not a movement. Break the
-    // line there: a gap says "unknown", a chord would draw a swing that never
-    // happened — and these faint curves are the honest part of the picture.
+    /* Each swing, faint. A wrist cannot cross 45 deg of arc in one 32 ms step,
+       so a jump that big is the Euler heading giving way near vertical, not a
+       movement - break the line rather than draw a swing that never happened. */
     const MAXSTEP = Math.cos(45 * Math.PI/180);
     for (const w of use.slice(0, TRK.MAX_DRAW)){
       let d = "", prev = null;
@@ -6100,35 +6195,57 @@ function rsRenderTrack(hostId, noteId, rows, opts){
         d += `${(!prev || jump) ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`;
         prev = v;
       }
-      el("path", {d, fill:"none", stroke:"#8a9270", "stroke-width":1, opacity:.22}, svg);
+      el("path", {d, fill:"none", stroke:"#8a9270", "stroke-width":1, opacity:.18}, svg);
     }
-    // the mean track, thickness carrying how much the swings disagreed there
+    // the average hand path: travelled so far solid, still to come faint
     for (let k = 1; k < TRACK_N; k++){
       const a = rsProject(avg.mean[k-1], W, H, R), b = rsProject(avg.mean[k], W, H, R);
       const spread = (avg.sd[k-1] + avg.sd[k]) / 2;
       const iffy = avg.shaky[k-1] || avg.shaky[k];
+      const past = k <= trkK;
       el("line", {x1:a.x, y1:a.y, x2:b.x, y2:b.y,
         stroke: iffy ? "#b0a892" : "#3c4a30",
         "stroke-width": Math.max(1.5, Math.min(7, spread/3)),
         "stroke-dasharray": iffy ? "3 3" : "",
-        "stroke-linecap":"round", opacity: iffy ? .7 : .92}, svg);
+        "stroke-linecap":"round",
+        opacity: past ? (iffy ? .7 : .92) : (iffy ? .2 : .26)}, svg);
     }
-    // where impact falls on the grid, and where the track begins
-    const kImpact = Math.round((0 - TRACK_T0) / (TRACK_T1 - TRACK_T0) * (TRACK_N - 1));
-    // The forearm genuinely points about the same way at address as at impact,
-    // so these two markers often project on top of each other. Drop the start
-    // label rather than stack the two.
-    const pI = rsProject(avg.mean[kImpact], W, H, R), p0 = rsProject(avg.mean[0], W, H, R);
-    const collide = Math.hypot(pI.x - p0.x, pI.y - p0.y) < 46
-                 || Math.hypot(tp.x - p0.x, tp.y - p0.y) < 40;
-    for (const [k, col, lbl] of [[0, "#8a8577", collide ? "" : "−1.0 s"], [kImpact, "#b4632f", "impact"]]){
-      const p = rsProject(avg.mean[k], W, H, R);
-      el("circle", {cx:p.x, cy:p.y, r: k === kImpact ? 5 : 3.5, fill: col}, svg);
-      if (!lbl) continue;
-      el("text", {x: p.x + (k === kImpact ? 8 : -8), y: p.y + (k === kImpact ? 3 : -8),
-        "text-anchor": k === kImpact ? "start" : "end",
-        style:"font:10px 'IBM Plex Mono',monospace;fill:"+col}, svg).textContent = lbl;
-    }
+    // impact, always marked, so the scrubber has something to come home to
+    const pI = rsProject(avg.mean[kI], W, H, R);
+    el("circle", {cx:pI.x, cy:pI.y, r:4, fill:"#b4632f", opacity: trkK === kI ? 0 : .9}, svg);
+    /* The arm. Only the outer stretch is measured - that is the forearm the
+       sensor sits on - so the upper arm is drawn lighter and the elbow left
+       hollow: on this model it is wherever a straight arm puts it, not
+       somewhere the sensor found. */
+    const v = avg.mean[trkK];
+    const pS = rsProject([0,0,0], W, H, R);
+    const pE = rsProject([v[0]*(1-ff), v[1]*(1-ff), v[2]*(1-ff)], W, H, R);
+    const pH = rsProject(v, W, H, R);
+    el("line", {x1:pS.x, y1:pS.y, x2:pE.x, y2:pE.y, stroke:"#b0a892",
+      "stroke-width":3.5, "stroke-linecap":"round", opacity:.85}, svg);
+    el("line", {x1:pE.x, y1:pE.y, x2:pH.x, y2:pH.y, stroke:"#23221c",
+      "stroke-width":4.5, "stroke-linecap":"round"}, svg);
+    /* Forearm rotation, as a tick across the back of the wrist. Zeroed at the
+       start of the track: the strap's own rotation on the arm is unknown, so
+       absolute roll means nothing, while the CHANGE from address is exactly
+       the forearm rotation through the swing. Not the club face - the wrist
+       hinge between forearm and shaft is a joint this sensor cannot see. */
+    const e1 = vnorm(vcross(Math.abs(v[2]) > 0.98 ? [1,0,0] : [0,0,1], v));
+    const e2 = vcross(v, e1);
+    const rel = (avg.roll[trkK] - avg.roll[0]) * Math.PI/180;
+    const cr = Math.cos(rel), sr = Math.sin(rel), TK = 0.17;
+    const tA = rsProject([v[0] + TK*(e1[0]*cr + e2[0]*sr), v[1] + TK*(e1[1]*cr + e2[1]*sr),
+                          v[2] + TK*(e1[2]*cr + e2[2]*sr)], W, H, R);
+    const tB = rsProject([v[0] - TK*(e1[0]*cr + e2[0]*sr), v[1] - TK*(e1[1]*cr + e2[1]*sr),
+                          v[2] - TK*(e1[2]*cr + e2[2]*sr)], W, H, R);
+    el("line", {x1:tA.x, y1:tA.y, x2:tB.x, y2:tB.y, stroke:"#8a9270",
+      "stroke-width":2.2, "stroke-linecap":"round"}, svg);
+    el("circle", {cx:pS.x, cy:pS.y, r:5, fill:"#23221c"}, svg);
+    el("text", {x:pS.x - 9, y:pS.y - 7, "text-anchor":"end",
+      style:"font:9px 'IBM Plex Mono',monospace;fill:#8a8577"}, svg).textContent = "shoulder";
+    el("circle", {cx:pE.x, cy:pE.y, r:3.2, fill:"#f8f6ee", stroke:"#b0a892", "stroke-width":1.5}, svg);
+    el("circle", {cx:pH.x, cy:pH.y, r:5.5, fill:"#23221c"}, svg);
+    el("circle", {cx:pH.x, cy:pH.y, r:2, fill:"#f8f6ee"}, svg);
   };
   draw();
 
@@ -6151,6 +6268,85 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     host.appendChild(bar);
   }
 
+  // ---- scrubber ----
+  const bar = div("trkbar", host);
+  const play = document.createElement("button");
+  play.type = "button"; play.className = "trkplay";
+  play.setAttribute("aria-label", "Play the swing");
+  play.textContent = "▶";
+  const scrub = document.createElement("input");
+  scrub.type = "range"; scrub.className = "trkscrub";
+  scrub.min = "0"; scrub.max = String(TRACK_N - 1); scrub.step = "1";
+  scrub.value = String(trkK);
+  scrub.setAttribute("aria-label", "Position in the swing");
+  bar.append(play, scrub);
+  const read = div("trkread", host);
+
+  const refresh = () => {
+    scrub.value = String(trkK);
+    const AL = armReachM();            // read live: changing your height rescales this
+    const v = avg.mean[trkK];
+    /* The 40-step grid lands 6 ms short of impact, so the impact step would
+       read "-0.01 s" under a label saying "impact". Name it instead of
+       rounding it away. */
+    const t = trkTimeAt(trkK);
+    const tTxt = trkK === kI ? ""
+      : `${t > 0 ? "+" : "\u2212"}${Math.abs(t).toFixed(2)} s`;
+    const below = -v[2] * AL, along = v[0] * AL;
+    const rel = avg.roll[trkK] - avg.roll[0];
+    read.textContent = `${trkPhase(trkK, kTop, kStart)}${tTxt ? " · " + tTxt : ""} · hand ${Math.round(Math.abs(below)*100)} cm `
+      + `${below >= 0 ? "below" : "above"} the shoulder, `
+      + `${Math.round(Math.abs(along)*100)} cm ${along >= 0 ? "toward" : "back from"} the target `
+      + `· forearm ${rel >= 0 ? "+" : "−"}${Math.abs(Math.round(rel))}°`;
+    draw();
+  };
+  refresh();
+  const stop = () => { if (trkTimer){ clearInterval(trkTimer); trkTimer = null; } play.textContent = "▶"; };
+  scrub.addEventListener("input", () => { stop(); trkK = +scrub.value; refresh(); });
+  play.addEventListener("click", () => {
+    if (trkTimer){ stop(); return; }
+    if (trkK >= TRACK_N - 1) trkK = 0;
+    play.textContent = "❚❚";
+    trkTimer = setInterval(() => {
+      trkK++;
+      if (trkK >= TRACK_N - 1){ trkK = TRACK_N - 1; refresh(); stop(); return; }
+      refresh();
+    }, 70);
+  });
+
+  // ---- the one number the whole reconstruction rides on ----
+  const hgt = div("trkhgt", host);
+  const lab = document.createElement("button");
+  lab.type = "button"; lab.className = "trkhgtbtn";
+  const relabel = () => {
+    lab.textContent = `arm ${Math.round(armReachM()*100)} cm, from a height of `
+      + `${bodyHeightCm()} cm${bodyHeightIsSet() ? "" : " (assumed)"} — change`;
+  };
+  relabel();
+  const form = div("trkhgtform", hgt); form.hidden = true;
+  const inp = document.createElement("input");
+  inp.type = "number"; inp.className = "cblen"; inp.inputMode = "decimal";
+  inp.min = String(H_MIN_CM); inp.max = String(H_MAX_CM); inp.step = "1";
+  inp.value = String(bodyHeightCm());
+  inp.setAttribute("aria-label", "Your height in centimetres");
+  const unit = document.createElement("span");
+  unit.className = "cbunit"; unit.style.width = "auto"; unit.textContent = "cm";
+  const imp = document.createElement("span"); imp.className = "trkhgtimp";
+  const go = document.createElement("button");
+  go.type = "button"; go.className = "cbaddgo"; go.textContent = "Set";
+  const showImp = () => { const v = parseFloat(inp.value);
+    imp.textContent = isFinite(v) ? heightImperial(v) : ""; };
+  showImp();
+  inp.addEventListener("input", showImp);
+  go.addEventListener("click", () => {
+    bodyHeightSet(parseFloat(inp.value));
+    form.hidden = true; lab.hidden = false; relabel(); refresh();
+  });
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") go.click(); });
+  lab.addEventListener("click", () => { form.hidden = false; lab.hidden = true; inp.focus(); });
+  form.append(inp, unit, imp, go);
+  hgt.insertBefore(lab, form);
+
   // drag to rotate
   let dragging = false, lx = 0, ly = 0;
   const down = e => { dragging = true; lx = (e.touches?e.touches[0]:e).clientX;
@@ -6164,28 +6360,31 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     if (e.cancelable) e.preventDefault();
     draw();
   };
-  const up = () => { dragging = false; svg.style.cursor = "grab"; };
+  const upEv = () => { dragging = false; svg.style.cursor = "grab"; };
   svg.addEventListener("pointerdown", down);
   svg.addEventListener("pointermove", move);
-  svg.addEventListener("pointerup", up);
-  svg.addEventListener("pointerleave", up);
+  svg.addEventListener("pointerup", upEv);
+  svg.addEventListener("pointerleave", upEv);
 
   if (note){
     const worst = Math.max(...avg.sd), best = Math.min(...avg.sd);
-    const kI = Math.round((0 - TRACK_T0) / (TRACK_T1 - TRACK_T0) * (TRACK_N - 1));
     const a0 = avg.mean[0], a1 = avg.mean[TRACK_N - 1];
-    const sweep = Math.acos(Math.max(-1, Math.min(1, a0[0]*a1[0] + a0[1]*a1[1] + a0[2]*a1[2]))) * 180/Math.PI;
+    const sweep = trkAngleStep(a0, a1) * 180/Math.PI;
     const nShaky = avg.shaky.filter(Boolean).length;
     note.textContent = (squared ? "" :
-        "The horizontal axis is your address heading, not the target line — "
+        "The target axis is your address heading, not the target line — "
       + "the two are far apart until you set square at the range. ")
       + `${avg.n} clean swing${avg.n === 1 ? "" : "s"}. `
-      + `The line thickens where they disagreed: ${best.toFixed(0)}° at your steadiest point, `
+      + "The sensor measures where your forearm points, so the hand is drawn an "
+      + "arm's length from a shoulder held still. That is right wherever your "
+      + "lead arm is straight — address through impact — and draws the hand too "
+      + "far out at the top, where the elbow folds. "
+      + `The line thickens where the swings disagreed: ${best.toFixed(0)}° at your steadiest point, `
       + `${worst.toFixed(0)}° at your loosest, ${avg.sd[kI].toFixed(0)}° at impact — `
       + `against about ${sweep.toFixed(0)}° of total sweep. `
       + (nShaky ? "The dashed stretch is where the forearm passes near vertical and the sensor's "
                 + "heading stops being well defined; treat its shape loosely. " : "")
-      + `Drag to turn it.`;
+      + "Drag to turn it, scrub to walk through the swing.";
   }
 }
 
