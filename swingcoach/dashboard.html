@@ -6104,43 +6104,24 @@ function trkStartK(avg){
     if (trkAngleStep(avg.mean[0], avg.mean[k]) > 8 * Math.PI/180) return k;
   return 0;
 }
-/* The tangent to this curve IS the hand's velocity direction, under the very
-   model the curve is drawn with: if hand = R x d with R constant, then
-   v = R x dd/dt. So the arc makes its own claim about swing path - and the app
-   already holds a second, wholly independent one, integrated from the free
-   acceleration at impact (metrics.path_angle_raw_deg). Different channel of
-   the sensor, different arithmetic. Printing both turns the card into a
-   standing check on itself: when they part company, the drawing is not to be
-   believed near impact, and nobody has to take my word for it. */
-const TRK_TAN_W = 3;
-function trkTangent(mean, k, w){
-  w = w || TRK_TAN_W;
-  const m = mean[k];
-  let t = [0, 0, 0];
-  for (let j = 1; j <= w; j++){
-    const a = mean[Math.max(0, k - j)], b = mean[Math.min(TRACK_N - 1, k + j)];
-    t = [t[0] + (b[0]-a[0])/j, t[1] + (b[1]-a[1])/j, t[2] + (b[2]-a[2])/j];
-  }
-  const radial = t[0]*m[0] + t[1]*m[1] + t[2]*m[2];   // keep it tangent to the sphere
-  t = [t[0] - radial*m[0], t[1] - radial*m[1], t[2] - radial*m[2]];
-  return Math.hypot(t[0],t[1],t[2]) < 1e-9 ? null : vnorm(t);
-}
-/* Widened on purpose. A three-point difference at a 32 ms grid step is a
-   difference of two noisy unit vectors, and differencing amplifies: measured
-   against a synthetic swing of known impact bearing over 40 independent noise
-   draws, a +/-1 window carried 0.95 deg of scatter and 2.15 deg at worst,
-   +/-3 carries 0.38 deg. The symmetric window costs almost no bias (0.12 deg
-   there) because the tangent rotates close to linearly in time through
-   impact, so averaging it symmetrically lands back on the middle. Wider than
-   this starts swallowing a real quarter of the downswing. */
-function trkPathOf(track, k){
-  const mean = [];
-  for (let i = 0; i < TRACK_N; i++) mean.push([track[i*4], track[i*4+1], track[i*4+2]]);
-  const T = trkTangent(mean, k);
-  return T ? trkPathDeg(T) : null;
-}
-/* Median and the standard error of that median, so a number can be quoted
-   with the precision it has earned rather than to one decimal regardless. */
+/* The arrow: your hand's direction of travel at impact.
+
+   It used to be the tangent to the averaged arc, on the reasoning that under a
+   fixed radius the tangent IS the hand's velocity. True in principle, and wrong
+   in practice, because the arc is sampled every 32 ms and a driver's forearm
+   turns roughly 30 deg in that time going into impact. On a single fixed plane
+   that would not matter - every symmetric chord of a great circle is parallel
+   to its tangent - and the fixture used to validate it was exactly that: one
+   plane, and a downswing twice as slow as a real one. A real arm leaves its
+   plane as it swings up through the finish; against a fixture that does, at a
+   real ~36 deg/step into impact, the +/-3 window erred by ~5 deg and +/-1 by
+   ~3 deg. Widening the window, as 05a6a6c did, made it worse, not better.
+
+   So the arrow now comes from the velocity at impact that the app already
+   integrates at the full 60 Hz for its path number (path_angle_raw_deg, with
+   attack_angle_deg for the vertical). It is therefore the SAME quantity as the
+   path readout, and the picture and the number cannot disagree. Per swing,
+   then the median, with the standard error of that median. */
 function trkMedSe(vals){
   if (!vals.length) return null;
   const med = rsMedian3(vals);
@@ -6148,11 +6129,14 @@ function trkMedSe(vals){
   const sd = rsMedian3(vals.map(v => Math.abs(v - med))) * 1.4826;
   return {med, se: 1.253 * sd / Math.sqrt(vals.length), n: vals.length};
 }
-/* Same frame and same sign convention as metrics: the track is already rotated
-   into the address frame, +x down the target line, and path is -atan2(y, x). */
-function trkPathDeg(T){ return -Math.atan2(T[1], T[0]) * 180/Math.PI; }
 function pathWord(d){ return d > 1 ? "in-to-out" : (d < -1 ? "out-to-in" : "neutral"); }
 function sgn1(d){ return (d >= 0 ? "+" : "\u2212") + Math.abs(d).toFixed(1); }
+/* metrics: path = -atan2(y, x) in the address frame, attack = elevation. The
+   track is in that same frame after rsRotTracks, so the inverse is direct. */
+function travelDir(pathDeg, attackDeg){
+  const bearing = -pathDeg * Math.PI/180, el = (attackDeg || 0) * Math.PI/180;
+  return [Math.cos(el)*Math.cos(bearing), Math.cos(el)*Math.sin(bearing), Math.sin(el)];
+}
 
 /* Where the straight-arm reconstruction is worth drawing solid. The lead arm
    is near enough straight from address, through the takeaway and the top, and
@@ -6197,15 +6181,13 @@ function rsRenderTrack(hostId, noteId, rows, opts){
   }
   const avg = rsMeanTrack(use);
   const kI = trkImpactK(), kTop = trkTopK(avg), kStart = trkStartK(avg);
-  const Timp = trkTangent(avg.mean, kI);
-  /* Both channels measured the same way: per swing, then the median and the
-     standard error of that median. Quoting the arc's path off the averaged
-     curve alone would hide how much the swings disagreed about it. */
-  const arc = trkMedSe(use.map(r => trkPathOf(r.track, kI)).filter(v => v != null));
+  /* Direction of travel at impact, from the integrated velocity - see
+     travelDir. Clipped swings are already out of `use`. */
   const cal = (typeof window !== "undefined" && window.__pathCal) || 0;
-  const vel = trkMedSe(use.map(r => r.m && r.m.path_angle_raw_deg)
-                          .filter(v => typeof v === "number").map(v => v - cal));
-  const arcPath = arc ? arc.med : null, velPath = vel ? vel.med : null;
+  const withV = use.filter(r => r.m && typeof r.m.path_angle_raw_deg === "number");
+  const vel = trkMedSe(withV.map(r => r.m.path_angle_raw_deg - cal));
+  const att = trkMedSe(withV.map(r => typeof r.m.attack_angle_deg === "number" ? r.m.attack_angle_deg : 0));
+  const Timp = vel ? travelDir(vel.med, att ? att.med : 0) : null;
   const pm = r => r.se == null ? `${sgn1(r.med)}\u00b0`
                                : `${sgn1(r.med)} \u00b1 ${r.se.toFixed(1)}\u00b0`;
   if (trkK == null || trkK < 0 || trkK >= TRACK_N) trkK = kI;
@@ -6226,27 +6208,40 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     }
     el("path", {d: ell.map((p,i)=>`${i?"L":"M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(""),
       fill: "none", stroke: "#efebdd"}, svg);
-    /* The target gets a flag. It sits on the horizon where the target line
-       meets it, and goes behind the swing when you turn past it - honest as
-       well as legible, since a flag far enough away IS a direction. */
+    /* A flag means "target" to every golfer, so it is only drawn when the
+       horizontal axis IS the target line - after Set square. Before that the
+       axis is the heading the forearm had at address, which on real swings
+       sits far from the target line (across 94 measured swings the direction
+       of travel at impact was 166 deg from it). Drawing a flag on that axis
+       invited exactly the reading it could not support: an arrow "pointing
+       perpendicular to the target". Unsquared, it is a plain dashed axis with
+       its real name on it. */
     const o = rsProject([0,0,0], W, H, R);
     const tp = rsProject([1,0,0], W, H, R);
     const behind = tp.depth < 0;
-    const flag = el("g", {opacity: behind ? .45 : 1}, svg);
-    el("line", {x1:o.x, y1:o.y, x2:tp.x, y2:tp.y, stroke:"#c9d0ae",
-      "stroke-width":1.2, "stroke-dasharray": behind ? "3 4" : ""}, flag);
-    const far = 1 - 0.42*Math.max(0, tp.depth);
-    const pinH = 27 * far * (0.45 + 0.55*Math.cos(trkEl));
-    const fw = 13 * far;
-    el("line", {x1:tp.x, y1:tp.y, x2:tp.x, y2:tp.y-pinH,
-      stroke:"#6e6a5f", "stroke-width":1.4, "stroke-linecap":"round"}, flag);
-    el("path", {d:`M${tp.x},${(tp.y-pinH).toFixed(1)} L${(tp.x+fw).toFixed(1)},`
-      + `${(tp.y-pinH+fw*0.38).toFixed(1)} L${tp.x},${(tp.y-pinH+fw*0.77).toFixed(1)} Z`,
-      fill:"#b4632f"}, flag);
-    el("circle", {cx:tp.x, cy:tp.y, r:2.2*far, fill:"#6e6a5f"}, flag);
-    el("text", {x:tp.x, y:tp.y+13, "text-anchor":"middle",
-      style:"font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, flag)
-      .textContent = squared ? "target" : "address";
+    if (squared){
+      const flag = el("g", {opacity: behind ? .45 : 1}, svg);
+      el("line", {x1:o.x, y1:o.y, x2:tp.x, y2:tp.y, stroke:"#c9d0ae",
+        "stroke-width":1.2, "stroke-dasharray": behind ? "3 4" : ""}, flag);
+      const far = 1 - 0.42*Math.max(0, tp.depth);
+      const pinH = 27 * far * (0.45 + 0.55*Math.cos(trkEl));
+      const fw = 13 * far;
+      el("line", {x1:tp.x, y1:tp.y, x2:tp.x, y2:tp.y-pinH,
+        stroke:"#6e6a5f", "stroke-width":1.4, "stroke-linecap":"round"}, flag);
+      el("path", {d:`M${tp.x},${(tp.y-pinH).toFixed(1)} L${(tp.x+fw).toFixed(1)},`
+        + `${(tp.y-pinH+fw*0.38).toFixed(1)} L${tp.x},${(tp.y-pinH+fw*0.77).toFixed(1)} Z`,
+        fill:"#b4632f"}, flag);
+      el("circle", {cx:tp.x, cy:tp.y, r:2.2*far, fill:"#6e6a5f"}, flag);
+      el("text", {x:tp.x, y:tp.y+13, "text-anchor":"middle",
+        style:"font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, flag).textContent = "target";
+    } else {
+      const ax = el("g", {opacity: behind ? .5 : .9}, svg);
+      el("line", {x1:o.x, y1:o.y, x2:tp.x, y2:tp.y, stroke:"#b0a892",
+        "stroke-width":1.1, "stroke-dasharray":"2 4"}, ax);
+      el("text", {x:tp.x, y:tp.y+13, "text-anchor":"middle",
+        style:"font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, ax)
+        .textContent = "address heading";
+    }
     /* Looking straight down, "up" is a dot in the middle of the picture, and
        its label lands on the impact arrow. Drop it once it is too
        foreshortened to mean anything. */
@@ -6403,7 +6398,9 @@ function rsRenderTrack(hostId, noteId, rows, opts){
        elbow has already invalidated. */
     const place = trkTrusted(trkK, kStart, kI)
       ? `hand ${Math.round(Math.abs(below)*100)} cm ${below >= 0 ? "below" : "above"} the `
-        + `shoulder, ${Math.round(Math.abs(along)*100)} cm ${along >= 0 ? "toward" : "back from"} the target`
+        + `shoulder, ${Math.round(Math.abs(along)*100)} cm `
+        + (squared ? `${along >= 0 ? "toward" : "back from"} the target`
+                   : `${along >= 0 ? "along" : "against"} the address heading`)
       : "position approximate here \u2014 the elbow folds and the hand comes in";
     read.textContent = `${trkPhase(trkK, kTop, kStart)}${tTxt ? " · " + tTxt : ""} · ${place} · forearm ${rel >= 0 ? "+" : "−"}${Math.abs(Math.round(rel))}°`;
     draw();
@@ -6479,8 +6476,11 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     const a0 = avg.mean[0], a1 = avg.mean[TRACK_N - 1];
     const sweep = trkAngleStep(a0, a1) * 180/Math.PI;
     note.textContent = (squared ? "" :
-        "The target axis is your address heading, not the target line — "
-      + "the two are far apart until you set square at the range. ")
+        "Not squared yet, so there is no target in this picture: the dashed "
+      + "axis is the heading your forearm had at address, which is nowhere near "
+      + "the target line, and the arrow is not meant to point along it. Hit a "
+      + "few normal swings at a target and tap Set square on the path screen; "
+      + "the axis then becomes a flag. ")
       + `${avg.n} clean swing${avg.n === 1 ? "" : "s"}. `
       + "What the sensor measures is where your forearm POINTS. Your hand is "
       + "that same curve rescaled to arm's length from a fixed shoulder, so it "
@@ -6489,18 +6489,16 @@ function rsRenderTrack(hostId, noteId, rows, opts){
       + "that follow-through, plus anywhere the heading gives way near "
       + "vertical. Treat their shape loosely. "
       + "The arc is a closed loop around your body, so it never points anywhere. "
-      + "The arrow does: it is your hand's direction of travel at impact, which "
-      + "for a square strike runs very nearly down the target line. "
-      + (arc
-         ? `Off the arc that is ${pm(arc)} (${pathWord(arc.med)})`
-           + (vel
-              ? `, against ${pm(vel)} from the velocity at impact, which the app `
-                + "integrates from a different channel of the sensor. The two share "
-                + "no arithmetic, so the gap between them is this drawing's error "
-                + `bar: ${Math.abs(arc.med - vel.med).toFixed(1)}\u00b0 here`
-                + (Math.abs(arc.med - vel.med) > 10
-                   ? ", which is too wide to read the arrow literally. " : ". ")
-              : ". ")
+      + "The arrow does: it is your hand's direction of travel at impact, from "
+      + "the velocity the app integrates at full rate \u2014 the same number as your "
+      + "path readout, so the two cannot disagree. "
+      + (vel
+         ? `Here it is ${pm(vel)} (${pathWord(vel.med)})`
+           + (squared ? " against the target line. "
+                      : ", which only means something once squared. ")
+           + (squared ? "Set square zeroes path on your own recent swings, so the "
+                      + "arrow sits near the flag partly by construction; what it shows "
+                      + "is how this session differs from that reference. " : "")
          : "")
       + `The line thickens where the swings disagreed: ${best.toFixed(0)}\u00b0 at your steadiest `
       + `point, ${worst.toFixed(0)}\u00b0 at your loosest, ${avg.sd[kI].toFixed(0)}\u00b0 at impact \u2014 `
