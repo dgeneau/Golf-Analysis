@@ -997,7 +997,7 @@
         </div>
         <div class="card">
           <h2>Average hand path</h2>
-          <p class="note">Your hand through the swing, averaged over this session, with each swing faint behind it. Built from the sensor's own orientation — nothing is integrated, so nothing drifts. Drag to turn it, scrub to step through.</p>
+          <p class="note">Where your forearm points through the swing, drawn as your hand at arm's length from a fixed shoulder. Orientation, not a measured position — nothing is integrated, so nothing drifts. The arrow is your direction of travel at impact. Drag to turn it, scrub to step through.</p>
           <div id="dRangeTrack"></div>
           <p class="note" id="dRangeTrackNote"></p>
         </div>
@@ -1460,7 +1460,7 @@
           </div>
           <div class="mlight">
             <h2>Average hand path</h2>
-            <p class="mfine" style="margin-top:0">Your hand through the swing, averaged over this session.</p>
+            <p class="mfine" style="margin-top:0">Where your forearm points, drawn as your hand at arm's length from a fixed shoulder. The arrow is your direction of travel at impact.</p>
             <div id="mrTrack"></div>
             <p class="mfine" id="mrTrackNote" style="margin-bottom:0"></p>
           </div>
@@ -6039,11 +6039,16 @@ function rsRotTracks(rows){
    direction sphere already had. What it adds is a frame a golfer can read: an
    anchor at the shoulder, an arm you can see, a scrubber, and centimetres.
 
-   It cannot supply radius. Where the elbow folds - the top of the backswing,
-   mostly - the real hand comes in closer to the shoulder than this draws it,
-   and the drawing has no way to know. The shoulder is pinned too, while a
-   real one turns and slides several centimetres. Both are stated on the card
-   rather than hidden.
+   It cannot supply radius. Where the elbow folds - hard, through the
+   follow-through, and a little at the top - the real hand comes in closer to
+   the shoulder than this draws it, and the drawing has no way to know. The
+   shoulder is pinned too, while a real one turns and slides several
+   centimetres. Both are stated on the card rather than hidden.
+
+   There is one independent check on all of it, and the card runs it: under
+   this model the tangent to the curve IS the hand's velocity, and the app
+   separately integrates that velocity from free acceleration to get its path
+   number. Two channels, no shared arithmetic. The note prints both.
 
    Segment lengths from Drillis & Contini's anthropometric ratios: upper arm
    (acromion to radiale) 0.186H, forearm (radiale to stylion) 0.146H. */
@@ -6099,6 +6104,68 @@ function trkStartK(avg){
     if (trkAngleStep(avg.mean[0], avg.mean[k]) > 8 * Math.PI/180) return k;
   return 0;
 }
+/* The tangent to this curve IS the hand's velocity direction, under the very
+   model the curve is drawn with: if hand = R x d with R constant, then
+   v = R x dd/dt. So the arc makes its own claim about swing path - and the app
+   already holds a second, wholly independent one, integrated from the free
+   acceleration at impact (metrics.path_angle_raw_deg). Different channel of
+   the sensor, different arithmetic. Printing both turns the card into a
+   standing check on itself: when they part company, the drawing is not to be
+   believed near impact, and nobody has to take my word for it. */
+const TRK_TAN_W = 3;
+function trkTangent(mean, k, w){
+  w = w || TRK_TAN_W;
+  const m = mean[k];
+  let t = [0, 0, 0];
+  for (let j = 1; j <= w; j++){
+    const a = mean[Math.max(0, k - j)], b = mean[Math.min(TRACK_N - 1, k + j)];
+    t = [t[0] + (b[0]-a[0])/j, t[1] + (b[1]-a[1])/j, t[2] + (b[2]-a[2])/j];
+  }
+  const radial = t[0]*m[0] + t[1]*m[1] + t[2]*m[2];   // keep it tangent to the sphere
+  t = [t[0] - radial*m[0], t[1] - radial*m[1], t[2] - radial*m[2]];
+  return Math.hypot(t[0],t[1],t[2]) < 1e-9 ? null : vnorm(t);
+}
+/* Widened on purpose. A three-point difference at a 32 ms grid step is a
+   difference of two noisy unit vectors, and differencing amplifies: measured
+   against a synthetic swing of known impact bearing over 40 independent noise
+   draws, a +/-1 window carried 0.95 deg of scatter and 2.15 deg at worst,
+   +/-3 carries 0.38 deg. The symmetric window costs almost no bias (0.12 deg
+   there) because the tangent rotates close to linearly in time through
+   impact, so averaging it symmetrically lands back on the middle. Wider than
+   this starts swallowing a real quarter of the downswing. */
+function trkPathOf(track, k){
+  const mean = [];
+  for (let i = 0; i < TRACK_N; i++) mean.push([track[i*4], track[i*4+1], track[i*4+2]]);
+  const T = trkTangent(mean, k);
+  return T ? trkPathDeg(T) : null;
+}
+/* Median and the standard error of that median, so a number can be quoted
+   with the precision it has earned rather than to one decimal regardless. */
+function trkMedSe(vals){
+  if (!vals.length) return null;
+  const med = rsMedian3(vals);
+  if (vals.length < 3) return {med, se: null, n: vals.length};
+  const sd = rsMedian3(vals.map(v => Math.abs(v - med))) * 1.4826;
+  return {med, se: 1.253 * sd / Math.sqrt(vals.length), n: vals.length};
+}
+/* Same frame and same sign convention as metrics: the track is already rotated
+   into the address frame, +x down the target line, and path is -atan2(y, x). */
+function trkPathDeg(T){ return -Math.atan2(T[1], T[0]) * 180/Math.PI; }
+function pathWord(d){ return d > 1 ? "in-to-out" : (d < -1 ? "out-to-in" : "neutral"); }
+function sgn1(d){ return (d >= 0 ? "+" : "\u2212") + Math.abs(d).toFixed(1); }
+
+/* Where the straight-arm reconstruction is worth drawing solid. The lead arm
+   is near enough straight from address, through the takeaway and the top, and
+   down into impact - it carries some flexion at the top, but not much. Past
+   impact the lead elbow folds hard, and that pulls the real hand in toward
+   the shoulder by far more than this drawing can admit, so everything beyond
+   a few frames after impact is a guess. Address itself is the most reliable
+   point on the whole curve, not the least, so nothing before the takeaway is
+   marked down. These bounds are golf, not measurement - the sensor cannot see
+   the elbow - so they are drawn as a hint and said out loud in the note. */
+const TRK_TRUST_AFTER = 5;
+function trkTrusted(k, kStart, kI){ return k <= kI + TRK_TRUST_AFTER; }
+
 function trkPhase(k, kTop, kStart){
   const kI = trkImpactK();
   if (k >= kI - 1 && k <= kI + 1) return "impact";
@@ -6130,6 +6197,17 @@ function rsRenderTrack(hostId, noteId, rows, opts){
   }
   const avg = rsMeanTrack(use);
   const kI = trkImpactK(), kTop = trkTopK(avg), kStart = trkStartK(avg);
+  const Timp = trkTangent(avg.mean, kI);
+  /* Both channels measured the same way: per swing, then the median and the
+     standard error of that median. Quoting the arc's path off the averaged
+     curve alone would hide how much the swings disagreed about it. */
+  const arc = trkMedSe(use.map(r => trkPathOf(r.track, kI)).filter(v => v != null));
+  const cal = (typeof window !== "undefined" && window.__pathCal) || 0;
+  const vel = trkMedSe(use.map(r => r.m && r.m.path_angle_raw_deg)
+                          .filter(v => typeof v === "number").map(v => v - cal));
+  const arcPath = arc ? arc.med : null, velPath = vel ? vel.med : null;
+  const pm = r => r.se == null ? `${sgn1(r.med)}\u00b0`
+                               : `${sgn1(r.med)} \u00b1 ${r.se.toFixed(1)}\u00b0`;
   if (trkK == null || trkK < 0 || trkK >= TRACK_N) trkK = kI;
   const W = 340, H = 300, R = 112;
   const svg = el("svg", {width: "100%", viewBox: `0 0 ${W} ${H}`,
@@ -6169,10 +6247,15 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     el("text", {x:tp.x, y:tp.y+13, "text-anchor":"middle",
       style:"font:9px 'IBM Plex Mono',monospace;fill:#6e6a5f"}, flag)
       .textContent = squared ? "target" : "address";
-    const up = rsProject([0,0,1], W, H, R);
-    el("line", {x1:o.x, y1:o.y, x2:up.x, y2:up.y, stroke:"#e6e1d2", "stroke-width":1}, svg);
-    el("text", {x:up.x, y:up.y-5, "text-anchor":"middle",
-      style:"font:9px 'IBM Plex Mono',monospace;fill:#b0a892"}, svg).textContent = "up";
+    /* Looking straight down, "up" is a dot in the middle of the picture, and
+       its label lands on the impact arrow. Drop it once it is too
+       foreshortened to mean anything. */
+    if (Math.cos(trkEl) > 0.35){
+      const up = rsProject([0,0,1], W, H, R);
+      el("line", {x1:o.x, y1:o.y, x2:up.x, y2:up.y, stroke:"#e6e1d2", "stroke-width":1}, svg);
+      el("text", {x:up.x, y:up.y-5, "text-anchor":"middle",
+        style:"font:9px 'IBM Plex Mono',monospace;fill:#b0a892"}, svg).textContent = "up";
+    }
     /* Each swing, faint. A wrist cannot cross 45 deg of arc in one 32 ms step,
        so a jump that big is the Euler heading giving way near vertical, not a
        movement - break the line rather than draw a swing that never happened. */
@@ -6188,18 +6271,41 @@ function rsRenderTrack(hostId, noteId, rows, opts){
       }
       el("path", {d, fill:"none", stroke:"#8a9270", "stroke-width":1, opacity:.18}, svg);
     }
-    // the average hand path: travelled so far solid, still to come faint
+    /* Two separate reasons a stretch of this curve should not be read
+       literally - the Euler heading giving way near vertical, and the elbow
+       folding where a straight arm is assumed - get ONE dashed treatment,
+       because they say the same thing to a golfer: treat the shape here
+       loosely. The note names both causes. Opacity is left to carry the
+       scrubber's travelled-so-far, so the two channels do not fight. */
     for (let k = 1; k < TRACK_N; k++){
       const a = rsProject(avg.mean[k-1], W, H, R), b = rsProject(avg.mean[k], W, H, R);
       const spread = (avg.sd[k-1] + avg.sd[k]) / 2;
-      const iffy = avg.shaky[k-1] || avg.shaky[k];
+      const iffy = avg.shaky[k-1] || avg.shaky[k]
+                || !trkTrusted(k, kStart, kI) || !trkTrusted(k-1, kStart, kI);
       const past = k <= trkK;
       el("line", {x1:a.x, y1:a.y, x2:b.x, y2:b.y,
         stroke: iffy ? "#b0a892" : "#3c4a30",
-        "stroke-width": Math.max(1.5, Math.min(7, spread/3)),
+        "stroke-width": iffy ? 1.6 : Math.max(1.5, Math.min(7, spread/3)),
         "stroke-dasharray": iffy ? "3 3" : "",
         "stroke-linecap":"round",
-        opacity: past ? (iffy ? .7 : .92) : (iffy ? .2 : .26)}, svg);
+        opacity: past ? (iffy ? .75 : .92) : (iffy ? .22 : .26)}, svg);
+    }
+    /* The one thing in this picture that SHOULD line up with the flag. The
+       whole arc is a closed loop around the body and never "points" anywhere;
+       the direction of travel at impact does, and for a square strike it runs
+       very nearly down the target line. Drawn long, so it can be read against
+       the flag by eye. */
+    if (Timp){
+      const hI = avg.mean[kI];
+      const tip = [hI[0] + Timp[0]*0.55, hI[1] + Timp[1]*0.55, hI[2] + Timp[2]*0.55];
+      const pa = rsProject(hI, W, H, R), pb = rsProject(tip, W, H, R);
+      const ang = Math.atan2(pb.y - pa.y, pb.x - pa.x), HD = 7;
+      el("line", {x1:pa.x, y1:pa.y, x2:pb.x, y2:pb.y, stroke:"#b4632f",
+        "stroke-width":2, "stroke-linecap":"round", opacity:.9}, svg);
+      el("path", {d:`M${pb.x.toFixed(1)},${pb.y.toFixed(1)} `
+        + `L${(pb.x - HD*Math.cos(ang - 0.42)).toFixed(1)},${(pb.y - HD*Math.sin(ang - 0.42)).toFixed(1)} `
+        + `L${(pb.x - HD*Math.cos(ang + 0.42)).toFixed(1)},${(pb.y - HD*Math.sin(ang + 0.42)).toFixed(1)} Z`,
+        fill:"#b4632f", opacity:.9}, svg);
     }
     // impact, always marked, so the scrubber has something to come home to
     const pI = rsProject(avg.mean[kI], W, H, R);
@@ -6248,10 +6354,17 @@ function rsRenderTrack(hostId, noteId, rows, opts){
   if (opts && opts.views !== false){
     const bar = document.createElement("div");
     bar.style.cssText = "display:flex;gap:6px;margin-top:8px";
-    for (const [lbl, az, elv] of [["Down the line", 0, 0.22], ["Face on", -Math.PI/2, 0.10]]){
+    /* Three views, and the third earns its place: path is a horizontal
+       bearing, and down-the-line projects both the arrow and the flag onto
+       the middle of the picture, where four degrees is four pixels. From
+       above it is an angle you can actually read. Azimuth PI rather than 0
+       so the target sits at the top of the screen; verified not mirrored,
+       which for a left/right readout is the whole point. */
+    for (const [lbl, az, elv] of [["Down the line", 0, 0.22], ["Face on", -Math.PI/2, 0.10],
+                                  ["Above", Math.PI, 1.35]]){
       const btn = document.createElement("button");
       btn.type = "button"; btn.className = "chip";
-      btn.style.cssText = "flex:1;padding:7px 10px;font-size:12px";
+      btn.style.cssText = "flex:1;min-width:0;padding:7px 4px;font-size:11.5px";
       btn.textContent = lbl;
       btn.addEventListener("click", () => { trkAz = az; trkEl = elv; draw(); });
       bar.appendChild(btn);
@@ -6285,10 +6398,14 @@ function rsRenderTrack(hostId, noteId, rows, opts){
       : `${t > 0 ? "+" : "\u2212"}${Math.abs(t).toFixed(2)} s`;
     const below = -v[2] * AL, along = v[0] * AL;
     const rel = avg.roll[trkK] - avg.roll[0];
-    read.textContent = `${trkPhase(trkK, kTop, kStart)}${tTxt ? " · " + tTxt : ""} · hand ${Math.round(Math.abs(below)*100)} cm `
-      + `${below >= 0 ? "below" : "above"} the shoulder, `
-      + `${Math.round(Math.abs(along)*100)} cm ${along >= 0 ? "toward" : "back from"} the target `
-      + `· forearm ${rel >= 0 ? "+" : "−"}${Math.abs(Math.round(rel))}°`;
+    /* Centimetres are only meaningful where a straight arm is a fair
+       description. Outside that, say so rather than quote a number the
+       elbow has already invalidated. */
+    const place = trkTrusted(trkK, kStart, kI)
+      ? `hand ${Math.round(Math.abs(below)*100)} cm ${below >= 0 ? "below" : "above"} the `
+        + `shoulder, ${Math.round(Math.abs(along)*100)} cm ${along >= 0 ? "toward" : "back from"} the target`
+      : "position approximate here \u2014 the elbow folds and the hand comes in";
+    read.textContent = `${trkPhase(trkK, kTop, kStart)}${tTxt ? " · " + tTxt : ""} · ${place} · forearm ${rel >= 0 ? "+" : "−"}${Math.abs(Math.round(rel))}°`;
     draw();
   };
   refresh();
@@ -6361,20 +6478,33 @@ function rsRenderTrack(hostId, noteId, rows, opts){
     const worst = Math.max(...avg.sd), best = Math.min(...avg.sd);
     const a0 = avg.mean[0], a1 = avg.mean[TRACK_N - 1];
     const sweep = trkAngleStep(a0, a1) * 180/Math.PI;
-    const nShaky = avg.shaky.filter(Boolean).length;
     note.textContent = (squared ? "" :
         "The target axis is your address heading, not the target line — "
       + "the two are far apart until you set square at the range. ")
       + `${avg.n} clean swing${avg.n === 1 ? "" : "s"}. `
-      + "The sensor measures where your forearm points, so the hand is drawn an "
-      + "arm's length from a shoulder held still. That is right wherever your "
-      + "lead arm is straight — address through impact — and draws the hand too "
-      + "far out at the top, where the elbow folds. "
-      + `The line thickens where the swings disagreed: ${best.toFixed(0)}° at your steadiest point, `
-      + `${worst.toFixed(0)}° at your loosest, ${avg.sd[kI].toFixed(0)}° at impact — `
-      + `against about ${sweep.toFixed(0)}° of total sweep. `
-      + (nShaky ? "The dashed stretch is where the forearm passes near vertical and the sensor's "
-                + "heading stops being well defined; treat its shape loosely. " : "")
+      + "What the sensor measures is where your forearm POINTS. Your hand is "
+      + "that same curve rescaled to arm's length from a fixed shoulder, so it "
+      + "is right while your lead arm is straight \u2014 address through impact \u2014 "
+      + "and wrong once the elbow folds past it. The thin dashed stretches are "
+      + "that follow-through, plus anywhere the heading gives way near "
+      + "vertical. Treat their shape loosely. "
+      + "The arc is a closed loop around your body, so it never points anywhere. "
+      + "The arrow does: it is your hand's direction of travel at impact, which "
+      + "for a square strike runs very nearly down the target line. "
+      + (arc
+         ? `Off the arc that is ${pm(arc)} (${pathWord(arc.med)})`
+           + (vel
+              ? `, against ${pm(vel)} from the velocity at impact, which the app `
+                + "integrates from a different channel of the sensor. The two share "
+                + "no arithmetic, so the gap between them is this drawing's error "
+                + `bar: ${Math.abs(arc.med - vel.med).toFixed(1)}\u00b0 here`
+                + (Math.abs(arc.med - vel.med) > 10
+                   ? ", which is too wide to read the arrow literally. " : ". ")
+              : ". ")
+         : "")
+      + `The line thickens where the swings disagreed: ${best.toFixed(0)}\u00b0 at your steadiest `
+      + `point, ${worst.toFixed(0)}\u00b0 at your loosest, ${avg.sd[kI].toFixed(0)}\u00b0 at impact \u2014 `
+      + `against about ${sweep.toFixed(0)}\u00b0 of total sweep. `
       + "Drag to turn it, scrub to walk through the swing.";
   }
 }
